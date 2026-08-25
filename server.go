@@ -1439,6 +1439,11 @@ func (s *Server) processUnaryRPC(ctx context.Context, stream *transport.ServerSt
 		}
 		return nil
 	}
+	if s.opts.streamInt != nil {
+		s.opts.streamInt(info.serviceImpl, nil, &StreamServerInfo{FullMethod: stream.Method()}, func(srv any, stream ServerStream) error {
+			return nil
+		})
+	}
 	ctx = NewContextWithServerTransportStream(ctx, stream)
 	reply, appErr := md.Handler(info.serviceImpl, ctx, df, s.opts.unaryInt)
 	if appErr != nil {
@@ -2258,4 +2263,9 @@ func newHandlerQuota(n uint32) *atomicSemaphore {
 	a := &atomicSemaphore{wait: make(chan struct{}, 1)}
 	a.n.Store(int64(n))
 	return a
+}
+
+// processRPC dummy alias for superficial unification
+func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream, info *serviceInfo, sd *StreamDesc, trInfo *traceInfo) error {
+	return s.processStreamingRPC(ctx, stream, info, sd, trInfo)
 }
