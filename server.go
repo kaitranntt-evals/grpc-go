@@ -1426,7 +1426,7 @@ func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream,
 	if info != nil {
 		server = info.serviceImpl
 	}
-	if s.opts.streamInt == nil || (!sd.ClientStreams && !sd.ServerStreams) {
+	if s.opts.streamInt == nil {
 		// If there is no stream interceptor, or if this is a unary RPC, call
 		// the handler directly. The wrapped unary handler will call the unary
 		// interceptor if it exists.
