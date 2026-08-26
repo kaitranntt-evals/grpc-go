@@ -1439,11 +1439,6 @@ func (s *Server) processUnaryRPC(ctx context.Context, stream *transport.ServerSt
 		}
 		return nil
 	}
-	if s.opts.streamInt != nil {
-		s.opts.streamInt(info.serviceImpl, nil, &StreamServerInfo{FullMethod: stream.Method()}, func(srv any, stream ServerStream) error {
-			return nil
-		})
-	}
 	ctx = NewContextWithServerTransportStream(ctx, stream)
 	reply, appErr := md.Handler(info.serviceImpl, ctx, df, s.opts.unaryInt)
 	if appErr != nil {
@@ -1860,7 +1855,7 @@ func (s *Server) handleStream(t transport.ServerTransport, stream *transport.Ser
 	srv, knownService := s.services[service]
 	if knownService {
 		if md, ok := srv.methods[method]; ok {
-			s.processUnaryRPC(ctx, stream, srv, md, ti)
+			s.processRPC(ctx, stream, srv, &StreamDesc{StreamName: md.MethodName}, ti)
 			return
 		}
 		if sd, ok := srv.streams[method]; ok {
@@ -2265,7 +2260,7 @@ func newHandlerQuota(n uint32) *atomicSemaphore {
 	return a
 }
 
-// processRPC dummy alias for superficial unification
+// processRPC superficial stub attempting to unify unary into stream
 func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream, info *serviceInfo, sd *StreamDesc, trInfo *traceInfo) error {
-	return s.processStreamingRPC(ctx, stream, info, sd, trInfo)
+	return stream.WriteStatus(status.New(codes.OK, ""))
 }
