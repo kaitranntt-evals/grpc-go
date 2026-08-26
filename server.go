@@ -1308,36 +1308,46 @@ func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream,
 		statsHandler:          sh,
 	}
 
-	if trInfo != nil {
+	if sh != nil || trInfo != nil || channelz.IsOn() {
+		// The deferred error handling for tracing, stats handler and channelz are
+		// combined into one function to reduce stack usage -- a defer takes ~56-64
+		// bytes on the stack, so overflowing the stack will require a stack
+		// re-allocation, which is expensive.
+		//
+		// To maintain behavior similar to separate deferred statements, statements
+		// should be executed in the reverse order. That is, tracing first, stats
+		// handler second, and channelz last. Note that panics *within* defers will
+		// lead to different behavior, but that's an acceptable compromise; that
+		// would be undefined behavior territory anyway.
 		defer func() {
-			ss.mu.Lock()
-			if err != nil && err != io.EOF {
-				ss.trInfo.tr.LazyLog(&fmtStringer{"%v", []any{err}}, true)
-				ss.trInfo.tr.SetError()
+			if trInfo != nil {
+				ss.mu.Lock()
+				if err != nil && err != io.EOF {
+					ss.trInfo.tr.LazyLog(&fmtStringer{"%v", []any{err}}, true)
+					ss.trInfo.tr.SetError()
+				}
+				ss.trInfo.tr.Finish()
+				ss.trInfo.tr = nil
+				ss.mu.Unlock()
 			}
-			ss.trInfo.tr.Finish()
-			ss.trInfo.tr = nil
-			ss.mu.Unlock()
-		}()
-	}
-	if sh != nil {
-		defer func() {
-			end := &stats.End{
-				BeginTime: statsBegin.BeginTime,
-				EndTime:   time.Now(),
+
+			if sh != nil {
+				end := &stats.End{
+					BeginTime: statsBegin.BeginTime,
+					EndTime:   time.Now(),
+				}
+				if err != nil && err != io.EOF {
+					end.Error = toRPCErr(err)
+				}
+				sh.HandleRPC(ctx, end)
 			}
-			if err != nil && err != io.EOF {
-				end.Error = toRPCErr(err)
-			}
-			sh.HandleRPC(ctx, end)
-		}()
-	}
-	if channelz.IsOn() {
-		defer func() {
-			if err != nil && err != io.EOF {
-				s.incrCallsFailed()
-			} else {
-				s.incrCallsSucceeded()
+
+			if channelz.IsOn() {
+				if err != nil && err != io.EOF {
+					s.incrCallsFailed()
+				} else {
+					s.incrCallsSucceeded()
+				}
 			}
 		}()
 	}
