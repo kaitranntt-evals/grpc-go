@@ -1575,6 +1575,14 @@ func (s *Server) handleStream(t transport.ServerTransport, stream *transport.Ser
 
 	srv, knownService := s.services[service]
 	if knownService {
+		if md, ok := srv.methods[method]; ok {
+			s.processRPC(ctx, stream, srv, &StreamDesc{
+				Handler:       s.wrapUnaryHandler(md),
+				ServerStreams: false,
+				ClientStreams: false,
+			}, ti)
+			return
+		}
 		if sd, ok := srv.streams[method]; ok {
 			s.processRPC(ctx, stream, srv, sd, ti)
 			return
