@@ -1492,7 +1492,7 @@ func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream,
 			binlog.Log(ctx, st)
 		}
 	}
-	if err := ss.s.WriteStatus(statusOK); err != nil {
+	if err = ss.s.WriteStatus(statusOK); err != nil {
 		channelz.Warningf(logger, s.channelz, "grpc: Server.processRPC failed to write status: %v", err)
 	}
 	return err
