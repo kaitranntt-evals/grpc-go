@@ -444,6 +444,18 @@ func (s) TestInterceptorSegregation(t *testing.T) {
 		UnaryCallF: func(context.Context, *testpb.SimpleRequest) (*testpb.SimpleResponse, error) {
 			return &testpb.SimpleResponse{}, nil
 		},
+		StreamingOutputCallF: func(_ *testpb.StreamingOutputCallRequest, stream testgrpc.TestService_StreamingOutputCallServer) error {
+			return stream.Send(&testpb.StreamingOutputCallResponse{})
+		},
+		StreamingInputCallF: func(stream testgrpc.TestService_StreamingInputCallServer) error {
+			for {
+				if _, err := stream.Recv(); err == io.EOF {
+					return stream.SendAndClose(&testpb.StreamingInputCallResponse{})
+				} else if err != nil {
+					return err
+				}
+			}
+		},
 		FullDuplexCallF: func(testgrpc.TestService_FullDuplexCallServer) error {
 			return nil
 		},
@@ -466,7 +478,35 @@ func (s) TestInterceptorSegregation(t *testing.T) {
 		t.Error("Stream interceptor was called for Unary RPC")
 	}
 
-	// Make a streaming RPC and ensure that only the streaming interceptor was
+	// Make a server-streaming RPC and ensure that only the stream interceptor was invoked.
+	unaryCalled.Store(false)
+	streamCalled.Store(false)
+	serverStream, err := ss.Client.StreamingOutputCall(ctx, &testpb.StreamingOutputCallRequest{})
+	if err != nil {
+		t.Fatalf("ss.Client.StreamingOutputCall failed: %v", err)
+	}
+	if _, err := serverStream.Recv(); err != nil {
+		t.Fatalf("serverStream.Recv returned %v", err)
+	}
+	if unaryCalled.Load() || !streamCalled.Load() {
+		t.Errorf("server-streaming interceptor calls: unary=%v stream=%v, want false/true", unaryCalled.Load(), streamCalled.Load())
+	}
+
+	// Make a client-streaming RPC and ensure that only the stream interceptor was invoked.
+	unaryCalled.Store(false)
+	streamCalled.Store(false)
+	clientStream, err := ss.Client.StreamingInputCall(ctx)
+	if err != nil {
+		t.Fatalf("ss.Client.StreamingInputCall failed: %v", err)
+	}
+	if _, err := clientStream.CloseAndRecv(); err != nil {
+		t.Fatalf("clientStream.CloseAndRecv returned %v", err)
+	}
+	if unaryCalled.Load() || !streamCalled.Load() {
+		t.Errorf("client-streaming interceptor calls: unary=%v stream=%v, want false/true", unaryCalled.Load(), streamCalled.Load())
+	}
+
+	// Make a bidirectional streaming RPC and ensure that only the streaming interceptor was
 	// invoked.
 	unaryCalled.Store(false)
 	streamCalled.Store(false)

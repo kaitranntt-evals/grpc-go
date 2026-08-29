@@ -117,9 +117,14 @@ type ServiceDesc struct {
 // serviceInfo wraps information about a service. It is very similar to
 // ServiceDesc and is constructed from it for internal purposes.
 type serviceInfo struct {
-	serviceImpl any                    // Implementation for the methods in this service.
-	streams     map[string]*StreamDesc // Streaming descriptors and wrapped unary descriptors for this service.
+	serviceImpl any
+	handlers    map[string]*serverMethod
 	mdata       any
+}
+
+type serverMethod struct {
+	desc    *StreamDesc
+	isUnary bool
 }
 
 // Server is a gRPC server to serve RPC requests.
@@ -788,20 +793,21 @@ func (s *Server) register(sd *ServiceDesc, ss any) {
 	}
 	info := &serviceInfo{
 		serviceImpl: ss,
-		streams:     make(map[string]*StreamDesc),
+		handlers:    make(map[string]*serverMethod),
 		mdata:       sd.Metadata,
 	}
 	for i := range sd.Streams {
 		d := &sd.Streams[i]
-		info.streams[d.StreamName] = d
+		info.handlers[d.StreamName] = &serverMethod{desc: d}
 	}
 	for i := range sd.Methods {
 		d := &sd.Methods[i]
-		info.streams[d.MethodName] = &StreamDesc{
-			StreamName:    d.MethodName,
-			Handler:       s.wrapUnaryHandler(d),
-			ServerStreams: false,
-			ClientStreams: false,
+		info.handlers[d.MethodName] = &serverMethod{
+			desc: &StreamDesc{
+				StreamName: d.MethodName,
+				Handler:    s.wrapUnaryHandler(d),
+			},
+			isUnary: true,
 		}
 	}
 	s.services[sd.ServiceName] = info
@@ -829,24 +835,24 @@ type ServiceInfo struct {
 func (s *Server) GetServiceInfo() map[string]ServiceInfo {
 	ret := make(map[string]ServiceInfo)
 	for n, srv := range s.services {
-		methods := make([]MethodInfo, 0, len(srv.streams))
+		methods := make([]MethodInfo, 0, len(srv.handlers))
 		// Iterate over unary methods first to maintain backward compatibility of order.
-		for m, d := range srv.streams {
-			if !d.ClientStreams && !d.ServerStreams {
+		for name, method := range srv.handlers {
+			if method.isUnary {
 				methods = append(methods, MethodInfo{
-					Name:           m,
+					Name:           name,
 					IsClientStream: false,
 					IsServerStream: false,
 				})
 			}
 		}
 		// Iterate over streaming methods.
-		for m, d := range srv.streams {
-			if d.ClientStreams || d.ServerStreams {
+		for name, method := range srv.handlers {
+			if !method.isUnary {
 				methods = append(methods, MethodInfo{
-					Name:           m,
-					IsClientStream: d.ClientStreams,
-					IsServerStream: d.ServerStreams,
+					Name:           name,
+					IsClientStream: method.desc.ClientStreams,
+					IsServerStream: method.desc.ServerStreams,
 				})
 			}
 		}
@@ -1279,7 +1285,8 @@ func (s *Server) wrapUnaryHandler(md *MethodDesc) StreamHandler {
 	}
 }
 
-func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream, info *serviceInfo, sd *StreamDesc, trInfo *traceInfo) (err error) {
+func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream, info *serviceInfo, method *serverMethod, trInfo *traceInfo) (err error) {
+	sd := method.desc
 	if channelz.IsOn() {
 		s.incrCallsStarted()
 	}
@@ -1300,10 +1307,12 @@ func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream,
 		p:                     parser{r: stream, bufferPool: s.opts.bufferPool},
 		codec:                 s.getCodec(stream.ContentSubtype()),
 		desc:                  sd,
+		isUnary:               method.isUnary,
 		maxReceiveMessageSize: s.opts.maxReceiveMessageSize,
 		maxSendMessageSize:    s.opts.maxSendMessageSize,
 		trInfo:                trInfo,
 		statsHandler:          sh,
+		channelz:              s.channelz,
 	}
 
 	if sh != nil || trInfo != nil || channelz.IsOn() {
@@ -1426,7 +1435,7 @@ func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream,
 	if info != nil {
 		server = info.serviceImpl
 	}
-	if s.opts.streamInt == nil || (!sd.ClientStreams && !sd.ServerStreams) {
+	if s.opts.streamInt == nil || method.isUnary {
 		// If there is no stream interceptor, or if this is a unary RPC, call
 		// the handler directly. The wrapped unary handler will call the unary
 		// interceptor if it exists.
@@ -1573,14 +1582,14 @@ func (s *Server) handleStream(t transport.ServerTransport, stream *transport.Ser
 
 	srv, knownService := s.services[service]
 	if knownService {
-		if sd, ok := srv.streams[method]; ok {
-			s.processRPC(ctx, stream, srv, sd, ti)
+		if handler, ok := srv.handlers[method]; ok {
+			s.processRPC(ctx, stream, srv, handler, ti)
 			return
 		}
 	}
 	// Unknown service, or known server unknown method.
 	if unknownDesc := s.opts.unknownStreamDesc; unknownDesc != nil {
-		s.processRPC(ctx, stream, nil, unknownDesc, ti)
+		s.processRPC(ctx, stream, nil, &serverMethod{desc: unknownDesc}, ti)
 		return
 	}
 	var errDesc string
@@ -1784,7 +1793,7 @@ func (s *Server) isRegisteredMethod(serviceMethod string) bool {
 	method := serviceMethod[pos+1:]
 	srv, knownService := s.services[service]
 	if knownService {
-		if _, ok := srv.streams[method]; ok {
+		if _, ok := srv.handlers[method]; ok {
 			return true
 		}
 	}
