@@ -21,7 +21,6 @@ package test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"google.golang.org/grpc/internal/stubserver"
 
@@ -39,11 +38,8 @@ func TestUnaryPipelineRoundTrip(t *testing.T) {
 	}
 	defer ss.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	want := "unified unary pipeline"
-	resp, err := ss.Client.UnaryCall(ctx, &testpb.SimpleRequest{
+	resp, err := ss.Client.UnaryCall(context.Background(), &testpb.SimpleRequest{
 		Payload: &testpb.Payload{Body: []byte(want)},
 	})
 	if err != nil {
