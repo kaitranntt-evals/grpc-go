@@ -1272,7 +1272,7 @@ func (a *csAttempt) recvMsg(m any, payInfo *payloadInfo) (err error) {
 		// Only initialize this state once per stream.
 		a.decompressorSet = true
 	}
-	if err := recv(&a.parser, cs.codec, a.transportStream, a.decompressorV0, m, *cs.callInfo.maxReceiveMessageSize, payInfo, a.decompressorV1, false); err != nil {
+	if err := recv(&a.parser, cs.codec, a.transportStream, a.decompressorV0, m, *cs.callInfo.maxReceiveMessageSize, payInfo, a.decompressorV1, false, ""); err != nil {
 		if err == io.EOF {
 			if statusErr := a.transportStream.Status().Err(); statusErr != nil {
 				return statusErr
@@ -1606,7 +1606,7 @@ func (as *addrConnStream) RecvMsg(m any) (err error) {
 		// Only initialize this state once per stream.
 		as.decompressorSet = true
 	}
-	if err := recv(&as.parser, as.codec, as.transportStream, as.decompressorV0, m, *as.callInfo.maxReceiveMessageSize, nil, as.decompressorV1, false); err != nil {
+	if err := recv(&as.parser, as.codec, as.transportStream, as.decompressorV0, m, *as.callInfo.maxReceiveMessageSize, nil, as.decompressorV1, false, ""); err != nil {
 		if err == io.EOF {
 			if statusErr := as.transportStream.Status().Err(); statusErr != nil {
 				return statusErr
@@ -1701,11 +1701,12 @@ type ServerStream interface {
 
 // serverStream implements a server side Stream.
 type serverStream struct {
-	ctx   context.Context
-	s     *transport.ServerStream
-	p     parser
-	codec baseCodec
-	desc  *StreamDesc
+	ctx     context.Context
+	s       *transport.ServerStream
+	p       parser
+	codec   baseCodec
+	desc    *StreamDesc
+	isUnary bool
 
 	compressorV0   Compressor
 	compressorV1   encoding.Compressor
@@ -1721,6 +1722,7 @@ type serverStream struct {
 	trInfo                *traceInfo
 
 	statsHandler stats.Handler
+	channelz     *channelz.Server
 
 	binlogs []binarylog.MethodLogger
 	// serverHeaderBinlogged indicates whether server header has been logged. It
@@ -1815,6 +1817,15 @@ func (ss *serverStream) SendMsg(m any) (err error) {
 	// load hdr, payload, data
 	hdr, data, payload, pf, err := prepareMsg(m, ss.codec, ss.compressorV0, ss.compressorV1, ss.p.bufferPool)
 	if err != nil {
+		var preparationErr *messagePreparationError
+		if errors.As(err, &preparationErr) {
+			switch preparationErr.stage {
+			case messagePreparationEncoding:
+				channelz.Error(logger, ss.channelz, "grpc: server failed to encode response: ", err)
+			case messagePreparationCompression:
+				channelz.Error(logger, ss.channelz, "grpc: server failed to compress response: ", err)
+			}
+		}
 		return err
 	}
 
@@ -1832,9 +1843,12 @@ func (ss *serverStream) SendMsg(m any) (err error) {
 
 	// TODO(dfawley): should we be checking len(data) instead?
 	if payloadLen > ss.maxSendMessageSize {
+		if ss.isUnary {
+			return status.Errorf(codes.ResourceExhausted, "grpc: trying to send message larger than max (%d vs. %d)", payloadLen, ss.maxSendMessageSize)
+		}
 		return status.Errorf(codes.ResourceExhausted, "trying to send message larger than max (%d vs. %d)", payloadLen, ss.maxSendMessageSize)
 	}
-	if err := ss.s.Write(hdr, payload, &transport.WriteOptions{Last: false}); err != nil {
+	if err := ss.s.Write(hdr, payload, &transport.WriteOptions{Last: ss.isUnary}); err != nil {
 		return toRPCErr(err)
 	}
 
@@ -1849,8 +1863,12 @@ func (ss *serverStream) SendMsg(m any) (err error) {
 				binlog.Log(ss.ctx, sh)
 			}
 		}
+		message := data.Materialize()
+		if ss.isUnary && message == nil {
+			message = []byte{}
+		}
 		sm := &binarylog.ServerMessage{
-			Message: data.Materialize(),
+			Message: message,
 		}
 		for _, binlog := range ss.binlogs {
 			binlog.Log(ss.ctx, sm)
@@ -1892,7 +1910,7 @@ func (ss *serverStream) RecvMsg(m any) (err error) {
 		payInfo = &payloadInfo{}
 		defer payInfo.free()
 	}
-	if err := recv(&ss.p, ss.codec, ss.s, ss.decompressorV0, m, ss.maxReceiveMessageSize, payInfo, ss.decompressorV1, true); err != nil {
+	if err := recv(&ss.p, ss.codec, ss.s, ss.decompressorV0, m, ss.maxReceiveMessageSize, payInfo, ss.decompressorV1, true, ss.unmarshalErrorDescription()); err != nil {
 		if err == io.EOF {
 			if len(ss.binlogs) != 0 {
 				chc := &binarylog.ClientHalfClose{}
@@ -1936,12 +1954,19 @@ func (ss *serverStream) RecvMsg(m any) (err error) {
 	}
 	// Special handling for non-client-stream rpcs.
 	// This recv expects EOF or errors, so we don't collect inPayload.
-	if err := recv(&ss.p, ss.codec, ss.s, ss.decompressorV0, m, ss.maxReceiveMessageSize, nil, ss.decompressorV1, true); err == io.EOF {
+	if err := recv(&ss.p, ss.codec, ss.s, ss.decompressorV0, m, ss.maxReceiveMessageSize, nil, ss.decompressorV1, true, ss.unmarshalErrorDescription()); err == io.EOF {
 		return nil
 	} else if err != nil {
 		return err
 	}
 	return status.Error(codes.Internal, "cardinality violation: received multiple request messages for non-client-streaming RPC")
+}
+
+func (ss *serverStream) unmarshalErrorDescription() string {
+	if ss.isUnary {
+		return "grpc: error unmarshalling request"
+	}
+	return "grpc: failed to unmarshal the received message"
 }
 
 // MethodFromServerStream returns the method string for the input stream.
@@ -1955,6 +1980,24 @@ func MethodFromServerStream(stream ServerStream) (string, bool) {
 // compression was made and therefore whether the payload needs to be freed in
 // addition to the returned data. Freeing the payload if the returned boolean is
 // false can lead to undefined behavior.
+type messagePreparationStage uint8
+
+const (
+	messagePreparationEncoding messagePreparationStage = iota
+	messagePreparationCompression
+)
+
+type messagePreparationError struct {
+	stage messagePreparationStage
+	err   error
+}
+
+func (e *messagePreparationError) Error() string { return e.err.Error() }
+func (e *messagePreparationError) Unwrap() error { return e.err }
+func (e *messagePreparationError) GRPCStatus() *status.Status {
+	return status.Convert(e.err)
+}
+
 func prepareMsg(m any, codec baseCodec, cp Compressor, comp encoding.Compressor, pool mem.BufferPool) (hdr []byte, data, payload mem.BufferSlice, pf payloadFormat, err error) {
 	if preparedMsg, ok := m.(*PreparedMsg); ok {
 		return preparedMsg.hdr, preparedMsg.encodedData, preparedMsg.payload, preparedMsg.pf, nil
@@ -1963,12 +2006,12 @@ func prepareMsg(m any, codec baseCodec, cp Compressor, comp encoding.Compressor,
 	// Marshal and Compress the data at this point
 	data, err = encode(codec, m)
 	if err != nil {
-		return nil, nil, nil, 0, err
+		return nil, nil, nil, 0, &messagePreparationError{stage: messagePreparationEncoding, err: err}
 	}
 	compData, pf, err := compress(data, cp, comp, pool)
 	if err != nil {
 		data.Free()
-		return nil, nil, nil, 0, err
+		return nil, nil, nil, 0, &messagePreparationError{stage: messagePreparationCompression, err: err}
 	}
 	hdr, payload = msgHeader(data, compData, pf)
 	return hdr, data, payload, pf, nil

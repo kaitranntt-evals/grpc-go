@@ -1050,7 +1050,7 @@ type recvCompressor interface {
 // For the two compressor parameters, both should not be set, but if they are,
 // dc takes precedence over compressor.
 // TODO(dfawley): wrap the old compressor/decompressor using the new API?
-func recv(p *parser, c baseCodec, s recvCompressor, dc Decompressor, m any, maxReceiveMessageSize int, payInfo *payloadInfo, compressor encoding.Compressor, isServer bool) error {
+func recv(p *parser, c baseCodec, s recvCompressor, dc Decompressor, m any, maxReceiveMessageSize int, payInfo *payloadInfo, compressor encoding.Compressor, isServer bool, unmarshalErrorDescription string) error {
 	data, err := recvAndDecompress(p, s, dc, maxReceiveMessageSize, payInfo, compressor, isServer)
 	if err != nil {
 		return err
@@ -1061,7 +1061,10 @@ func recv(p *parser, c baseCodec, s recvCompressor, dc Decompressor, m any, maxR
 	defer data.Free()
 
 	if err := c.Unmarshal(data, m); err != nil {
-		return status.Errorf(codes.Internal, "grpc: failed to unmarshal the received message: %v", err)
+		if unmarshalErrorDescription == "" {
+			unmarshalErrorDescription = "grpc: failed to unmarshal the received message"
+		}
+		return status.Errorf(codes.Internal, "%s: %v", unmarshalErrorDescription, err)
 	}
 
 	return nil
