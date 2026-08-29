@@ -439,7 +439,26 @@ func (s) TestInterceptorSegregation(t *testing.T) {
 		streamCalled.Store(true)
 		return handler(srv, ss)
 	}
-	sopts := []grpc.ServerOption{grpc.UnaryInterceptor(unaryInt), grpc.StreamInterceptor(streamInt)}
+	falseFalseDesc := &grpc.ServiceDesc{
+		ServiceName: "eval.FalseFalseService",
+		HandlerType: (*any)(nil),
+		Streams: []grpc.StreamDesc{{
+			StreamName: "Call",
+			Handler: func(_ any, stream grpc.ServerStream) error {
+				if err := stream.RecvMsg(new(testpb.Empty)); err != nil {
+					return err
+				}
+				return stream.SendMsg(&testpb.Empty{})
+			},
+		}},
+	}
+	sopts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(unaryInt),
+		grpc.StreamInterceptor(streamInt),
+		stubserver.RegisterServiceServerOption(func(registrar grpc.ServiceRegistrar) {
+			registrar.RegisterService(falseFalseDesc, struct{}{})
+		}),
+	}
 	ss := &stubserver.StubServer{
 		UnaryCallF: func(context.Context, *testpb.SimpleRequest) (*testpb.SimpleResponse, error) {
 			return &testpb.SimpleResponse{}, nil
@@ -522,5 +541,26 @@ func (s) TestInterceptorSegregation(t *testing.T) {
 	}
 	if !streamCalled.Load() {
 		t.Error("Stream interceptor was not called for Streaming RPC")
+	}
+
+	// A hand-written StreamDesc with both direction flags false is still a
+	// streaming registration and must use the stream interceptor.
+	unaryCalled.Store(false)
+	streamCalled.Store(false)
+	falseFalseStream, err := ss.CC.NewStream(ctx, &grpc.StreamDesc{StreamName: "Call"}, "/eval.FalseFalseService/Call")
+	if err != nil {
+		t.Fatalf("NewStream() failed: %v", err)
+	}
+	if err := falseFalseStream.SendMsg(&testpb.Empty{}); err != nil {
+		t.Fatalf("falseFalseStream.SendMsg() failed: %v", err)
+	}
+	if err := falseFalseStream.CloseSend(); err != nil {
+		t.Fatalf("falseFalseStream.CloseSend() failed: %v", err)
+	}
+	if err := falseFalseStream.RecvMsg(new(testpb.Empty)); err != nil {
+		t.Fatalf("falseFalseStream.RecvMsg() failed: %v", err)
+	}
+	if unaryCalled.Load() || !streamCalled.Load() {
+		t.Errorf("false/false stream interceptor calls: unary=%v stream=%v, want false/true", unaryCalled.Load(), streamCalled.Load())
 	}
 }

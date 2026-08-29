@@ -1715,7 +1715,8 @@ type serverStream struct {
 
 	sendCompressorName string
 
-	recvFirstMsg bool // set after the first message is received
+	recvFirstMsg  bool // set after the first message is received
+	sendAttempted bool // set when SendMsg is called
 
 	maxReceiveMessageSize int
 	maxSendMessageSize    int
@@ -1782,6 +1783,7 @@ func (ss *serverStream) SetTrailer(md metadata.MD) {
 }
 
 func (ss *serverStream) SendMsg(m any) (err error) {
+	ss.sendAttempted = true
 	defer func() {
 		if ss.trInfo != nil {
 			ss.mu.Lock()

@@ -1464,7 +1464,7 @@ func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream,
 		}
 		if len(ss.binlogs) != 0 {
 			if !ss.serverHeaderBinlogged {
-				if h, _ := ss.s.Header(); h.Len() > 0 {
+				if h, _ := ss.s.Header(); h.Len() > 0 || (ss.isUnary && ss.sendAttempted) {
 					sh := &binarylog.ServerHeader{
 						Header: h,
 					}
