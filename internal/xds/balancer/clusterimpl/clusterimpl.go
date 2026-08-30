@@ -330,6 +330,7 @@ func buildProviderFunc(configs map[string]*certprovider.BuildableConfig, instanc
 // management server, creates appropriate certificate provider plugins, and
 // updates the HandshakeInfo which is added as an address attribute in
 // NewSubConn() calls.
+// certificate provider lifetime note
 func (b *clusterImplBalancer) handleSecurityConfig(config *xdsresource.SecurityConfig) error {
 	// If xdsCredentials are not in use, i.e, the user did not want to get
 	// security configuration from an xDS server, we should not be acting on the
