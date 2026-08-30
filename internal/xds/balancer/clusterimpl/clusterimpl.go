@@ -83,7 +83,7 @@ func (bb) Build(cc balancer.ClientConn, bOpts balancer.BuildOptions) balancer.Ba
 		loadWrapper:     loadstore.NewWrapper(),
 		requestCountMax: defaultRequestCountMax,
 	}
-	b.xdsHIPtr.Store(xds.NewHandshakeInfo(nil, nil, nil, "", false, false, false))
+	b.xdsHIPtr.Store(xds.NewRefCountedHandshakeInfo(nil, nil, nil, "", false, false, false))
 	b.logger = prefixLogger(b)
 	b.child = gracefulswitch.NewBalancer(b, bOpts)
 	b.logger.Infof("Created")
@@ -369,7 +369,7 @@ func (b *clusterImplBalancer) handleSecurityConfig(config *xdsresource.SecurityC
 	// handles this by delegating to its fallback credentials.
 	if config == nil {
 		b.securityConfig = nil
-		oldHI := b.xdsHIPtr.Swap(xds.NewHandshakeInfo(nil, nil, nil, "", false, false, false))
+		oldHI := b.xdsHIPtr.Swap(xds.NewRefCountedHandshakeInfo(nil, nil, nil, "", false, false, false))
 		if oldHI != nil {
 			oldHI.Decrement()
 		}
@@ -381,7 +381,7 @@ func (b *clusterImplBalancer) handleSecurityConfig(config *xdsresource.SecurityC
 		return err
 	}
 
-	newHI := xds.NewHandshakeInfo(rootProvider, identityProvider, config.SubjectAltNameMatchers, config.SNI, false, config.AutoSNISANValidation, config.UseAutoHostSNI)
+	newHI := xds.NewRefCountedHandshakeInfo(rootProvider, identityProvider, config.SubjectAltNameMatchers, config.SNI, false, config.AutoSNISANValidation, config.UseAutoHostSNI)
 	b.securityConfig = config
 	oldHI := b.xdsHIPtr.Swap(newHI)
 	if oldHI != nil {

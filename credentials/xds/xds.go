@@ -30,7 +30,6 @@ import (
 	"google.golang.org/grpc/credentials"
 	credinternal "google.golang.org/grpc/internal/credentials"
 	xdsinternal "google.golang.org/grpc/internal/credentials/xds"
-	"google.golang.org/grpc/internal/grpcsync"
 )
 
 // ClientOptions contains parameters to configure a new client-side xDS
@@ -168,7 +167,7 @@ func (c *credsImpl) ServerHandshake(rawConn net.Conn) (net.Conn, credentials.Aut
 	// `HandshakeInfo` does not contain the information we are looking for, we
 	// delegate the handshake to the fallback credentials.
 	hiConn, ok := rawConn.(interface {
-		XDSHandshakeInfo() (*grpcsync.RefCounted[xdsinternal.HandshakeInfo], error)
+		XDSHandshakeInfo() (*xdsinternal.HandshakeInfo, error)
 	})
 	if !ok {
 		return c.fallback.ServerHandshake(rawConn)
@@ -176,6 +175,9 @@ func (c *credsImpl) ServerHandshake(rawConn net.Conn) (net.Conn, credentials.Aut
 	hi, err := hiConn.XDSHandshakeInfo()
 	if err != nil {
 		return nil, nil, err
+	}
+	if hi.UseFallbackCreds() {
+		return c.fallback.ServerHandshake(rawConn)
 	}
 
 	// An xds-enabled gRPC server is expected to wrap the underlying raw
@@ -190,14 +192,10 @@ func (c *credsImpl) ServerHandshake(rawConn net.Conn) (net.Conn, credentials.Aut
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
 
-	cfg, useFallback, done, err := xdsinternal.ServerSideTLSConfig(ctx, hi)
+	cfg, err := hi.ServerSideTLSConfig(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
-	if useFallback {
-		return c.fallback.ServerHandshake(rawConn)
-	}
-	defer done()
 
 	conn := tls.Server(rawConn, cfg)
 	if err := conn.Handshake(); err != nil {

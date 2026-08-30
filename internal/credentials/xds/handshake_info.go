@@ -97,10 +97,11 @@ type HandshakeInfo struct {
 	identityProvider certprovider.Provider
 }
 
-// NewHandshakeInfo returns a new reference counted HandshakeInfo configured
-// with the provided options.
-func NewHandshakeInfo(rootProvider, identityProvider certprovider.Provider, sanMatchers []matcher.StringMatcher, sni string, requireClientCert, validateSANUsingSNI, useAutoHostSNI bool) *grpcsync.RefCounted[HandshakeInfo] {
-	hi := &HandshakeInfo{
+// NewHandshakeInfo returns a new HandshakeInfo configured with the provided
+// options. Server-side callers retain the existing per-connection ownership
+// model.
+func NewHandshakeInfo(rootProvider, identityProvider certprovider.Provider, sanMatchers []matcher.StringMatcher, requireClientCert bool, sni string, validateSANUsingSNI, useAutoHostSNI bool) *HandshakeInfo {
+	return &HandshakeInfo{
 		rootProvider:        rootProvider,
 		identityProvider:    identityProvider,
 		sanMatchers:         sanMatchers,
@@ -109,7 +110,12 @@ func NewHandshakeInfo(rootProvider, identityProvider certprovider.Provider, sanM
 		validateSANUsingSNI: validateSANUsingSNI,
 		useAutoHostSNI:      useAutoHostSNI,
 	}
+}
 
+// NewRefCountedHandshakeInfo returns a reference-counted HandshakeInfo for
+// client-side Cluster security configuration snapshots.
+func NewRefCountedHandshakeInfo(rootProvider, identityProvider certprovider.Provider, sanMatchers []matcher.StringMatcher, sni string, requireClientCert, validateSANUsingSNI, useAutoHostSNI bool) *grpcsync.RefCounted[HandshakeInfo] {
+	hi := NewHandshakeInfo(rootProvider, identityProvider, sanMatchers, requireClientCert, sni, validateSANUsingSNI, useAutoHostSNI)
 	return grpcsync.NewRefCounted(hi, hi.close)
 }
 
@@ -192,6 +198,12 @@ func (hi *HandshakeInfo) UseFallbackCreds() bool {
 // To be used only for testing purposes.
 func (hi *HandshakeInfo) GetSANMatchersForTesting() []matcher.StringMatcher {
 	return append([]matcher.StringMatcher{}, hi.sanMatchers...)
+}
+
+// ClientSideTLSConfig constructs a tls.Config for callers that directly own
+// the HandshakeInfo.
+func (hi *HandshakeInfo) ClientSideTLSConfig(ctx context.Context, hostname string) (*tls.Config, error) {
+	return hi.clientSideTLSConfigInternal(ctx, hostname)
 }
 
 // clientSideTLSConfigInternal constructs a tls.Config to be used in a
@@ -319,6 +331,12 @@ func (hi *HandshakeInfo) buildVerifyFunc(km *certprovider.KeyMaterial, isClient 
 		}
 		return nil
 	}
+}
+
+// ServerSideTLSConfig constructs a tls.Config for the server connection that
+// owns this HandshakeInfo.
+func (hi *HandshakeInfo) ServerSideTLSConfig(ctx context.Context) (*tls.Config, error) {
+	return hi.serverSideTLSConfigInternal(ctx)
 }
 
 // serverSideTLSConfigInternal constructs a tls.Config to be used in a
