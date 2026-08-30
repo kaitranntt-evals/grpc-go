@@ -60,6 +60,36 @@ type testCertProviderWithKeyMaterial struct {
 	certprovider.Provider
 }
 
+// Equal reports whether the handshake info structs are identical. This helper
+// keeps the pre-existing equality tests local after client ownership moved to
+// the reference-counted wrapper.
+func (hi *HandshakeInfo) Equal(other *HandshakeInfo) bool {
+	if hi == nil && other == nil {
+		return true
+	}
+	if hi == nil || other == nil {
+		return false
+	}
+	if hi.rootProvider != other.rootProvider || hi.identityProvider != other.identityProvider {
+		return false
+	}
+	if hi.requireClientCert != other.requireClientCert || hi.sni != other.sni {
+		return false
+	}
+	if hi.validateSANUsingSNI != other.validateSANUsingSNI || hi.useAutoHostSNI != other.useAutoHostSNI {
+		return false
+	}
+	if len(hi.sanMatchers) != len(other.sanMatchers) {
+		return false
+	}
+	for i := range hi.sanMatchers {
+		if !hi.sanMatchers[i].Equal(other.sanMatchers[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 func (s) TestDNSMatch(t *testing.T) {
 	tests := []struct {
 		desc      string
