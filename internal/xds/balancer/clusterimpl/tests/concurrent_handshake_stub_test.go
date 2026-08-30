@@ -130,7 +130,7 @@ func calHackWaitForChan(ctx context.Context, t *testing.T, ch <-chan struct{}, m
 // already started client handshake keeps using certificate material from the
 // Cluster security configuration it started with after that configuration is
 // replaced, and that a later connection uses the replacement provider.
-func calHackStubbedConcurrentHandshake(t *testing.T) {
+func TestSecurityConfigUpdate_StubbedConcurrentHandshake(t *testing.T) {
 	const (
 		instanceA = "handshake-lifetime-root-a"
 		instanceB = "handshake-lifetime-root-b"
