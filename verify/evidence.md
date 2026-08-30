@@ -7,7 +7,9 @@ Claim-target branches were fetched from `github.com/kaitranntt-evals/grpc-go-ser
 
 Repro test files live in `verify/repro/`; each is copied into the target worktree's `test/` directory and run with `-tags verify_repro`. (The runs below used the same file contents without the build tag.)
 
-## C1 — REFUTED (branch evalon/grpc-go-se-73c8337c)
+## C1
+
+REFUTED (branch evalon/grpc-go-se-73c8337c).
 
 Authored test files on the branch (only test changes vs base):
 
@@ -41,7 +43,9 @@ $ cd ~/wt/73c && go test -v ./test -run '^Test$/^ServerUnifiedRPCPipelineInterce
 ok  	google.golang.org/grpc/test	0.014s
 ```
 
-## C2 — CONFIRMED (audited branch)
+## C2
+
+CONFIRMED (audited branch).
 
 Repro: `verify/repro/verify_c2_empty_unary_test.go` — opens a client stream to the unary method `/grpc.testing.TestService/UnaryCall`, calls `CloseSend()` without sending a request, and logs the resulting status.
 
@@ -63,7 +67,9 @@ $ cd ~/wt/base && go test -v ./test -run '^TestVerify_EmptyUnaryRequestStatus$' 
 
 Source: `stream.go:1925` on the audited branch returns `status.Error(codes.Internal, "cardinality violation: received no request message from non-client-streaming RPC")` when the first `recv` yields `io.EOF` on a non-client-streaming descriptor.
 
-## C3 — CONFIRMED, both parts (branch evalon/grpc-go-se-73c8337c)
+## C3
+
+CONFIRMED, both parts (branch evalon/grpc-go-se-73c8337c).
 
 Repro: `verify/repro/verify_c3_unary_eof_test.go` — unary handler returns `io.EOF`; test enables channelz, makes the call with a 3s deadline, and logs the client-observed status plus the server's channelz call counters.
 
@@ -90,7 +96,9 @@ $ cd ~/wt/base && go test -v ./test -run '^TestVerify_UnaryHandlerReturnsEOF$' -
 
 Source: `~/wt/73c/server.go` `processRPC` contains `if !md.isStreaming && appErr == io.EOF { return appErr }` before any `WriteStatus`, and the deferred accounting treats `err == io.EOF` as success (`if err != nil && err != io.EOF { s.incrCallsFailed() } else { s.incrCallsSucceeded() }`).
 
-## C4 — CONFIRMED (branch evalon/grpc-go-se-0786edbe)
+## C4
+
+CONFIRMED (branch evalon/grpc-go-se-0786edbe).
 
 Instrumentation: `verify/repro/c4_instrumentation.patch` adds a print of `opts.Last` to `internal/transport.(*ServerStream).Write`. Repro test: `verify/repro/verify_c4_last_flag_test.go` (one unary call, one server-streaming call with two sends).
 
@@ -116,7 +124,9 @@ VERIFY-C4: ServerStream.Write method=/grpc.testing.TestService/StreamingOutputCa
 
 Source: `~/wt/078/stream.go:1851` — `serverStream.SendMsg` always calls `ss.s.Write(hdr, payload, &transport.WriteOptions{Last: false})` with no unary special case; base `server.go:1483` used `opts := &transport.WriteOptions{Last: true}` for unary responses.
 
-## C5 — CONFIRMED, both parts (branch evalon/grpc-go-se-73c8337c)
+## C5
+
+CONFIRMED, both parts (branch evalon/grpc-go-se-73c8337c).
 
 The extra `errStage string` return value and its call sites (grep of the branch that the executed C1/C3 test runs above compiled, so the signature is live code):
 
@@ -131,7 +141,9 @@ stream.go:1980:func prepareMsg(m any, codec baseCodec, cp Compressor, comp encod
 - Shared helper API: `prepareMsg` returns a separate `errStage string` (line 1980).
 - Client call-site plumbing: both client send paths — `clientStream.SendMsg` (line 1058) and `addrConnStream.SendMsg` (line 1555) — bind the diagnostic-stage value to `_` and discard it; only the server path (line 1817) consumes it. `go test ./test` compilations above (C1/C3 runs) demonstrate this is the built signature.
 
-## C6 — CONFIRMED (audited branch)
+## C6
+
+CONFIRMED (audited branch).
 
 Same experiment and outputs as C2 (identical behavior claim). Repro `verify/repro/verify_c2_empty_unary_test.go`:
 
@@ -146,7 +158,9 @@ $ cd ~/wt/base && go test -v ./test -run '^TestVerify_EmptyUnaryRequestStatus$' 
 
 The empty unary request is reframed from `codes.Unknown`/`EOF` (base) to `codes.Internal` cardinality violation (audited branch).
 
-## C7 — CONFIRMED, both parts (branch evalon/grpc-go-se-5181f5de)
+## C7
+
+CONFIRMED, both parts (branch evalon/grpc-go-se-5181f5de).
 
 Repro: `verify/repro/verify_c7_collision_test.go` — registers a hand-written `ServiceDesc` whose `Methods` and `Streams` both contain name `Call`, installs unary and stream interceptors, invokes `/verify.Collide/Call`, and records which handler/interceptor ran.
 
@@ -168,7 +182,9 @@ $ cd ~/wt/base && go test -v ./test -run '^TestVerify_SameNameCollisionDispatch$
 
 Source: `~/wt/518/server.go:810-822` — registration inserts `sd.Methods` into `info.methods` first, then `sd.Streams` into the same map, so a same-name stream overwrites the unary entry.
 
-## C8 — CONFIRMED (branch evalon/grpc-go-se-ddb07dab)
+## C8
+
+CONFIRMED (branch evalon/grpc-go-se-ddb07dab).
 
 The assertion at `~/wt/ddb/test/server_unified_rpc_test.go:212` inside `TestServerUnaryContextAndMetadata`:
 
@@ -191,7 +207,9 @@ FAIL	google.golang.org/grpc/test	0.020s
 
 The original test passes under its happy path (`Test/ServerUnaryContextAndMetadata` ran before the panic without failing); under the claimed condition the same expression panics instead of reporting an ordinary assertion failure.
 
-## C9 — CONFIRMED, both parts (branch evalon/grpc-go-se-f2151d7b)
+## C9
+
+CONFIRMED, both parts (branch evalon/grpc-go-se-f2151d7b).
 
 Repro: `verify/repro/verify_c9_channelz_diag_test.go` — part 1 forces a response-encoding failure via `grpc.ForceServerCodecV2` with a codec whose `Marshal` fails only for `*testpb.SimpleResponse`; part 2 forces a response-compression failure via `grpc.SetSendCompressor(ctx, "verify-bad")` with a registered compressor whose writer errors.
 
