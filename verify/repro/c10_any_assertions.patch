@@ -1,0 +1,29 @@
+# Run: git apply on branch evalon/grpc-go-se-4e5801e7, copy eval_tests tests/eval_unary_roundtrip_test.go and eval_interceptor_segregation_test.go to test/, then: go test -v ./test -run "TestEval_UnaryRoundTrip|TestEval_InterceptorSegregation" -count=1 (watch stderr for EVIDENCE_C10)
+diff --git a/server.go b/server.go
+index 1af2b335..b7cd72b7 100644
+--- a/server.go
++++ b/server.go
+@@ -22,6 +22,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"fmt"
++	"os"
+ 	"io"
+ 	"math"
+ 	"net"
+@@ -1408,6 +1409,7 @@ func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream,
+ 		server = info.serviceImpl
+ 	}
+ 	if md.stream {
++		fmt.Fprintf(os.Stderr, "EVIDENCE_C10 stream dispatch: asserting md.handler.(StreamHandler) for %s (dynamic type %T)\n", stream.Method(), md.handler)
+ 		handler := md.handler.(StreamHandler)
+ 		if s.opts.streamInt == nil {
+ 			appErr = handler(server, ss)
+@@ -1421,6 +1423,7 @@ func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream,
+ 		}
+ 	} else {
+ 		var reply any
++		fmt.Fprintf(os.Stderr, "EVIDENCE_C10 unary dispatch: asserting md.handler.(MethodHandler) for %s (dynamic type %T)\n", stream.Method(), md.handler)
+ 		reply, appErr = md.handler.(MethodHandler)(server, ss.ctx, ss.RecvMsg, s.opts.unaryInt)
+ 		if appErr == nil {
+ 			appErr = ss.SendMsg(reply)

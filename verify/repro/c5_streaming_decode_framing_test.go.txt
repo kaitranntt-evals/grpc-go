@@ -1,0 +1,49 @@
+// Run: copy to test/evidence_c5_test.go (drop .txt) on branch evalon/grpc-go-se-245dad65, then: go test -v ./test -run TestEvidenceC5StreamingDecodeFailure -count=1
+package test
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/internal/stubserver"
+	"google.golang.org/grpc/status"
+
+	testpb "google.golang.org/grpc/interop/grpc_testing"
+)
+
+type garbageCodec struct{}
+
+func (garbageCodec) Marshal(v any) ([]byte, error)    { return []byte{0xff, 0xff, 0xff, 0xff}, nil }
+func (garbageCodec) Unmarshal(data []byte, v any) error { return nil }
+func (garbageCodec) Name() string                     { return "proto" }
+
+func TestEvidenceC5StreamingDecodeFailure(t *testing.T) {
+	ss := &stubserver.StubServer{
+		StreamingInputCallF: func(stream testpb.TestService_StreamingInputCallServer) error {
+			var m testpb.StreamingInputCallRequest
+			return stream.RecvMsg(&m)
+		},
+	}
+	if err := ss.Start(nil); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	defer ss.Stop()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stream, err := ss.CC.NewStream(ctx, &grpc.StreamDesc{ClientStreams: true, StreamName: "StreamingInputCall"}, "/grpc.testing.TestService/StreamingInputCall", grpc.ForceCodec(garbageCodec{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stream.SendMsg(&testpb.StreamingInputCallRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := stream.CloseSend(); err != nil {
+		t.Fatal(err)
+	}
+	var resp testpb.StreamingInputCallResponse
+	err = stream.RecvMsg(&resp)
+	st, _ := status.FromError(err)
+	t.Logf("EVIDENCE_C5 code=%v message=%q", st.Code(), st.Message())
+}

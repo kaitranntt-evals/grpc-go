@@ -1,0 +1,83 @@
+// Run: copy to test/evidence_c6_test.go (drop .txt) on branch evalon/grpc-go-se-f6c7d66c, then: go test -v ./test -run TestEvidenceC6DuplicateStreamDescs -count=1
+package test
+
+import (
+	"context"
+	"net"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+)
+
+func TestEvidenceC6DuplicateStreamDescs(t *testing.T) {
+	got := make(chan string, 2)
+	mk := func(label string) func(any, grpc.ServerStream) error {
+		return func(_ any, stream grpc.ServerStream) error {
+			got <- label
+			var in []byte
+			_ = stream.RecvMsg(&in)
+			return stream.SendMsg(&in)
+		}
+	}
+	sd := &grpc.ServiceDesc{
+		ServiceName: "dup.Svc",
+		HandlerType: (*any)(nil),
+		Streams: []grpc.StreamDesc{
+			{StreamName: "Call", Handler: mk("firstHandler"), ClientStreams: true},
+			{StreamName: "Call", Handler: mk("lastHandler"), ClientStreams: true},
+		},
+	}
+	srv := grpc.NewServer(grpc.ForceServerCodec(rawCodecC6{}))
+	srv.RegisterService(sd, struct{}{})
+	info := srv.GetServiceInfo()["dup.Svc"]
+	count := 0
+	for _, m := range info.Methods {
+		if m.Name == "Call" {
+			count++
+		}
+	}
+	t.Logf("EVIDENCE_C6 GetServiceInfo entries for Call: %d (methods=%v)", count, info.Methods)
+
+	lis, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	go srv.Serve(lis)
+	defer srv.Stop()
+	cc, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDefaultCallOptions(grpc.ForceCodec(rawCodecC6{})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cc.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stream, err := cc.NewStream(ctx, &grpc.StreamDesc{ClientStreams: true, StreamName: "Call"}, "/dup.Svc/Call")
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := []byte("x")
+	if err := stream.SendMsg(&in); err != nil {
+		t.Fatal(err)
+	}
+	_ = stream.CloseSend()
+	var out []byte
+	_ = stream.RecvMsg(&out)
+	select {
+	case label := <-got:
+		t.Logf("EVIDENCE_C6 invoked handler: %s", label)
+	case <-time.After(5 * time.Second):
+		t.Fatal("no handler invoked")
+	}
+}
+
+type rawCodecC6 struct{}
+
+func (rawCodecC6) Marshal(v any) ([]byte, error) { b := v.(*[]byte); return *b, nil }
+func (rawCodecC6) Unmarshal(data []byte, v any) error {
+	b := v.(*[]byte)
+	*b = append([]byte(nil), data...)
+	return nil
+}
+func (rawCodecC6) Name() string { return "evidence-raw-c6" }

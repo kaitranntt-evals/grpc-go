@@ -1,0 +1,33 @@
+// Run: copy to test/evidence_c3_test.go (drop .txt) on branch evalon/grpc-go-se-ffd9f4b6 of kaitranntt-evals/grpc-go-server-unify-unary-stream-rpc, then: go test -v ./test -run TestEvidenceC3MaxSendStatusMessage -count=1
+package test
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/internal/stubserver"
+	"google.golang.org/grpc/status"
+
+	testgrpc "google.golang.org/grpc/interop/grpc_testing"
+	testpb "google.golang.org/grpc/interop/grpc_testing"
+)
+
+func TestEvidenceC3MaxSendStatusMessage(t *testing.T) {
+	ss := &stubserver.StubServer{
+		UnaryCallF: func(context.Context, *testpb.SimpleRequest) (*testpb.SimpleResponse, error) {
+			return &testpb.SimpleResponse{Payload: &testpb.Payload{Body: make([]byte, 1024)}}, nil
+		},
+	}
+	if err := ss.Start([]grpc.ServerOption{grpc.MaxSendMsgSize(16)}); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	defer ss.Stop()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	client := testgrpc.NewTestServiceClient(ss.CC)
+	_, err := client.UnaryCall(ctx, &testpb.SimpleRequest{})
+	st, _ := status.FromError(err)
+	t.Logf("EVIDENCE_C3 code=%v message=%q", st.Code(), st.Message())
+}

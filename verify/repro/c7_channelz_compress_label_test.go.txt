@@ -1,0 +1,90 @@
+// Run: copy to test/evidence_c7_test.go (drop .txt) on branch evalon/grpc-go-se-6c7b7bc6, then: go test -v ./test -run TestEvidenceC7CompressionFailureChannelzLabel -count=1
+package test
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"sync"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/encoding"
+	"google.golang.org/grpc/grpclog"
+	"google.golang.org/grpc/internal/stubserver"
+
+	testpb "google.golang.org/grpc/interop/grpc_testing"
+)
+
+type failComp struct{}
+
+func (failComp) Compress(io.Writer) (io.WriteCloser, error) { return failWriter{}, nil }
+func (failComp) Decompress(r io.Reader) (io.Reader, error)  { return r, nil }
+func (failComp) Name() string                               { return "evidence-failcomp" }
+
+type failWriter struct{}
+
+func (failWriter) Write([]byte) (int, error) { return 0, errors.New("synthetic compression failure") }
+func (failWriter) Close() error              { return nil }
+
+type captureLogger struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (l *captureLogger) log(args ...any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	fmt.Fprintln(&l.buf, args...)
+}
+func (l *captureLogger) Info(a ...any)                 { l.log(a...) }
+func (l *captureLogger) Infoln(a ...any)               { l.log(a...) }
+func (l *captureLogger) Infof(f string, a ...any)      { l.log(fmt.Sprintf(f, a...)) }
+func (l *captureLogger) Warning(a ...any)              { l.log(a...) }
+func (l *captureLogger) Warningln(a ...any)            { l.log(a...) }
+func (l *captureLogger) Warningf(f string, a ...any)   { l.log(fmt.Sprintf(f, a...)) }
+func (l *captureLogger) Error(a ...any)                { l.log(a...) }
+func (l *captureLogger) Errorln(a ...any)              { l.log(a...) }
+func (l *captureLogger) Errorf(f string, a ...any)     { l.log(fmt.Sprintf(f, a...)) }
+func (l *captureLogger) Fatal(a ...any)                { l.log(a...) }
+func (l *captureLogger) Fatalln(a ...any)              { l.log(a...) }
+func (l *captureLogger) Fatalf(f string, a ...any)     { l.log(fmt.Sprintf(f, a...)) }
+func (l *captureLogger) V(int) bool                    { return true }
+func (l *captureLogger) String() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.buf.String()
+}
+
+func TestEvidenceC7CompressionFailureChannelzLabel(t *testing.T) {
+	encoding.RegisterCompressor(failComp{})
+	cl := &captureLogger{}
+	grpclog.SetLoggerV2(cl)
+	ss := &stubserver.StubServer{
+		UnaryCallF: func(ctx context.Context, _ *testpb.SimpleRequest) (*testpb.SimpleResponse, error) {
+			if err := grpc.SetSendCompressor(ctx, "evidence-failcomp"); err != nil {
+				return nil, err
+			}
+			return &testpb.SimpleResponse{Payload: &testpb.Payload{Body: []byte("data")}}, nil
+		},
+	}
+	if err := ss.Start(nil); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	defer ss.Stop()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	client := ss.Client
+	_, err := client.UnaryCall(ctx, &testpb.SimpleRequest{})
+	t.Logf("EVIDENCE_C7 rpc err=%v", err)
+	time.Sleep(200 * time.Millisecond)
+	logs := cl.String()
+	for _, line := range bytes.Split([]byte(logs), []byte("\n")) {
+		if bytes.Contains(line, []byte("failed to")) {
+			t.Logf("EVIDENCE_C7 channelz log: %s", line)
+		}
+	}
+}

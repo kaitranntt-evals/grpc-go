@@ -1,0 +1,24 @@
+# Run: git apply on branch evalon/grpc-go-se-3c2b59dd, copy eval_tests tests/eval_unary_roundtrip_test.go to test/, then: go test -v ./test -run TestEval_UnaryRoundTrip -count=1 (watch stderr for EVIDENCE_C2)
+diff --git a/stream.go b/stream.go
+index 3ad07f0f..c070a3de 100644
+--- a/stream.go
++++ b/stream.go
+@@ -22,6 +22,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"fmt"
++	"os"
+ 	"io"
+ 	"math"
+ 	rand "math/rand/v2"
+@@ -1835,7 +1836,9 @@ func (ss *serverStream) SendMsg(m any) (err error) {
+ 	if payloadLen > ss.maxSendMessageSize {
+ 		return status.Errorf(codes.ResourceExhausted, "trying to send message larger than max (%d vs. %d)", payloadLen, ss.maxSendMessageSize)
+ 	}
+-	if err := ss.s.Write(hdr, payload, &transport.WriteOptions{Last: false}); err != nil {
++	wopts := &transport.WriteOptions{Last: false}
++	fmt.Fprintf(os.Stderr, "EVIDENCE_C2 serverStream.SendMsg method=%s WriteOptions.Last=%v\n", ss.s.Method(), wopts.Last)
++	if err := ss.s.Write(hdr, payload, wopts); err != nil {
+ 		return toRPCErr(err)
+ 	}
+ 
