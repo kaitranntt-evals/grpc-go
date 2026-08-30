@@ -1,0 +1,20 @@
+diff --git a/internal/transport/server_stream.go b/internal/transport/server_stream.go
+index ed6a13b7..b87856c0 100644
+--- a/internal/transport/server_stream.go
++++ b/internal/transport/server_stream.go
+@@ -21,6 +21,7 @@ package transport
+ import (
+ 	"context"
+ 	"errors"
++	"fmt"
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
+@@ -68,6 +69,7 @@ func (s *ServerStream) SendHeader(md metadata.MD) error {
+ 
+ // Write writes the hdr and data bytes to the output stream.
+ func (s *ServerStream) Write(hdr []byte, data mem.BufferSlice, opts *WriteOptions) error {
++	fmt.Printf("VERIFY-C4: ServerStream.Write method=%s Last=%v\n", s.Method(), opts.Last)
+ 	return s.st.write(s, hdr, data, opts)
+ }
+ 
