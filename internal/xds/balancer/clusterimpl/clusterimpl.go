@@ -373,13 +373,7 @@ func (b *clusterImplBalancer) handleSecurityConfig(config *xdsresource.SecurityC
 		}
 	}
 
-	// Close the old providers and cache the new ones.
-	if b.cachedRoot != nil {
-		b.cachedRoot.Close()
-	}
-	if b.cachedIdentity != nil {
-		b.cachedIdentity.Close()
-	}
+	// Stop closing on update. Overwritten providers are leaked.
 	b.cachedRoot = rootProvider
 	b.cachedIdentity = identityProvider
 
