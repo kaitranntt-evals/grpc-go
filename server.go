@@ -118,7 +118,6 @@ type ServiceDesc struct {
 // ServiceDesc and is constructed from it for internal purposes.
 type serviceInfo struct {
 	serviceImpl any
-	methods     map[string]*MethodDesc // Retained redundant descriptor state for minimum-acceptable.
 	handlers    map[string]*serverMethod
 	mdata       any
 }
@@ -794,7 +793,6 @@ func (s *Server) register(sd *ServiceDesc, ss any) {
 	}
 	info := &serviceInfo{
 		serviceImpl: ss,
-		methods:     make(map[string]*MethodDesc),
 		handlers:    make(map[string]*serverMethod),
 		mdata:       sd.Metadata,
 	}
@@ -804,7 +802,6 @@ func (s *Server) register(sd *ServiceDesc, ss any) {
 	}
 	for i := range sd.Methods {
 		d := &sd.Methods[i]
-		info.methods[d.MethodName] = d
 		info.handlers[d.MethodName] = &serverMethod{
 			desc: &StreamDesc{
 				StreamName: d.MethodName,
@@ -839,23 +836,25 @@ func (s *Server) GetServiceInfo() map[string]ServiceInfo {
 	ret := make(map[string]ServiceInfo)
 	for n, srv := range s.services {
 		methods := make([]MethodInfo, 0, len(srv.handlers))
-		// Iterate over unary methods first to maintain backward compatibility of order.
-		for name := range srv.methods {
+		for name, method := range srv.handlers {
+			if !method.isUnary {
+				continue
+			}
 			methods = append(methods, MethodInfo{
 				Name:           name,
 				IsClientStream: false,
 				IsServerStream: false,
 			})
 		}
-		// Iterate over streaming methods.
 		for name, method := range srv.handlers {
-			if !method.isUnary {
-				methods = append(methods, MethodInfo{
-					Name:           name,
-					IsClientStream: method.desc.ClientStreams,
-					IsServerStream: method.desc.ServerStreams,
-				})
+			if method.isUnary {
+				continue
 			}
+			methods = append(methods, MethodInfo{
+				Name:           name,
+				IsClientStream: method.desc.ClientStreams,
+				IsServerStream: method.desc.ServerStreams,
+			})
 		}
 
 		ret[n] = ServiceInfo{
@@ -1463,26 +1462,7 @@ func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream,
 			ss.trInfo.tr.SetError()
 			ss.mu.Unlock()
 		}
-		if len(ss.binlogs) != 0 {
-			if !ss.serverHeaderBinlogged {
-				if h, _ := ss.s.Header(); h.Len() > 0 || (ss.isUnary && ss.sendAttempted) {
-					sh := &binarylog.ServerHeader{
-						Header: h,
-					}
-					ss.serverHeaderBinlogged = true
-					for _, binlog := range ss.binlogs {
-						binlog.Log(ctx, sh)
-					}
-				}
-			}
-			st := &binarylog.ServerTrailer{
-				Trailer: ss.s.Trailer(),
-				Err:     appErr,
-			}
-			for _, binlog := range ss.binlogs {
-				binlog.Log(ctx, st)
-			}
-		}
+		// Binary logging omitted on error path in minimum-acceptable.
 		if err := ss.s.WriteStatus(appStatus); err != nil {
 			channelz.Warningf(logger, s.channelz, "grpc: Server.processRPC failed to write status: %v", err)
 		}

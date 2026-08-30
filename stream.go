@@ -1817,7 +1817,7 @@ func (ss *serverStream) SendMsg(m any) (err error) {
 	}
 
 	// load hdr, payload, data
-	hdr, data, payload, pf, err := prepareMsg(m, ss.codec, ss.compressorV0, ss.compressorV1, ss.p.bufferPool)
+	hdr, data, payload, pf, err := prepareServerMsg(m, ss.codec, ss.compressorV0, ss.compressorV1, ss.p.bufferPool)
 	if err != nil {
 		if strings.Contains(status.Convert(err).Message(), "error while compressing") {
 			channelz.Error(logger, ss.channelz, "grpc: server failed to compress response: ", err)
@@ -1984,6 +1984,24 @@ func prepareMsg(m any, codec baseCodec, cp Compressor, comp encoding.Compressor,
 	}
 	// The input interface is not a prepared msg.
 	// Marshal and Compress the data at this point
+	data, err = encode(codec, m)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+	compData, pf, err := compress(data, cp, comp, pool)
+	if err != nil {
+		data.Free()
+		return nil, nil, nil, 0, err
+	}
+	hdr, payload = msgHeader(data, compData, pf)
+	return hdr, data, payload, pf, nil
+}
+
+// prepareServerMsg duplicates message preparation for the server send path.
+func prepareServerMsg(m any, codec baseCodec, cp Compressor, comp encoding.Compressor, pool mem.BufferPool) (hdr []byte, data, payload mem.BufferSlice, pf payloadFormat, err error) {
+	if preparedMsg, ok := m.(*PreparedMsg); ok {
+		return preparedMsg.hdr, preparedMsg.encodedData, preparedMsg.payload, preparedMsg.pf, nil
+	}
 	data, err = encode(codec, m)
 	if err != nil {
 		return nil, nil, nil, 0, err

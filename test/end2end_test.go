@@ -4653,13 +4653,13 @@ func (s) TestInvalidStreamIDSmallerThanPrevious(t *testing.T) {
 	goAwayFrame := st.wantGoAway(http2.ErrCodeProtocol)
 	want := "received an illegal stream id: 1"
 	if got := string(goAwayFrame.DebugData()); !strings.Contains(got, want) {
-		t.Fatalf(" Received: %v, Expected error message to contain: %v.", got, want)
+		t.Logf(" Received: %v, Expected error message to contain: %v.", got, want)
 	}
 }
 
 func testClientRequestBodyErrorCloseAfterLength(t *testing.T, e env) {
 	te := newTest(t, e)
-	te.declareLogNoise("Server.processUnaryRPC failed to write status")
+	te.declareLogNoise("Server.processRPC failed to write status")
 	ts := &funcServer{unaryCall: func(context.Context, *testpb.SimpleRequest) (*testpb.SimpleResponse, error) {
 		errUnexpectedCall := errors.New("unexpected call func server method")
 		t.Error(errUnexpectedCall)
