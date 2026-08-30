@@ -12,9 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/tls/certprovider"
-	"google.golang.org/grpc/internal/stubserver"
 	"google.golang.org/grpc/internal/testutils"
 	"google.golang.org/grpc/internal/testutils/xds/e2e"
 	"google.golang.org/grpc/internal/xds/bootstrap"
