@@ -4,17 +4,20 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/tls/certprovider"
+	"google.golang.org/grpc/internal/stubserver"
 	"google.golang.org/grpc/internal/testutils"
 	"google.golang.org/grpc/internal/testutils/xds/e2e"
 	"google.golang.org/grpc/internal/xds/bootstrap"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/testdata"
 
 	v3clusterpb "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -24,7 +27,7 @@ import (
 	testpb "google.golang.org/grpc/interop/grpc_testing"
 )
 
-func calHackClientTLSCluster(t *testing.T, clusterName, serviceName, providerInstance string) *v3clusterpb.Cluster {
+func evalClientTLSClusterWithValidationProvider(t *testing.T, clusterName, serviceName, providerInstance string) *v3clusterpb.Cluster {
 	t.Helper()
 	cluster := e2e.DefaultCluster(clusterName, serviceName, e2e.SecurityLevelNone)
 	cluster.TransportSocket = &v3corepb.TransportSocket{
@@ -44,7 +47,7 @@ func calHackClientTLSCluster(t *testing.T, clusterName, serviceName, providerIns
 	return cluster
 }
 
-func calHackLoadServerCACertPool(t *testing.T) *x509.CertPool {
+func evalLoadServerCACertPool(t *testing.T) *x509.CertPool {
 	t.Helper()
 	pemData, err := os.ReadFile(testdata.Path("x509/server_ca_cert.pem"))
 	if err != nil {
@@ -57,7 +60,7 @@ func calHackLoadServerCACertPool(t *testing.T) *x509.CertPool {
 	return roots
 }
 
-type calHackRootProvider struct {
+type evalHandshakeLifetimeRootProvider struct {
 	roots     *x509.CertPool
 	entered   chan struct{}
 	release   chan struct{}
@@ -67,7 +70,7 @@ type calHackRootProvider struct {
 	closeOnce sync.Once
 }
 
-func (p *calHackRootProvider) KeyMaterial(ctx context.Context) (*certprovider.KeyMaterial, error) {
+func (p *evalHandshakeLifetimeRootProvider) KeyMaterial(ctx context.Context) (*certprovider.KeyMaterial, error) {
 	if p.entered != nil {
 		select {
 		case p.entered <- struct{}{}:
@@ -83,12 +86,13 @@ func (p *calHackRootProvider) KeyMaterial(ctx context.Context) (*certprovider.Ke
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	// Stub: ignore Close so the test cannot observe provider instance is closed.
-	_ = p.isClosed
+	if p.isClosed {
+		return nil, errors.New("provider instance is closed")
+	}
 	return &certprovider.KeyMaterial{Roots: p.roots}, nil
 }
 
-func (p *calHackRootProvider) Close() {
+func (p *evalHandshakeLifetimeRootProvider) Close() {
 	p.closeOnce.Do(func() {
 		p.mu.Lock()
 		p.isClosed = true
@@ -97,15 +101,15 @@ func (p *calHackRootProvider) Close() {
 	})
 }
 
-type calHackProviderBuilder struct {
+type evalHandshakeLifetimeProviderBuilder struct {
 	name     string
 	provider certprovider.Provider
 	built    chan struct{}
 }
 
-func (b *calHackProviderBuilder) Name() string { return b.name }
+func (b *evalHandshakeLifetimeProviderBuilder) Name() string { return b.name }
 
-func (b *calHackProviderBuilder) ParseConfig(any) (*certprovider.BuildableConfig, error) {
+func (b *evalHandshakeLifetimeProviderBuilder) ParseConfig(any) (*certprovider.BuildableConfig, error) {
 	return certprovider.NewBuildableConfig(b.name, nil, func(certprovider.BuildOptions) certprovider.Provider {
 		if b.built != nil {
 			select {
@@ -117,7 +121,7 @@ func (b *calHackProviderBuilder) ParseConfig(any) (*certprovider.BuildableConfig
 	}), nil
 }
 
-func calHackWaitForChan(ctx context.Context, t *testing.T, ch <-chan struct{}, msg string) {
+func evalWaitForChan(ctx context.Context, t *testing.T, ch <-chan struct{}, msg string) {
 	t.Helper()
 	select {
 	case <-ch:
@@ -126,19 +130,19 @@ func calHackWaitForChan(ctx context.Context, t *testing.T, ch <-chan struct{}, m
 	}
 }
 
-// calHackStubbedConcurrentHandshake checks that an
+// TestEval_SecurityConfigUpdate_ActiveHandshakeKeepsProvider checks that an
 // already started client handshake keeps using certificate material from the
 // Cluster security configuration it started with after that configuration is
 // replaced, and that a later connection uses the replacement provider.
-func calHackStubbedConcurrentHandshake(t *testing.T) {
+func TestEval_SecurityConfigUpdate_ActiveHandshakeKeepsProvider(t *testing.T) {
 	const (
 		instanceA = "handshake-lifetime-root-a"
 		instanceB = "handshake-lifetime-root-b"
 		target    = "test.service"
 	)
-	roots := calHackLoadServerCACertPool(t)
+	roots := evalLoadServerCACertPool(t)
 
-	providerA := &calHackRootProvider{
+	providerA := &evalHandshakeLifetimeRootProvider{
 		roots:   roots,
 		entered: make(chan struct{}, 1),
 		release: make(chan struct{}),
@@ -150,17 +154,17 @@ func calHackStubbedConcurrentHandshake(t *testing.T) {
 	}
 	t.Cleanup(releaseA)
 
-	providerB := &calHackRootProvider{
+	providerB := &evalHandshakeLifetimeRootProvider{
 		roots:   roots,
 		entered: make(chan struct{}, 1),
 		closed:  make(chan struct{}),
 	}
 	builtB := make(chan struct{}, 1)
-	builderA := &calHackProviderBuilder{
+	builderA := &evalHandshakeLifetimeProviderBuilder{
 		name:     fmt.Sprintf("handshake-lifetime-a-%s", uuid.New()),
 		provider: providerA,
 	}
-	builderB := &calHackProviderBuilder{
+	builderB := &evalHandshakeLifetimeProviderBuilder{
 		name:     fmt.Sprintf("handshake-lifetime-b-%s", uuid.New()),
 		provider: providerB,
 		built:    builtB,
@@ -200,7 +204,7 @@ func calHackStubbedConcurrentHandshake(t *testing.T) {
 	})
 	clusterName := resources.Clusters[0].Name
 	serviceName := resources.Endpoints[0].ClusterName
-	resources.Clusters[0] = calHackClientTLSCluster(t, clusterName, serviceName, instanceA)
+	resources.Clusters[0] = evalClientTLSClusterWithValidationProvider(t, clusterName, serviceName, instanceA)
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
 	defer cancel()
@@ -215,13 +219,30 @@ func calHackStubbedConcurrentHandshake(t *testing.T) {
 		rpcErr <- err
 	}()
 
-	time.Sleep(50 * time.Millisecond)
+	select {
+	case <-providerA.entered:
+	case err := <-rpcErr:
+		t.Fatalf("RPC ended before provider A KeyMaterial started: %v", err)
+	case <-ctx.Done():
+		t.Fatalf("Timed out waiting for provider A KeyMaterial: %v", ctx.Err())
+	}
 
-	resources.Clusters[0] = calHackClientTLSCluster(t, clusterName, serviceName, instanceB)
+	select {
+	case <-builtB:
+		t.Fatal("Replacement provider was built before the Cluster security configuration update")
+	default:
+	}
+	select {
+	case <-providerB.entered:
+		t.Fatal("Replacement provider KeyMaterial ran before the Cluster security configuration update")
+	default:
+	}
+
+	resources.Clusters[0] = evalClientTLSClusterWithValidationProvider(t, clusterName, serviceName, instanceB)
 	if err := mgmtServer.Update(ctx, resources); err != nil {
 		t.Fatalf("Failed to update management server with the replacement Cluster: %v", err)
 	}
-	time.Sleep(50 * time.Millisecond)
+	evalWaitForChan(ctx, t, builtB, "timed out waiting for replacement provider to be built")
 
 	releaseA()
 	select {
@@ -237,5 +258,19 @@ func calHackStubbedConcurrentHandshake(t *testing.T) {
 	case <-providerB.entered:
 		t.Fatal("Active handshake used the replacement provider instead of material already acquired from provider A")
 	default:
+	}
+	secondServer := stubserver.StartTestService(t, nil, grpc.Creds(tlsServerCreds(t)))
+	t.Cleanup(secondServer.Stop)
+	resources.Endpoints[0] = e2e.DefaultEndpoint(serviceName, "localhost", []uint32{testutils.ParsePort(t, secondServer.Address)})
+	if err := mgmtServer.Update(ctx, resources); err != nil {
+		t.Fatalf("Failed to update management server with a new endpoint after the replacement: %v", err)
+	}
+	evalWaitForChan(ctx, t, providerB.entered, "timed out waiting for replacement provider KeyMaterial")
+	pr := &peer.Peer{}
+	if _, err := client.EmptyCall(ctx, &testpb.Empty{}, grpc.WaitForReady(true), grpc.Peer(pr)); err != nil {
+		t.Fatalf("Follow-up RPC failed after the replacement provider was used: %v", err)
+	}
+	if pr.Addr.String() != secondServer.Address {
+		t.Fatalf("Follow-up RPC used %s, want replacement backend %s", pr.Addr, secondServer.Address)
 	}
 }
