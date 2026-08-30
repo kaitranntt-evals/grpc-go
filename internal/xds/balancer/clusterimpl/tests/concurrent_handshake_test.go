@@ -134,7 +134,7 @@ func calPerfectWaitForChan(ctx context.Context, t *testing.T, ch <-chan struct{}
 // already started client handshake keeps using certificate material from the
 // Cluster security configuration it started with after that configuration is
 // replaced, and that a later connection uses the replacement provider.
-func calPerfectConcurrentHandshake(t *testing.T) {
+func TestSecurityConfigUpdate_ConcurrentHandshake(t *testing.T) {
 	const (
 		instanceA = "handshake-lifetime-root-a"
 		instanceB = "handshake-lifetime-root-b"
@@ -253,6 +253,8 @@ func calPerfectConcurrentHandshake(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatalf("Timed out waiting for the active RPC to finish: %v", ctx.Err())
 	}
+
+	calPerfectWaitForChan(ctx, t, providerA.closed, "timed out waiting for replaced provider A to close")
 
 	select {
 	case <-providerB.entered:
