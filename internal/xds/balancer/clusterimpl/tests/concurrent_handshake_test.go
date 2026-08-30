@@ -128,10 +128,9 @@ func calMinWaitForChan(ctx context.Context, t *testing.T, ch <-chan struct{}, ms
 	}
 }
 
-// calMinConcurrentHandshake checks that an
-// already started client handshake keeps using certificate material from the
-// Cluster security configuration it started with after that configuration is
-// replaced, and that a later connection uses the replacement provider.
+// TestSecurityConfigUpdate_ConcurrentHandshake checks that a client handshake
+// that started loading validation roots keeps its selected Cluster security
+// configuration usable after replacement.
 func TestSecurityConfigUpdate_ConcurrentHandshake(t *testing.T) {
 	const (
 		instanceA = "handshake-lifetime-root-a"
@@ -241,7 +240,7 @@ func TestSecurityConfigUpdate_ConcurrentHandshake(t *testing.T) {
 
 	select {
 	case <-providerB.entered:
-		t.Fatal("Active handshake used the replacement provider instead of material already acquired from provider A")
+		t.Fatal("Active handshake switched from its selected provider A to provider B")
 	default:
 	}
 }
