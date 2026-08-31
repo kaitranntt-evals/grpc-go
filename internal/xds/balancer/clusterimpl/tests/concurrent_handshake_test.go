@@ -60,7 +60,7 @@ func calMinLoadServerCACertPool(t *testing.T) *x509.CertPool {
 
 type calMinRootProvider struct {
 	roots     *x509.CertPool
-	entered   chan struct{}
+	entered   bool
 	release   chan struct{}
 	closed    chan struct{}
 	mu        sync.Mutex
@@ -69,12 +69,9 @@ type calMinRootProvider struct {
 }
 
 func (p *calMinRootProvider) KeyMaterial(ctx context.Context) (*certprovider.KeyMaterial, error) {
-	if p.entered != nil {
-		select {
-		case p.entered <- struct{}{}:
-		default:
-		}
-	}
+	p.mu.Lock()
+	p.entered = true
+	p.mu.Unlock()
 	if p.release != nil {
 		select {
 		case <-p.release:
@@ -88,6 +85,12 @@ func (p *calMinRootProvider) KeyMaterial(ctx context.Context) (*certprovider.Key
 		return nil, errors.New("provider instance is closed")
 	}
 	return &certprovider.KeyMaterial{Roots: p.roots}, nil
+}
+
+func (p *calMinRootProvider) hasEntered() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.entered
 }
 
 func (p *calMinRootProvider) Close() {
@@ -119,15 +122,6 @@ func (b *calMinProviderBuilder) ParseConfig(any) (*certprovider.BuildableConfig,
 	}), nil
 }
 
-func calMinWaitForChan(ctx context.Context, t *testing.T, ch <-chan struct{}, msg string) {
-	t.Helper()
-	select {
-	case <-ch:
-	case <-ctx.Done():
-		t.Fatalf("%s: %v", msg, ctx.Err())
-	}
-}
-
 // TestSecurityConfigUpdate_ConcurrentHandshake checks that a client handshake
 // that started loading validation roots keeps its selected Cluster security
 // configuration usable after replacement.
@@ -141,7 +135,6 @@ func TestSecurityConfigUpdate_ConcurrentHandshake(t *testing.T) {
 
 	providerA := &calMinRootProvider{
 		roots:   roots,
-		entered: make(chan struct{}, 1),
 		release: make(chan struct{}),
 		closed:  make(chan struct{}),
 	}
@@ -152,9 +145,8 @@ func TestSecurityConfigUpdate_ConcurrentHandshake(t *testing.T) {
 	t.Cleanup(releaseA)
 
 	providerB := &calMinRootProvider{
-		roots:   roots,
-		entered: make(chan struct{}, 1),
-		closed:  make(chan struct{}),
+		roots:  roots,
+		closed: make(chan struct{}),
 	}
 	builtB := make(chan struct{}, 1)
 	builderA := &calMinProviderBuilder{
@@ -216,16 +208,28 @@ func TestSecurityConfigUpdate_ConcurrentHandshake(t *testing.T) {
 		rpcErr <- err
 	}()
 
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 1000 && !providerA.hasEntered(); i++ {
 		time.Sleep(time.Millisecond)
+	}
+	if !providerA.hasEntered() {
+		t.Fatal("Provider A did not start loading validation roots")
 	}
 
 	resources.Clusters[0] = calMinClientTLSCluster(t, clusterName, serviceName, instanceB)
 	if err := mgmtServer.Update(ctx, resources); err != nil {
 		t.Fatalf("Failed to update management server with the replacement Cluster: %v", err)
 	}
-	for i := 0; i < 50; i++ {
-		time.Sleep(time.Millisecond)
+	replacementApplied := false
+	for i := 0; i < 1000 && !replacementApplied; i++ {
+		select {
+		case <-builtB:
+			replacementApplied = true
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+	if !replacementApplied {
+		t.Fatal("Replacement Cluster security configuration was not applied")
 	}
 
 	releaseA()
@@ -238,9 +242,7 @@ func TestSecurityConfigUpdate_ConcurrentHandshake(t *testing.T) {
 		t.Fatalf("Timed out waiting for the active RPC to finish: %v", ctx.Err())
 	}
 
-	select {
-	case <-providerB.entered:
+	if providerB.hasEntered() {
 		t.Fatal("Active handshake switched from its selected provider A to provider B")
-	default:
 	}
 }

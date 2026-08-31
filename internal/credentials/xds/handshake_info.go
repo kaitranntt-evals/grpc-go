@@ -123,9 +123,6 @@ func (hi *HandshakeInfo) close() {
 	if hi.rootProvider != nil {
 		hi.rootProvider.Close()
 	}
-	if hi.identityProvider != nil {
-		hi.identityProvider.Close()
-	}
 }
 
 // ClientSideTLSConfig loads the HandshakeInfo from hiPtr, marks it as in-use,
