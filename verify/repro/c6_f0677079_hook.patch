@@ -1,0 +1,26 @@
+diff --git a/internal/credentials/xds/handshake_info.go b/internal/credentials/xds/handshake_info.go
+index cd59803d..fffb6b76 100644
+--- a/internal/credentials/xds/handshake_info.go
++++ b/internal/credentials/xds/handshake_info.go
+@@ -113,6 +113,11 @@ func HandshakeInfoFromAttributes(attr *attributes.Attributes) *atomic.Pointer[Ha
+ // remain usable until the returned function is invoked, even if the security
+ // configuration which created them is replaced in the meantime. The returned
+ // HandshakeInfo may be nil, in which case fallback credentials are to be used.
++// TestOnlyBeforeReacquireHook, if non-nil, is invoked between the failed
++// first acquisition attempt and the second (final) attempt. Verification
++// instrumentation only.
++var TestOnlyBeforeReacquireHook func()
++
+ func AcquireHandshakeInfo(hiPtr *atomic.Pointer[HandshakeInfo]) (*HandshakeInfo, func()) {
+ 	if hiPtr == nil {
+ 		return nil, func() {}
+@@ -124,6 +129,9 @@ func AcquireHandshakeInfo(hiPtr *atomic.Pointer[HandshakeInfo]) (*HandshakeInfo,
+ 	// The certificate providers of hi are already closed because the security
+ 	// configuration which created them was replaced. The replacement is always
+ 	// published before the old one is retired, so it is available here.
++	if TestOnlyBeforeReacquireHook != nil {
++		TestOnlyBeforeReacquireHook()
++	}
+ 	hi = hiPtr.Load()
+ 	release, _ := hi.acquireProviders()
+ 	return hi, release

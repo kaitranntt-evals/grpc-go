@@ -1,0 +1,19 @@
+diff --git a/internal/credentials/xds/refcounted_provider.go b/internal/credentials/xds/refcounted_provider.go
+index e45e7d5a..d85e8631 100644
+--- a/internal/credentials/xds/refcounted_provider.go
++++ b/internal/credentials/xds/refcounted_provider.go
+@@ -107,7 +107,14 @@ func (p *RefCountedProvider) release() {
+ // called. Providers that are not reference counted (including nil ones) are
+ // unaffected. If any provider has already been closed, previously grabbed
+ // references are released and ErrStaleHandshakeInfo is returned.
++// TestOnlyBeforeAcquireProvidersHook, if non-nil, is invoked at the start of
++// acquireProviders. It exists only for verification instrumentation.
++var TestOnlyBeforeAcquireProvidersHook func()
++
+ func acquireProviders(providers ...certprovider.Provider) (func(), error) {
++	if TestOnlyBeforeAcquireProvidersHook != nil {
++		TestOnlyBeforeAcquireProvidersHook()
++	}
+ 	var acquired []*RefCountedProvider
+ 	release := func() {
+ 		for _, p := range acquired {
