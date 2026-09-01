@@ -515,10 +515,7 @@ func (b *clusterImplBalancer) Close() {
 		b.cancelLoadReport(stopCtx)
 		b.cancelLoadReport = nil
 	}
-	oldHI := b.xdsHIPtr.Swap(nil)
-	if oldHI != nil {
-		oldHI.Decrement()
-	}
+	b.xdsHIPtr.Swap(nil)
 	b.securityConfig = nil
 	b.logger.Infof("Shutdown")
 }
