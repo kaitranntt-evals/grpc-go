@@ -1257,7 +1257,246 @@ func getChainUnaryHandler(interceptors []UnaryServerInterceptor, curr int, info 
 	}
 }
 
-func (s *Server) processUnaryRPC(ctx context.Context, stream *transport.ServerStream, info *serviceInfo, md *MethodDesc, trInfo *traceInfo) (err error) {
+// chainStreamServerInterceptors chains all stream server interceptors into one.
+func chainStreamServerInterceptors(s *Server) {
+	// Prepend opts.streamInt to the chaining interceptors if it exists, since streamInt will
+	// be executed before any other chained interceptors.
+	interceptors := s.opts.chainStreamInts
+	if s.opts.streamInt != nil {
+		interceptors = append([]StreamServerInterceptor{s.opts.streamInt}, s.opts.chainStreamInts...)
+	}
+
+	var chainedInt StreamServerInterceptor
+	if len(interceptors) == 0 {
+		chainedInt = nil
+	} else if len(interceptors) == 1 {
+		chainedInt = interceptors[0]
+	} else {
+		chainedInt = chainStreamInterceptors(interceptors)
+	}
+
+	s.opts.streamInt = chainedInt
+}
+
+func chainStreamInterceptors(interceptors []StreamServerInterceptor) StreamServerInterceptor {
+	return func(srv any, ss ServerStream, info *StreamServerInfo, handler StreamHandler) error {
+		return interceptors[0](srv, ss, info, getChainStreamHandler(interceptors, 0, info, handler))
+	}
+}
+
+func getChainStreamHandler(interceptors []StreamServerInterceptor, curr int, info *StreamServerInfo, finalHandler StreamHandler) StreamHandler {
+	if curr == len(interceptors)-1 {
+		return finalHandler
+	}
+	return func(srv any, stream ServerStream) error {
+		return interceptors[curr+1](srv, stream, info, getChainStreamHandler(interceptors, curr+1, info, finalHandler))
+	}
+}
+
+// serverMethod contains method configuration and descriptor metadata.
+type serverMethod struct {
+	isStreaming bool
+	unaryDesc   *MethodDesc
+	streamDesc  *StreamDesc
+}
+
+func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream, info *serviceInfo, sm *serverMethod, trInfo *traceInfo) (err error) {
+	if sm.isStreaming {
+		sd := sm.streamDesc
+
+		if channelz.IsOn() {
+			s.incrCallsStarted()
+		}
+		sh := s.statsHandler
+		var statsBegin *stats.Begin
+		if sh != nil {
+			statsBegin = &stats.Begin{
+				BeginTime:      time.Now(),
+				IsClientStream: sd.ClientStreams,
+				IsServerStream: sd.ServerStreams,
+			}
+			sh.HandleRPC(ctx, statsBegin)
+		}
+		ctx = NewContextWithServerTransportStream(ctx, stream)
+		ss := &serverStream{
+			ctx:                   ctx,
+			s:                     stream,
+			p:                     parser{r: stream, bufferPool: s.opts.bufferPool},
+			codec:                 s.getCodec(stream.ContentSubtype()),
+			desc:                  sd,
+			maxReceiveMessageSize: s.opts.maxReceiveMessageSize,
+			maxSendMessageSize:    s.opts.maxSendMessageSize,
+			trInfo:                trInfo,
+			statsHandler:          sh,
+		}
+
+		if sh != nil || trInfo != nil || channelz.IsOn() {
+			// See comment in processUnaryRPC on defers.
+			defer func() {
+				if trInfo != nil {
+					ss.mu.Lock()
+					if err != nil && err != io.EOF {
+						ss.trInfo.tr.LazyLog(&fmtStringer{"%v", []any{err}}, true)
+						ss.trInfo.tr.SetError()
+					}
+					ss.trInfo.tr.Finish()
+					ss.trInfo.tr = nil
+					ss.mu.Unlock()
+				}
+
+				if sh != nil {
+					end := &stats.End{
+						BeginTime: statsBegin.BeginTime,
+						EndTime:   time.Now(),
+					}
+					if err != nil && err != io.EOF {
+						end.Error = toRPCErr(err)
+					}
+					sh.HandleRPC(ctx, end)
+				}
+
+				if channelz.IsOn() {
+					if err != nil && err != io.EOF {
+						s.incrCallsFailed()
+					} else {
+						s.incrCallsSucceeded()
+					}
+				}
+			}()
+		}
+
+		if ml := binarylog.GetMethodLogger(stream.Method()); ml != nil {
+			ss.binlogs = append(ss.binlogs, ml)
+		}
+		if s.opts.binaryLogger != nil {
+			if ml := s.opts.binaryLogger.GetMethodLogger(stream.Method()); ml != nil {
+				ss.binlogs = append(ss.binlogs, ml)
+			}
+		}
+		if len(ss.binlogs) != 0 {
+			md, _ := metadata.FromIncomingContext(ctx)
+			logEntry := &binarylog.ClientHeader{
+				Header:     md,
+				MethodName: stream.Method(),
+				PeerAddr:   nil,
+			}
+			if deadline, ok := ctx.Deadline(); ok {
+				logEntry.Timeout = time.Until(deadline)
+				if logEntry.Timeout < 0 {
+					logEntry.Timeout = 0
+				}
+			}
+			if a := md[":authority"]; len(a) > 0 {
+				logEntry.Authority = a[0]
+			}
+			if peer, ok := peer.FromContext(ss.Context()); ok {
+				logEntry.PeerAddr = peer.Addr
+			}
+			for _, binlog := range ss.binlogs {
+				binlog.Log(ctx, logEntry)
+			}
+		}
+
+		// If dc is set and matches the stream's compression, use it.  Otherwise, try
+		// to find a matching registered compressor for decomp.
+		if rc := stream.RecvCompress(); s.opts.dc != nil && s.opts.dc.Type() == rc {
+			ss.decompressorV0 = s.opts.dc
+		} else if rc != "" && rc != encoding.Identity {
+			ss.decompressorV1 = encoding.GetCompressor(rc)
+			if ss.decompressorV1 == nil {
+				st := status.Newf(codes.Unimplemented, "grpc: Decompressor is not installed for grpc-encoding %q", rc)
+				ss.s.WriteStatus(st)
+				return st.Err()
+			}
+		}
+
+		// If cp is set, use it.  Otherwise, attempt to compress the response using
+		// the incoming message compression method.
+		//
+		// NOTE: this needs to be ahead of all handling, https://github.com/grpc/grpc-go/issues/686.
+		if s.opts.cp != nil {
+			ss.compressorV0 = s.opts.cp
+			ss.sendCompressorName = s.opts.cp.Type()
+		} else if rc := stream.RecvCompress(); rc != "" && rc != encoding.Identity {
+			// Legacy compressor not specified; attempt to respond with same encoding.
+			ss.compressorV1 = encoding.GetCompressor(rc)
+			if ss.compressorV1 != nil {
+				ss.sendCompressorName = rc
+			}
+		}
+
+		if ss.sendCompressorName != "" {
+			if err := stream.SetSendCompress(ss.sendCompressorName); err != nil {
+				return status.Errorf(codes.Internal, "grpc: failed to set send compressor: %v", err)
+			}
+		}
+
+		ss.ctx = newContextWithRPCInfo(ss.ctx, false, ss.codec, ss.compressorV0, ss.compressorV1)
+
+		if trInfo != nil {
+			trInfo.tr.LazyLog(&trInfo.firstLine, false)
+		}
+		var appErr error
+		var server any
+		if info != nil {
+			server = info.serviceImpl
+		}
+		if s.opts.streamInt == nil {
+			appErr = sd.Handler(server, ss)
+		} else {
+			info := &StreamServerInfo{
+				FullMethod:     stream.Method(),
+				IsClientStream: sd.ClientStreams,
+				IsServerStream: sd.ServerStreams,
+			}
+			appErr = s.opts.streamInt(server, ss, info, sd.Handler)
+		}
+		if appErr != nil {
+			appStatus, ok := status.FromError(appErr)
+			if !ok {
+				// Convert non-status application error to a status error with code
+				// Unknown, but handle context errors specifically.
+				appStatus = status.FromContextError(appErr)
+				appErr = appStatus.Err()
+			}
+			if trInfo != nil {
+				ss.mu.Lock()
+				ss.trInfo.tr.LazyLog(stringer(appStatus.Message()), true)
+				ss.trInfo.tr.SetError()
+				ss.mu.Unlock()
+			}
+			if len(ss.binlogs) != 0 {
+				st := &binarylog.ServerTrailer{
+					Trailer: ss.s.Trailer(),
+					Err:     appErr,
+				}
+				for _, binlog := range ss.binlogs {
+					binlog.Log(ctx, st)
+				}
+			}
+			ss.s.WriteStatus(appStatus)
+			// TODO: Should we log an error from WriteStatus here and below?
+			return appErr
+		}
+		if trInfo != nil {
+			ss.mu.Lock()
+			ss.trInfo.tr.LazyLog(stringer("OK"), false)
+			ss.mu.Unlock()
+		}
+		if len(ss.binlogs) != 0 {
+			st := &binarylog.ServerTrailer{
+				Trailer: ss.s.Trailer(),
+				Err:     appErr,
+			}
+			for _, binlog := range ss.binlogs {
+				binlog.Log(ctx, st)
+			}
+		}
+		return ss.s.WriteStatus(statusOK)
+	}
+
+	md := sm.unaryDesc
+
 	sh := s.statsHandler
 	if sh != nil || trInfo != nil || channelz.IsOn() {
 		if channelz.IsOn() {
@@ -1551,234 +1790,6 @@ func (s *Server) processUnaryRPC(ctx context.Context, stream *transport.ServerSt
 	return stream.WriteStatus(statusOK)
 }
 
-// chainStreamServerInterceptors chains all stream server interceptors into one.
-func chainStreamServerInterceptors(s *Server) {
-	// Prepend opts.streamInt to the chaining interceptors if it exists, since streamInt will
-	// be executed before any other chained interceptors.
-	interceptors := s.opts.chainStreamInts
-	if s.opts.streamInt != nil {
-		interceptors = append([]StreamServerInterceptor{s.opts.streamInt}, s.opts.chainStreamInts...)
-	}
-
-	var chainedInt StreamServerInterceptor
-	if len(interceptors) == 0 {
-		chainedInt = nil
-	} else if len(interceptors) == 1 {
-		chainedInt = interceptors[0]
-	} else {
-		chainedInt = chainStreamInterceptors(interceptors)
-	}
-
-	s.opts.streamInt = chainedInt
-}
-
-func chainStreamInterceptors(interceptors []StreamServerInterceptor) StreamServerInterceptor {
-	return func(srv any, ss ServerStream, info *StreamServerInfo, handler StreamHandler) error {
-		return interceptors[0](srv, ss, info, getChainStreamHandler(interceptors, 0, info, handler))
-	}
-}
-
-func getChainStreamHandler(interceptors []StreamServerInterceptor, curr int, info *StreamServerInfo, finalHandler StreamHandler) StreamHandler {
-	if curr == len(interceptors)-1 {
-		return finalHandler
-	}
-	return func(srv any, stream ServerStream) error {
-		return interceptors[curr+1](srv, stream, info, getChainStreamHandler(interceptors, curr+1, info, finalHandler))
-	}
-}
-
-func (s *Server) processStreamingRPC(ctx context.Context, stream *transport.ServerStream, info *serviceInfo, sd *StreamDesc, trInfo *traceInfo) (err error) {
-	if channelz.IsOn() {
-		s.incrCallsStarted()
-	}
-	sh := s.statsHandler
-	var statsBegin *stats.Begin
-	if sh != nil {
-		statsBegin = &stats.Begin{
-			BeginTime:      time.Now(),
-			IsClientStream: sd.ClientStreams,
-			IsServerStream: sd.ServerStreams,
-		}
-		sh.HandleRPC(ctx, statsBegin)
-	}
-	ctx = NewContextWithServerTransportStream(ctx, stream)
-	ss := &serverStream{
-		ctx:                   ctx,
-		s:                     stream,
-		p:                     parser{r: stream, bufferPool: s.opts.bufferPool},
-		codec:                 s.getCodec(stream.ContentSubtype()),
-		desc:                  sd,
-		maxReceiveMessageSize: s.opts.maxReceiveMessageSize,
-		maxSendMessageSize:    s.opts.maxSendMessageSize,
-		trInfo:                trInfo,
-		statsHandler:          sh,
-	}
-
-	if sh != nil || trInfo != nil || channelz.IsOn() {
-		// See comment in processUnaryRPC on defers.
-		defer func() {
-			if trInfo != nil {
-				ss.mu.Lock()
-				if err != nil && err != io.EOF {
-					ss.trInfo.tr.LazyLog(&fmtStringer{"%v", []any{err}}, true)
-					ss.trInfo.tr.SetError()
-				}
-				ss.trInfo.tr.Finish()
-				ss.trInfo.tr = nil
-				ss.mu.Unlock()
-			}
-
-			if sh != nil {
-				end := &stats.End{
-					BeginTime: statsBegin.BeginTime,
-					EndTime:   time.Now(),
-				}
-				if err != nil && err != io.EOF {
-					end.Error = toRPCErr(err)
-				}
-				sh.HandleRPC(ctx, end)
-			}
-
-			if channelz.IsOn() {
-				if err != nil && err != io.EOF {
-					s.incrCallsFailed()
-				} else {
-					s.incrCallsSucceeded()
-				}
-			}
-		}()
-	}
-
-	if ml := binarylog.GetMethodLogger(stream.Method()); ml != nil {
-		ss.binlogs = append(ss.binlogs, ml)
-	}
-	if s.opts.binaryLogger != nil {
-		if ml := s.opts.binaryLogger.GetMethodLogger(stream.Method()); ml != nil {
-			ss.binlogs = append(ss.binlogs, ml)
-		}
-	}
-	if len(ss.binlogs) != 0 {
-		md, _ := metadata.FromIncomingContext(ctx)
-		logEntry := &binarylog.ClientHeader{
-			Header:     md,
-			MethodName: stream.Method(),
-			PeerAddr:   nil,
-		}
-		if deadline, ok := ctx.Deadline(); ok {
-			logEntry.Timeout = time.Until(deadline)
-			if logEntry.Timeout < 0 {
-				logEntry.Timeout = 0
-			}
-		}
-		if a := md[":authority"]; len(a) > 0 {
-			logEntry.Authority = a[0]
-		}
-		if peer, ok := peer.FromContext(ss.Context()); ok {
-			logEntry.PeerAddr = peer.Addr
-		}
-		for _, binlog := range ss.binlogs {
-			binlog.Log(ctx, logEntry)
-		}
-	}
-
-	// If dc is set and matches the stream's compression, use it.  Otherwise, try
-	// to find a matching registered compressor for decomp.
-	if rc := stream.RecvCompress(); s.opts.dc != nil && s.opts.dc.Type() == rc {
-		ss.decompressorV0 = s.opts.dc
-	} else if rc != "" && rc != encoding.Identity {
-		ss.decompressorV1 = encoding.GetCompressor(rc)
-		if ss.decompressorV1 == nil {
-			st := status.Newf(codes.Unimplemented, "grpc: Decompressor is not installed for grpc-encoding %q", rc)
-			ss.s.WriteStatus(st)
-			return st.Err()
-		}
-	}
-
-	// If cp is set, use it.  Otherwise, attempt to compress the response using
-	// the incoming message compression method.
-	//
-	// NOTE: this needs to be ahead of all handling, https://github.com/grpc/grpc-go/issues/686.
-	if s.opts.cp != nil {
-		ss.compressorV0 = s.opts.cp
-		ss.sendCompressorName = s.opts.cp.Type()
-	} else if rc := stream.RecvCompress(); rc != "" && rc != encoding.Identity {
-		// Legacy compressor not specified; attempt to respond with same encoding.
-		ss.compressorV1 = encoding.GetCompressor(rc)
-		if ss.compressorV1 != nil {
-			ss.sendCompressorName = rc
-		}
-	}
-
-	if ss.sendCompressorName != "" {
-		if err := stream.SetSendCompress(ss.sendCompressorName); err != nil {
-			return status.Errorf(codes.Internal, "grpc: failed to set send compressor: %v", err)
-		}
-	}
-
-	ss.ctx = newContextWithRPCInfo(ss.ctx, false, ss.codec, ss.compressorV0, ss.compressorV1)
-
-	if trInfo != nil {
-		trInfo.tr.LazyLog(&trInfo.firstLine, false)
-	}
-	var appErr error
-	var server any
-	if info != nil {
-		server = info.serviceImpl
-	}
-	if s.opts.streamInt == nil {
-		appErr = sd.Handler(server, ss)
-	} else {
-		info := &StreamServerInfo{
-			FullMethod:     stream.Method(),
-			IsClientStream: sd.ClientStreams,
-			IsServerStream: sd.ServerStreams,
-		}
-		appErr = s.opts.streamInt(server, ss, info, sd.Handler)
-	}
-	if appErr != nil {
-		appStatus, ok := status.FromError(appErr)
-		if !ok {
-			// Convert non-status application error to a status error with code
-			// Unknown, but handle context errors specifically.
-			appStatus = status.FromContextError(appErr)
-			appErr = appStatus.Err()
-		}
-		if trInfo != nil {
-			ss.mu.Lock()
-			ss.trInfo.tr.LazyLog(stringer(appStatus.Message()), true)
-			ss.trInfo.tr.SetError()
-			ss.mu.Unlock()
-		}
-		if len(ss.binlogs) != 0 {
-			st := &binarylog.ServerTrailer{
-				Trailer: ss.s.Trailer(),
-				Err:     appErr,
-			}
-			for _, binlog := range ss.binlogs {
-				binlog.Log(ctx, st)
-			}
-		}
-		ss.s.WriteStatus(appStatus)
-		// TODO: Should we log an error from WriteStatus here and below?
-		return appErr
-	}
-	if trInfo != nil {
-		ss.mu.Lock()
-		ss.trInfo.tr.LazyLog(stringer("OK"), false)
-		ss.mu.Unlock()
-	}
-	if len(ss.binlogs) != 0 {
-		st := &binarylog.ServerTrailer{
-			Trailer: ss.s.Trailer(),
-			Err:     appErr,
-		}
-		for _, binlog := range ss.binlogs {
-			binlog.Log(ctx, st)
-		}
-	}
-	return ss.s.WriteStatus(statusOK)
-}
-
 func (s *Server) handleMalformedMethodName(stream *transport.ServerStream, ti *traceInfo) {
 	if ti != nil {
 		ti.tr.LazyLog(&fmtStringer{"Malformed method name %q", []any{stream.Method()}}, true)
@@ -1855,17 +1866,17 @@ func (s *Server) handleStream(t transport.ServerTransport, stream *transport.Ser
 	srv, knownService := s.services[service]
 	if knownService {
 		if md, ok := srv.methods[method]; ok {
-			s.processUnaryRPC(ctx, stream, srv, md, ti)
+			s.processRPC(ctx, stream, srv, &serverMethod{isStreaming: false, unaryDesc: md}, ti)
 			return
 		}
 		if sd, ok := srv.streams[method]; ok {
-			s.processStreamingRPC(ctx, stream, srv, sd, ti)
+			s.processRPC(ctx, stream, srv, &serverMethod{isStreaming: true, streamDesc: sd}, ti)
 			return
 		}
 	}
 	// Unknown service, or known server unknown method.
 	if unknownDesc := s.opts.unknownStreamDesc; unknownDesc != nil {
-		s.processStreamingRPC(ctx, stream, nil, unknownDesc, ti)
+		s.processRPC(ctx, stream, nil, &serverMethod{isStreaming: true, streamDesc: unknownDesc}, ti)
 		return
 	}
 	var errDesc string
