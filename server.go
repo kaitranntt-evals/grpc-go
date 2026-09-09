@@ -119,6 +119,8 @@ type ServiceDesc struct {
 type serviceInfo struct {
 	serviceImpl any
 	handlers    map[string]*serverMethod
+	methods     map[string]*MethodDesc
+	streams     map[string]*StreamDesc
 	mdata       any
 }
 
@@ -794,14 +796,18 @@ func (s *Server) register(sd *ServiceDesc, ss any) {
 	info := &serviceInfo{
 		serviceImpl: ss,
 		handlers:    make(map[string]*serverMethod),
+		methods:     make(map[string]*MethodDesc),
+		streams:     make(map[string]*StreamDesc),
 		mdata:       sd.Metadata,
 	}
 	for i := range sd.Streams {
 		d := &sd.Streams[i]
+		info.streams[d.StreamName] = d
 		info.handlers[d.StreamName] = &serverMethod{desc: d}
 	}
 	for i := range sd.Methods {
 		d := &sd.Methods[i]
+		info.methods[d.MethodName] = d
 		info.handlers[d.MethodName] = &serverMethod{
 			desc: &StreamDesc{
 				StreamName: d.MethodName,
@@ -835,26 +841,20 @@ type ServiceInfo struct {
 func (s *Server) GetServiceInfo() map[string]ServiceInfo {
 	ret := make(map[string]ServiceInfo)
 	for n, srv := range s.services {
-		methods := make([]MethodInfo, 0, len(srv.handlers))
-		// Iterate over unary methods first to maintain backward compatibility of order.
-		for name, method := range srv.handlers {
-			if method.isUnary {
-				methods = append(methods, MethodInfo{
-					Name:           name,
-					IsClientStream: false,
-					IsServerStream: false,
-				})
-			}
+		methods := make([]MethodInfo, 0, len(srv.methods)+len(srv.streams))
+		for m := range srv.methods {
+			methods = append(methods, MethodInfo{
+				Name:           m,
+				IsClientStream: false,
+				IsServerStream: false,
+			})
 		}
-		// Iterate over streaming methods.
-		for name, method := range srv.handlers {
-			if !method.isUnary {
-				methods = append(methods, MethodInfo{
-					Name:           name,
-					IsClientStream: method.desc.ClientStreams,
-					IsServerStream: method.desc.ServerStreams,
-				})
-			}
+		for m, d := range srv.streams {
+			methods = append(methods, MethodInfo{
+				Name:           m,
+				IsClientStream: d.ClientStreams,
+				IsServerStream: d.ServerStreams,
+			})
 		}
 
 		ret[n] = ServiceInfo{
