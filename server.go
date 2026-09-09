@@ -119,6 +119,8 @@ type ServiceDesc struct {
 type serviceInfo struct {
 	serviceImpl any
 	handlers    map[string]*serverMethod
+	methods     map[string]*MethodDesc
+	streams     map[string]*StreamDesc
 	mdata       any
 }
 
@@ -794,14 +796,18 @@ func (s *Server) register(sd *ServiceDesc, ss any) {
 	info := &serviceInfo{
 		serviceImpl: ss,
 		handlers:    make(map[string]*serverMethod),
+		methods:     make(map[string]*MethodDesc),
+		streams:     make(map[string]*StreamDesc),
 		mdata:       sd.Metadata,
 	}
 	for i := range sd.Streams {
 		d := &sd.Streams[i]
+		info.streams[d.StreamName] = d
 		info.handlers[d.StreamName] = &serverMethod{desc: d}
 	}
 	for i := range sd.Methods {
 		d := &sd.Methods[i]
+		info.methods[d.MethodName] = d
 		info.handlers[d.MethodName] = &serverMethod{
 			desc: &StreamDesc{
 				StreamName: d.MethodName,
@@ -835,25 +841,19 @@ type ServiceInfo struct {
 func (s *Server) GetServiceInfo() map[string]ServiceInfo {
 	ret := make(map[string]ServiceInfo)
 	for n, srv := range s.services {
-		methods := make([]MethodInfo, 0, len(srv.handlers))
-		for name, method := range srv.handlers {
-			if !method.isUnary {
-				continue
-			}
+		methods := make([]MethodInfo, 0, len(srv.methods)+len(srv.streams))
+		for m := range srv.methods {
 			methods = append(methods, MethodInfo{
-				Name:           name,
+				Name:           m,
 				IsClientStream: false,
 				IsServerStream: false,
 			})
 		}
-		for name, method := range srv.handlers {
-			if method.isUnary {
-				continue
-			}
+		for m, d := range srv.streams {
 			methods = append(methods, MethodInfo{
-				Name:           name,
-				IsClientStream: method.desc.ClientStreams,
-				IsServerStream: method.desc.ServerStreams,
+				Name:           m,
+				IsClientStream: d.ClientStreams,
+				IsServerStream: d.ServerStreams,
 			})
 		}
 
