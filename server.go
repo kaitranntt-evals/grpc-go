@@ -1352,6 +1352,8 @@ func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream,
 			if channelz.IsOn() {
 				if err != nil && err != io.EOF {
 					s.incrCallsFailed()
+				} else {
+					s.incrCallsSucceeded()
 				}
 			}
 		}()
