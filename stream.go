@@ -1950,8 +1950,9 @@ func (ss *serverStream) RecvMsg(m any) (err error) {
 		}
 	}
 
-	if ss.desc.ClientStreams {
-		// Subsequent messages should be received by subsequent RecvMsg calls.
+	if ss.desc.ClientStreams || ss.isUnary {
+		// Subsequent messages should be received by subsequent RecvMsg calls,
+		// or unary RPCs which expect exactly one message.
 		return nil
 	}
 	// Special handling for non-client-stream rpcs.
