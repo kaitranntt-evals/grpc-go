@@ -1,0 +1,55 @@
+# C1 repro: apply to branch evalon/grpc-go-xd-8220779b of kaitranntt-evals/grpc-go-xds-certificate-provider-closure-race with
+#   git apply verify/repro/c1_stale_handshake_info_mutation.patch && go test ./credentials/xds -run 'Test/(ClientCredsSecurityConfigReplacedDuringHandshake|ClientCredsRetiredHandshakeInfo)$' -count=1 -v && go test ./internal/xds/balancer/clusterimpl -run 'Test/SecurityConfigReplacedDuringHandshake$' -count=1 -v
+# Mutation: the xDS client credentials keep reusing the first HandshakeInfo they selected, so a later
+# connection is never governed by the replacement roots (it fails with a generic "no longer available"
+# error). The solution's new tests stay green; c1_later_connection_probe_test.go and the eval fixture fail.
+diff --git a/credentials/xds/xds.go b/credentials/xds/xds.go
+index d3213f6d..e60e8672 100644
+--- a/credentials/xds/xds.go
++++ b/credentials/xds/xds.go
+@@ -25,6 +25,7 @@ import (
+ 	"crypto/tls"
+ 	"errors"
+ 	"net"
++	"sync/atomic"
+ 	"time"
+ 
+ 	"google.golang.org/grpc/credentials"
+@@ -51,6 +52,7 @@ func NewClientCredentials(opts ClientOptions) (credentials.TransportCredentials,
+ 	return &credsImpl{
+ 		isClient: true,
+ 		fallback: opts.FallbackCreds,
++		sticky:   new(atomic.Pointer[xdsinternal.HandshakeInfo]),
+ 	}, nil
+ }
+ 
+@@ -80,6 +82,7 @@ func NewServerCredentials(opts ServerOptions) (credentials.TransportCredentials,
+ type credsImpl struct {
+ 	isClient bool
+ 	fallback credentials.TransportCredentials
++	sticky   *atomic.Pointer[xdsinternal.HandshakeInfo] // MUTATION: first selected HandshakeInfo is reused forever.
+ }
+ 
+ // ClientHandshake performs the TLS handshake on the client-side.
+@@ -128,14 +131,19 @@ func (c *credsImpl) ClientHandshake(ctx context.Context, authority string, rawCo
+ 	// been retired by the time we get to it, select its replacement instead.
+ 	var hi *xdsinternal.HandshakeInfo
+ 	for {
+-		hi = hiPtr.Load()
++		if s := c.sticky.Load(); s != nil {
++			hi = s // MUTATION: ignore replacement security configuration.
++		} else {
++			hi = hiPtr.Load()
++		}
+ 		if hi == nil || hi.UseFallbackCreds() {
+ 			return c.fallback.ClientHandshake(ctx, authority, rawConn)
+ 		}
+ 		if hi.Acquire() {
++			c.sticky.Store(hi)
+ 			break
+ 		}
+-		if hiPtr.Load() == hi {
++		if hiPtr.Load() == hi || c.sticky.Load() == hi {
+ 			// The HandshakeInfo was retired without being replaced, which
+ 			// happens when the LB policy that owns it is closed.
+ 			return nil, nil, errors.New("xds: security configuration for this connection is no longer available")
