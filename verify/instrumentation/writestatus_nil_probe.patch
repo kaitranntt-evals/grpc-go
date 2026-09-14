@@ -1,0 +1,29 @@
+diff --git a/internal/transport/server_stream.go b/internal/transport/server_stream.go
+index ed6a13b7..08739190 100644
+--- a/internal/transport/server_stream.go
++++ b/internal/transport/server_stream.go
+@@ -21,6 +21,8 @@ package transport
+ import (
+ 	"context"
+ 	"errors"
++	"fmt"
++	"os"
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
+@@ -74,7 +76,14 @@ func (s *ServerStream) Write(hdr []byte, data mem.BufferSlice, opts *WriteOption
+ // WriteStatus sends the status of a stream to the client.  WriteStatus is
+ // the final call made on a stream and always occurs.
+ func (s *ServerStream) WriteStatus(st *status.Status) error {
+-	return s.st.writeStatus(s, st)
++	if st == nil {
++		fmt.Fprintf(os.Stderr, "[verify-probe] WriteStatus(nil *status.Status) method=%s transport=%T\n", s.Method(), s.st)
++	}
++	err := s.st.writeStatus(s, st)
++	if st == nil {
++		fmt.Fprintf(os.Stderr, "[verify-probe] writeStatus(nil) returned err=%v method=%s (no panic)\n", err, s.Method())
++	}
++	return err
+ }
+ 
+ // isHeaderSent indicates whether headers have been sent.
