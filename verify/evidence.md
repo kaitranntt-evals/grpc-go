@@ -135,7 +135,9 @@ C2 section below (22 614 of 160 000 handshakes).
 
 ---
 
-## C2 → CONFIRMED (branch `evalon/grpc-go-xd-808a7060`)
+## C2
+
+Verdict: CONFIRMED (branch `evalon/grpc-go-xd-808a7060`).
 
 Claim: a handshake that successfully acquired the old state aborts before reading its KeyMaterial when replacement
 retires that state, because `ClientSideTLSConfig` performs another acquisition that rejects the retired state.
@@ -382,7 +384,9 @@ drain (as with Mutant A on 70cc0d6c) and stays fully green under Mutant B. The e
 
 ---
 
-## C4 → CONFIRMED (branch `evalon/grpc-go-xd-d030c2f0`)
+## C4
+
+Verdict: CONFIRMED (branch `evalon/grpc-go-xd-d030c2f0`).
 
 Claim parts: (release mechanism) `clusterImplBalancer.Close` releases the owner loaded from `xdsHIPtr` without clearing
 the pointer; (repeated invocation) the same instance receives multiple `Close` calls, including explicit + deferred in
@@ -435,7 +439,9 @@ old.Release()` as the 808a7060 branch does, or a `sync.Once`/`closed` flag — a
 
 ---
 
-## C5 → CONFIRMED (audited branch `grpc-go-xds-certificate-provider-closure-race-perfect`, HEAD `3483b320`)
+## C5
+
+Verdict: CONFIRMED (audited branch `grpc-go-xds-certificate-provider-closure-race-perfect`, HEAD `3483b320`).
 
 Repository-declared static-analysis workflow: `scripts/vet.sh` (`-install` first). Run in a clean detached worktree of
 the audited HEAD (`vet.sh` refuses a dirty tree and runs `git reset --hard HEAD` on exit). Note: `fail_on_output` uses
