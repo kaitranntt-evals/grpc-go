@@ -1,0 +1,43 @@
+diff --git a/credentials/xds/xds.go b/credentials/xds/xds.go
+index 03cd64cd..e8331756 100644
+--- a/credentials/xds/xds.go
++++ b/credentials/xds/xds.go
+@@ -24,7 +24,10 @@ import (
+ 	"context"
+ 	"crypto/tls"
+ 	"errors"
++	"fmt"
+ 	"net"
++	"os"
++	"sync/atomic"
+ 	"time"
+ 
+ 	"google.golang.org/grpc/credentials"
+@@ -127,7 +130,16 @@ func (c *credsImpl) ClientHandshake(ctx context.Context, authority string, rawCo
+ 	if hi == nil {
+ 		return c.fallback.ClientHandshake(ctx, authority, rawConn)
+ 	}
+-	defer hi.Release()
++	// VERIFY-MUTANT(C3): later handshakes keep using the first security
++	// configuration this credentials instance ever selected (stale config bug).
++	if prev := verifyStickyHI.Load(); prev != nil && prev != hi {
++		hi.Release()
++		hi = prev
++		fmt.Fprintln(os.Stderr, "VERIFY-MUTANT(C3): later handshake ignoring replacement HandshakeInfo, using stale one")
++	} else {
++		verifyStickyHI.Store(hi)
++		defer hi.Release()
++	}
+ 	if hi.UseFallbackCreds() {
+ 		return c.fallback.ClientHandshake(ctx, authority, rawConn)
+ 	}
+@@ -180,6 +192,9 @@ func (c *credsImpl) ClientHandshake(ctx context.Context, authority string, rawCo
+ 	return credinternal.WrapSyscallConn(rawConn, conn), info, nil
+ }
+ 
++// verifyStickyHI is part of VERIFY-MUTANT(C3).
++var verifyStickyHI atomic.Pointer[xdsinternal.HandshakeInfo]
++
+ // ServerHandshake performs the TLS handshake on the server-side.
+ func (c *credsImpl) ServerHandshake(rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
+ 	if c.isClient {

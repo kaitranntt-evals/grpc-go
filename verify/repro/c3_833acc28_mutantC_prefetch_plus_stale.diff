@@ -1,0 +1,69 @@
+diff --git a/credentials/xds/xds.go b/credentials/xds/xds.go
+index 3c21d40f..61673e77 100644
+--- a/credentials/xds/xds.go
++++ b/credentials/xds/xds.go
+@@ -24,7 +24,10 @@ import (
+ 	"context"
+ 	"crypto/tls"
+ 	"errors"
++	"fmt"
+ 	"net"
++	"os"
++	"sync/atomic"
+ 	"time"
+ 
+ 	"google.golang.org/grpc/credentials"
+@@ -126,6 +129,15 @@ func (c *credsImpl) ClientHandshake(ctx context.Context, authority string, rawCo
+ 	if hi == nil {
+ 		return c.fallback.ClientHandshake(ctx, authority, rawConn)
+ 	}
++	// VERIFY-MUTANT(C3-C, part 2): later handshakes keep using the first
++	// security configuration this credentials instance ever selected (stale
++	// config bug); the replacement roots are never used by any connection.
++	if prev := verifyStickyHI.Load(); prev != nil && prev != hi {
++		fmt.Fprintln(os.Stderr, "VERIFY-MUTANT(C3-C): later handshake ignoring replacement HandshakeInfo, using stale one")
++		hi = prev
++	} else {
++		verifyStickyHI.Store(hi)
++	}
+ 	if hi.UseFallbackCreds() {
+ 		return c.fallback.ClientHandshake(ctx, authority, rawConn)
+ 	}
+@@ -178,6 +190,9 @@ func (c *credsImpl) ClientHandshake(ctx context.Context, authority string, rawCo
+ 	return credinternal.WrapSyscallConn(rawConn, conn), info, nil
+ }
+ 
++// verifyStickyHI is part of VERIFY-MUTANT(C3-C).
++var verifyStickyHI atomic.Pointer[xdsinternal.HandshakeInfo]
++
+ // ServerHandshake performs the TLS handshake on the server-side.
+ func (c *credsImpl) ServerHandshake(rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
+ 	if c.isClient {
+diff --git a/internal/xds/balancer/clusterimpl/clusterimpl.go b/internal/xds/balancer/clusterimpl/clusterimpl.go
+index 2c0ad582..93c53dd7 100644
+--- a/internal/xds/balancer/clusterimpl/clusterimpl.go
++++ b/internal/xds/balancer/clusterimpl/clusterimpl.go
+@@ -28,6 +28,7 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"net"
++	"os"
+ 	"slices"
+ 	"sync"
+ 	"sync/atomic"
+@@ -378,6 +379,15 @@ func (b *clusterImplBalancer) handleSecurityConfig(config *xdsresource.SecurityC
+ 	// Publish the new providers and release our reference on the old ones.
+ 	// The new providers are built before the old ones are released so that
+ 	// provider instances shared through the certprovider store are reused.
++	// VERIFY-MUTANT(C3-C, part 1): when a security configuration with
++	// providers is being replaced, warm the replacement root provider by
++	// reading its KeyMaterial once, from the balancer (not from any handshake).
++	if old := b.xdsHIPtr.Load(); old != nil && !old.UseFallbackCreds() {
++		go func() {
++			fmt.Fprintln(os.Stderr, "VERIFY-MUTANT(C3-C): balancer prefetching replacement root KeyMaterial")
++			rootProvider.KeyMaterial(context.Background())
++		}()
++	}
+ 	b.updateHandshakeInfo(xds.NewHandshakeInfo(rootProvider, identityProvider, config.SubjectAltNameMatchers, false, config.SNI, config.AutoSNISANValidation, config.UseAutoHostSNI))
+ 	return nil
+ }
