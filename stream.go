@@ -1877,7 +1877,7 @@ func (ss *serverStream) SendMsg(m any) (err error) {
 		}
 	}
 	if ss.statsHandler != nil {
-		ss.statsHandler.HandleRPC(ss.s.Context(), outPayload(false, m, dataLen, payloadLen, time.Now()))
+		ss.statsHandler.HandleRPC(ss.ctx, outPayload(false, m, dataLen, payloadLen, time.Now()))
 	}
 	return nil
 }
@@ -1933,7 +1933,7 @@ func (ss *serverStream) RecvMsg(m any) (err error) {
 	}
 	ss.recvFirstMsg = true
 	if ss.statsHandler != nil {
-		ss.statsHandler.HandleRPC(ss.s.Context(), &stats.InPayload{
+		ss.statsHandler.HandleRPC(ss.ctx, &stats.InPayload{
 			RecvTime:         time.Now(),
 			Payload:          m,
 			Length:           payInfo.uncompressedBytes.Len(),
