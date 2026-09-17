@@ -13,6 +13,8 @@ for b in 82014a80 2ea61f68 d4895981 6233a68e 2e6a7cdc; do git worktree add ~/wt/
 
 Worktree heads: `82014a80` = `d5d70164`, `2ea61f68` = `21c5f64f`, `d4895981` = `3880d970`, `6233a68e` = `bd409814`, `2e6a7cdc` = `bd089249` (all "chore: apply eval changes").
 
+`verify/repro/go.mod` makes `verify/repro` a separate (never built) module so the repro test files, which belong to two different packages and are meant to be copied into place, do not break `go vet ./...` / `go test ./...` on this branch (both verified clean after adding it).
+
 Instrumentation used to gather evidence is stored as patches under `verify/repro/` and was applied to the target worktrees only for the duration of a run (`git apply` … `git checkout -- <file>`); `git status --short` was empty in every worktree afterwards.
 
 ## C1
