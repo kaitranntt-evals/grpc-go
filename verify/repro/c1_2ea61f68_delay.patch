@@ -1,0 +1,20 @@
+diff --git a/test/server_rpc_pipeline_test.go b/test/server_rpc_pipeline_test.go
+index ef60df38..3bc3d9d9 100644
+--- a/test/server_rpc_pipeline_test.go
++++ b/test/server_rpc_pipeline_test.go
+@@ -24,6 +24,7 @@ import (
+ 	"io"
+ 	"sync"
+ 	"testing"
++	"time"
+ 
+ 	"github.com/google/go-cmp/cmp"
+ 	"google.golang.org/grpc"
+@@ -78,6 +79,7 @@ func (r *interceptorRecorder) unaryInterceptor(ctx context.Context, req any, inf
+ 
+ func (r *interceptorRecorder) streamInterceptor(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+ 	err := handler(srv, ss)
++	time.Sleep(200 * time.Millisecond) // VERIFY C1: scheduling delay before the post-handler append
+ 	r.mu.Lock()
+ 	defer r.mu.Unlock()
+ 	r.streamInfos[info.FullMethod] = info

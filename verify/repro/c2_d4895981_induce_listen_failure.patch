@@ -1,0 +1,33 @@
+diff --git a/server_stream_pipeline_test.go b/server_stream_pipeline_test.go
+index 2f2bcb66..cbaae4cc 100644
+--- a/server_stream_pipeline_test.go
++++ b/server_stream_pipeline_test.go
+@@ -29,6 +29,7 @@ import (
+ 	"google.golang.org/grpc"
+ 	"google.golang.org/grpc/codes"
+ 	"google.golang.org/grpc/encoding/gzip"
++	"google.golang.org/grpc/internal/channelz"
+ 	"google.golang.org/grpc/internal/stubserver"
+ 	"google.golang.org/grpc/metadata"
+ 	"google.golang.org/grpc/status"
+@@ -176,9 +177,19 @@ func (s) TestServerStreamPipeline(t *testing.T) {
+ 		},
+ 	})
+ 	wantStreams[grpc.MethodInfo{Name: "SharedName", IsClientStream: true, IsServerStream: true}] = true
++	// VERIFY C2: induce net.Listen failure and observe whether the explicitly
++	// created server is stopped on the failure exit.
++	channelz.TurnOn()
++	countServers := func() int { servers, _ := channelz.GetServers(0, 1<<20); return len(servers) }
++	before := countServers()
+ 	server := grpc.NewServer(grpc.UnaryInterceptor(unaryInterceptor), grpc.StreamInterceptor(streamInterceptor), grpc.UnknownServiceHandler(streamHandler(true, true)))
++	t.Cleanup(func() {
++		after := countServers()
++		t.Logf("VERIFY C2: channelz servers before NewServer=%d, at test exit=%d; server stopped by test: %v", before, after, after == before)
++		server.Stop()
++	})
+ 	server.RegisterService(desc, impl)
+-	ss := &stubserver.StubServer{S: server}
++	ss := &stubserver.StubServer{S: server, Network: "bogus-network"}
+ 	if err := ss.Start(nil); err != nil {
+ 		t.Fatal(err)
+ 	}

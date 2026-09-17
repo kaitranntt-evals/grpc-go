@@ -1,0 +1,35 @@
+diff --git a/server_unified_test.go b/server_unified_test.go
+index be31b15d..b01128e0 100644
+--- a/server_unified_test.go
++++ b/server_unified_test.go
+@@ -29,6 +29,7 @@ import (
+ 	"google.golang.org/grpc"
+ 	"google.golang.org/grpc/codes"
+ 	"google.golang.org/grpc/encoding/gzip"
++	"google.golang.org/grpc/internal/channelz"
+ 	"google.golang.org/grpc/internal/stubserver"
+ 	"google.golang.org/grpc/metadata"
+ 	"google.golang.org/grpc/peer"
+@@ -54,9 +55,20 @@ func pipelineUnaryHandler(ctx context.Context, dec func(any) error, interceptor
+ 
+ func startPipelineServer(t *testing.T, handlerTransport bool, desc *grpc.ServiceDesc, opts ...grpc.ServerOption) *stubserver.StubServer {
+ 	t.Helper()
+-	ss := &stubserver.StubServer{S: grpc.NewServer(opts...)}
++	// VERIFY C2: induce net.Listen failure and observe whether the explicitly
++	// created server is stopped on the failure exit.
++	channelz.TurnOn()
++	countServers := func() int { servers, _ := channelz.GetServers(0, 1<<20); return len(servers) }
++	before := countServers()
++	ss := &stubserver.StubServer{S: grpc.NewServer(opts...), Network: "bogus-network"}
++	server := ss.S.(*grpc.Server)
++	t.Cleanup(func() {
++		after := countServers()
++		t.Logf("VERIFY C2: channelz servers before NewServer=%d, at test exit (after t.Cleanup(ss.Stop) ran)=%d; server stopped by test: %v", before, after, after == before)
++		server.Stop()
++	})
+ 	ss.S.RegisterService(desc, struct{}{})
+-	t.Cleanup(ss.Stop)
++	t.Cleanup(func() { t.Logf("VERIFY C2: t.Cleanup(ss.Stop) invoked"); ss.Stop() })
+ 	if handlerTransport {
+ 		if err := ss.StartHandlerServer(); err != nil {
+ 			t.Fatal(err)
