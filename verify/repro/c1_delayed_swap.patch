@@ -1,0 +1,17 @@
+# Mutation B ("delayed application"): the balancer publishes the replacement
+# HandshakeInfo 300ms after the replacement providers were built. Combine with
+# c1_eager_close.patch to show the candidate test stays green while the fix is
+# reverted, because it releases the blocked load after observing provider
+# construction + a 100ms quiet window rather than after application.
+# Apply from a checkout of evalon/grpc-go-xd-04ccfc62:
+#   git apply verify/repro/c1_eager_close.patch verify/repro/c1_delayed_swap.patch
+--- a/internal/xds/balancer/clusterimpl/clusterimpl.go
++++ b/internal/xds/balancer/clusterimpl/clusterimpl.go
+@@ -382,6 +382,7 @@ func (b *clusterImplBalancer) handleSecurityConfig(config *xdsresource.SecurityC
+ // reference on the previously published HandshakeInfo. The providers of the
+ // old HandshakeInfo are closed once any in-flight handshakes using it finish.
+ func (b *clusterImplBalancer) storeHandshakeInfo(hi *xds.HandshakeInfo) {
++	time.Sleep(300 * time.Millisecond)
+ 	if old := b.xdsHIPtr.Swap(hi); old != nil {
+ 		old.Release()
+ 	}

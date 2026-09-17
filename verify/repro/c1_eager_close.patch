@@ -1,0 +1,17 @@
+# Mutation A ("eager close"): reverts the fix so providers close as soon as the
+# balancer releases the old HandshakeInfo, regardless of in-flight handshakes.
+# Apply from a checkout of evalon/grpc-go-xd-04ccfc62:
+#   git apply verify/repro/c1_eager_close.patch
+--- a/internal/credentials/xds/handshake_info.go
++++ b/internal/credentials/xds/handshake_info.go
+@@ -201,9 +201,7 @@ func (hi *HandshakeInfo) Release() {
+ 	if hi == nil {
+ 		return
+ 	}
+-	if hi.refs.Add(-1) != 0 {
+-		return
+-	}
++	hi.refs.Add(-1)
+ 	if hi.rootProvider != nil {
+ 		hi.rootProvider.Close()
+ 	}
