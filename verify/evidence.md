@@ -134,9 +134,6 @@ ok  	google.golang.org/grpc/internal/credentials/xds	3.015s
 
 (An earlier run of the same probe before the file grew a license header: `replacements=55856 acquires=1081122 nilHolds=0 closedAtAcquire=0 closedBeforeRelease=0`.)
 
-```console
-```
-
 Verdict for this branch: REFUTED.
 
 ### Branch evalon/grpc-go-xd-07f17f15 (`13a9a5bd`)
@@ -171,9 +168,6 @@ ok  	google.golang.org/grpc/internal/credentials/xds	3.015s
 
 (Earlier run: `replacements=69135 acquires=1682543 nilHolds=0 closedAtAcquire=0 closedBeforeRelease=0`.)
 
-```console
-```
-
 No `Resource already closed or dead` / `Refcount cannot be negative` log lines from `grpcsync` appeared in the output.
 
 Verdict for this branch: REFUTED.
@@ -191,9 +185,6 @@ ok  	google.golang.org/grpc/internal/credentials/xds	3.015s
 ```
 
 (Earlier run: `replacements=69698 acquires=1722693 nilHolds=0 closedAtAcquire=0 closedBeforeRelease=0`.)
-
-```console
-```
 
 Verdict for this branch: REFUTED.
 
