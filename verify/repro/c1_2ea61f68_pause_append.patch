@@ -1,0 +1,32 @@
+# Run: cd <worktree of evalon/grpc-go-se-2ea61f68> && git apply <this file> && go test ./test -run 'Test/ServerRejectsOversizedDecompressedMessage' -count=3 -race -v; git checkout -- test/
+
+diff --git a/test/server_rpc_pipeline_test.go b/test/server_rpc_pipeline_test.go
+index ef60df38..d0548aa5 100644
+--- a/test/server_rpc_pipeline_test.go
++++ b/test/server_rpc_pipeline_test.go
+@@ -19,6 +19,8 @@
+ package test
+ 
+ import (
++	"time"
++
+ 	"bytes"
+ 	"context"
+ 	"io"
+@@ -53,6 +55,8 @@ const (
+ 
+ // interceptorRecorder records the RPCs observed by the unary and stream server
+ // interceptors, along with the error returned by the handler chain below them.
++var verifyDelay = 500 * time.Millisecond // VERIFY-INSTRUMENTATION
++
+ type interceptorRecorder struct {
+ 	mu          sync.Mutex
+ 	unaryErrs   map[string]error
+@@ -78,6 +82,7 @@ func (r *interceptorRecorder) unaryInterceptor(ctx context.Context, req any, inf
+ 
+ func (r *interceptorRecorder) streamInterceptor(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+ 	err := handler(srv, ss)
++	time.Sleep(verifyDelay) // VERIFY-INSTRUMENTATION: pause before the post-handler record
+ 	r.mu.Lock()
+ 	defer r.mu.Unlock()
+ 	r.streamInfos[info.FullMethod] = info
