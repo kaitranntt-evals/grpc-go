@@ -325,6 +325,7 @@ func TestSecurityConfigUpdate_ConcurrentHandshake(t *testing.T) {
 	if err := mgmtServer.Update(ctx, resources); err != nil {
 		t.Fatalf("Failed to update management server with the replacement Cluster: %v", err)
 	}
+	calPerfectWaitForChan(ctx, t, builtB, "timed out waiting for replacement provider to be built")
 	calPerfectWaitForChan(ctx, t, replacementApplied, "timed out waiting for replacement Cluster configuration to be applied")
 
 	releaseA()
