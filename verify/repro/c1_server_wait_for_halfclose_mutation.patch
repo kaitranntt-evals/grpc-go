@@ -1,0 +1,27 @@
+diff --git a/server.go b/server.go
+index f7a51a32..a47163ad 100644
+--- a/server.go
++++ b/server.go
+@@ -1287,7 +1287,21 @@ func (d rpcDesc) handle(s *Server, srv any, ss *serverStream) error {
+ 		// Adapt the unary handler onto the stream: receive the single request
+ 		// through the stream's decoder, then send the single response.  The
+ 		// unary interceptor chain is applied by the generated handler.
+-		reply, err := d.unary.Handler(srv, ss.Context(), ss.RecvMsg, s.opts.unaryInt)
++		// VERIFY-MUTATION: wait for the client's half-close before dispatching.
++		dec := func(m any) error {
++			if err := ss.RecvMsg(m); err != nil {
++				return err
++			}
++			for {
++				if err := ss.RecvMsg(reflect.New(reflect.TypeOf(m).Elem()).Interface()); err != nil {
++					if err == io.EOF {
++						return nil
++					}
++					return err
++				}
++			}
++		}
++		reply, err := d.unary.Handler(srv, ss.Context(), dec, s.opts.unaryInt)
+ 		if err != nil {
+ 			return err
+ 		}

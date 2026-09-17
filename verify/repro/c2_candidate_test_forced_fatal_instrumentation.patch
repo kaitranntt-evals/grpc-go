@@ -1,0 +1,36 @@
+diff --git a/test/server_pipeline_test.go b/test/server_pipeline_test.go
+index ada65111..d21112ea 100644
+--- a/test/server_pipeline_test.go
++++ b/test/server_pipeline_test.go
+@@ -31,6 +31,7 @@ import (
+ 	"github.com/google/go-cmp/cmp"
+ 	"google.golang.org/grpc"
+ 	"google.golang.org/grpc/codes"
++	"google.golang.org/grpc/internal/channelz"
+ 	"google.golang.org/grpc/credentials/insecure"
+ 	"google.golang.org/grpc/encoding/gzip"
+ 	"google.golang.org/grpc/internal/stubserver"
+@@ -467,10 +468,22 @@ func (s) TestServerHandwrittenServiceDesc_Dispatch(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	srv := grpc.NewServer(grpc.UnaryInterceptor(rec.unary), grpc.StreamInterceptor(rec.stream))
++	// VERIFY-INSTRUMENTATION: observe at exit whether the server was stopped.
++	var verifySrvID int64
++	if servers, _ := channelz.GetServers(0, 1000); len(servers) > 0 {
++		verifySrvID = servers[len(servers)-1].ID
++	}
++	t.Cleanup(func() {
++		if channelz.GetServer(verifySrvID) != nil {
++			t.Logf("VERIFY-OBSERVED: server channelz id %d still registered at test exit -> Stop() never called", verifySrvID)
++		} else {
++			t.Logf("VERIFY-OBSERVED: server channelz id %d stopped before test exit", verifySrvID)
++		}
++	})
+ 	srv.RegisterService(&serviceDesc, nil)
+ 
+ 	wantInfo := []grpc.MethodInfo{
+-		{Name: "UnaryCall"},
++		{Name: "UnaryCall-VERIFY-MUTATED"}, // VERIFY-MUTATION: force the fatal GetServiceInfo assertion
+ 		{Name: "EmptyCall"},
+ 		{Name: "UnaryCall", IsServerStream: true},
+ 	}

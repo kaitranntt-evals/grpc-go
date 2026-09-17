@@ -1,0 +1,17 @@
+diff --git a/test/end2end_test.go b/test/end2end_test.go
+index 7a63f9b8..3d33d22b 100644
+--- a/test/end2end_test.go
++++ b/test/end2end_test.go
+@@ -4552,7 +4552,11 @@ func testClientRequestBodyErrorUnexpectedEOF(t *testing.T, e env) {
+ 				// Advertise a five-byte message, but half-close without sending it.
+ 				st.writeData(1, true, []byte{0, 0, 0, 0, 5})
+ 				for {
+-					f := st.wantAnyFrame()
++					f, err := st.readFrame() // VERIFY-CONTRAST: timer-bounded read
++					if err != nil {
++						t.Fatalf("readFrame: %v", err)
++					}
++					t.Logf("VERIFY-FRAME %T %+v", f, f.Header())
+ 					hf, ok := f.(*http2.MetaHeadersFrame)
+ 					if !ok {
+ 						continue

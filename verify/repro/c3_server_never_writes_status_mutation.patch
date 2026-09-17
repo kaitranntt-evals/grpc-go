@@ -1,0 +1,31 @@
+diff --git a/server.go b/server.go
+index e98b7ad9..b5caed3f 100644
+--- a/server.go
++++ b/server.go
+@@ -1462,6 +1462,11 @@ func (s *Server) processRPC(ctx context.Context, stream *transport.ServerStream,
+ 			binlog.Log(ctx, st)
+ 		}
+ 	}
++	// VERIFY-MUTATION: simulate a server that never writes the terminal status
++	// for a truncated request body.
++	if appErr != nil && appStatus.Message() == io.ErrUnexpectedEOF.Error() {
++		return appErr
++	}
+ 	if err := stream.WriteStatus(appStatus); appErr == nil {
+ 		return err
+ 	}
+diff --git a/stream.go b/stream.go
+index 21cbc637..4944718f 100644
+--- a/stream.go
++++ b/stream.go
+@@ -1887,7 +1887,9 @@ func (ss *serverStream) RecvMsg(m any) (err error) {
+ 			}
+ 			ss.mu.Unlock()
+ 		}
+-		if err != nil && err != io.EOF {
++		// VERIFY-MUTATION: simulate a server that never writes the terminal
++		// status when the request body is truncated.
++		if err != nil && err != io.EOF && status.Convert(err).Message() != io.ErrUnexpectedEOF.Error() {
+ 			st, _ := status.FromError(toRPCErr(err))
+ 			ss.s.WriteStatus(st)
+ 			// Non-user specified status was sent out. This should be an error
