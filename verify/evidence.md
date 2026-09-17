@@ -68,9 +68,9 @@ Runtime measurement (repro `verify/repro/c1_retire_before_load_test.go` mirrors 
 $ cp ~/repos/grpc-go/verify/repro/c1_retire_before_load_test.go ~/repos/wt-0ce5f895/internal/credentials/xds/
 $ cd ~/repos/wt-0ce5f895 && go test -tags verify_repro ./internal/credentials/xds/ -run '^Test$/^VerifyC1_RetireBeforeLoad$' -count=1 -v
 === RUN   Test/VerifyC1_RetireBeforeLoad
-    c1_retire_before_load_test.go:73: Retire() ran BEFORE KeyMaterial() was entered in 2000 of 2000 iterations (100.0%)
+    c1_retire_before_load_test.go:93: Retire() ran BEFORE KeyMaterial() was entered in 2000 of 2000 iterations (100.0%)
 --- PASS: Test (0.00s)
-ok  	google.golang.org/grpc/internal/credentials/xds	0.007s
+ok  	google.golang.org/grpc/internal/credentials/xds	0.008s
 ```
 
 The branch's own tests pass (so the misordering is invisible to them):
@@ -127,9 +127,14 @@ Stress probe (`verify/repro/c2_acquire_stress_manager_test.go`: 16 goroutines ac
 ```console
 $ cp ~/repos/grpc-go/verify/repro/c2_acquire_stress_manager_test.go ~/repos/wt-6b4db8a0/internal/credentials/xds/
 $ cd ~/repos/wt-6b4db8a0 && go test -race -tags verify_repro ./internal/credentials/xds/ -run '^Test$/^VerifyC2_AcquireNeverFailsWhilePublished$' -count=1 -v
-    c2_acquire_stress_manager_test.go:78: replacements=55856 acquires=1081122 nilHolds=0 closedAtAcquire=0 closedBeforeRelease=0
+    c2_acquire_stress_manager_test.go:98: replacements=65861 acquires=1090729 nilHolds=0 closedAtAcquire=0 closedBeforeRelease=0
 --- PASS: Test (2.00s)
-ok  	google.golang.org/grpc/internal/credentials/xds	3.013s
+ok  	google.golang.org/grpc/internal/credentials/xds	3.015s
+```
+
+(An earlier run of the same probe before the file grew a license header: `replacements=55856 acquires=1081122 nilHolds=0 closedAtAcquire=0 closedBeforeRelease=0`.)
+
+```console
 ```
 
 Verdict for this branch: REFUTED.
@@ -159,9 +164,14 @@ func (p *HandshakeInfoPointer) Acquire() (*HandshakeInfo, func()) {
 ```console
 $ cp ~/repos/grpc-go/verify/repro/c2_acquire_stress_pointer_test.go ~/repos/wt-07f17f15/internal/credentials/xds/
 $ cd ~/repos/wt-07f17f15 && go test -race -tags verify_repro ./internal/credentials/xds/ -run '^Test$/^VerifyC2_AcquireNeverFailsWhilePublished$' -count=1 -v
-    c2_acquire_stress_pointer_test.go:79: replacements=69135 acquires=1682543 nilHolds=0 closedAtAcquire=0 closedBeforeRelease=0
+    c2_acquire_stress_pointer_test.go:99: replacements=74463 acquires=1756219 nilHolds=0 closedAtAcquire=0 closedBeforeRelease=0
 --- PASS: Test (2.00s)
 ok  	google.golang.org/grpc/internal/credentials/xds	3.015s
+```
+
+(Earlier run: `replacements=69135 acquires=1682543 nilHolds=0 closedAtAcquire=0 closedBeforeRelease=0`.)
+
+```console
 ```
 
 No `Resource already closed or dead` / `Refcount cannot be negative` log lines from `grpcsync` appeared in the output.
@@ -175,9 +185,14 @@ Verdict for this branch: REFUTED.
 ```console
 $ cp ~/repos/grpc-go/verify/repro/c2_acquire_stress_pointer_test.go ~/repos/wt-eb179dd3/internal/credentials/xds/
 $ cd ~/repos/wt-eb179dd3 && go test -race -tags verify_repro ./internal/credentials/xds/ -run '^Test$/^VerifyC2_AcquireNeverFailsWhilePublished$' -count=1 -v
-    c2_acquire_stress_pointer_test.go:79: replacements=69698 acquires=1722693 nilHolds=0 closedAtAcquire=0 closedBeforeRelease=0
+    c2_acquire_stress_pointer_test.go:99: replacements=69915 acquires=1768516 nilHolds=0 closedAtAcquire=0 closedBeforeRelease=0
 --- PASS: Test (2.00s)
-ok  	google.golang.org/grpc/internal/credentials/xds	3.014s
+ok  	google.golang.org/grpc/internal/credentials/xds	3.015s
+```
+
+(Earlier run: `replacements=69698 acquires=1722693 nilHolds=0 closedAtAcquire=0 closedBeforeRelease=0`.)
+
+```console
 ```
 
 Verdict for this branch: REFUTED.
@@ -257,16 +272,16 @@ No other wait precedes `releaseA()`. Runtime demonstration (`verify/repro/c4_rel
 ```console
 $ cd ~/repos/grpc-go && cp verify/repro/c4_release_before_swap_test.go internal/xds/balancer/clusterimpl/tests/
 $ go test -tags verify_repro ./internal/xds/balancer/clusterimpl/tests/ -run '^TestVerifyC4_ReleaseBeforeSwap$' -count=3 -v | grep -E 'event:|observed:|^(--- |ok|FAIL|PASS)'
-    c4_release_before_swap_test.go:171: event: builtB received (provider B build function entered, still parked)
-    c4_release_before_swap_test.go:174: event: releaseA() called
-    c4_release_before_swap_test.go:176: event: blocked provider A KeyMaterial call resumed and RETURNED
-    c4_release_before_swap_test.go:187: observed: provider A NOT closed, handleSecurityConfig still parked inside buildProviders -> xdsHIPtr not yet swapped, previous owner not yet released
-    c4_release_before_swap_test.go:191: event: provider B build unparked
-    c4_release_before_swap_test.go:198: event: active RPC completed successfully
-    c4_release_before_swap_test.go:203: observed: provider A closed only after the build returned (swap + previous-owner release happened after KeyMaterial had already returned)
+    c4_release_before_swap_test.go:191: event: builtB received (provider B build function entered, still parked)
+    c4_release_before_swap_test.go:194: event: releaseA() called
+    c4_release_before_swap_test.go:196: event: blocked provider A KeyMaterial call resumed and RETURNED
+    c4_release_before_swap_test.go:207: observed: provider A NOT closed, handleSecurityConfig still parked inside buildProviders -> xdsHIPtr not yet swapped, previous owner not yet released
+    c4_release_before_swap_test.go:211: event: provider B build unparked
+    c4_release_before_swap_test.go:218: event: active RPC completed successfully
+    c4_release_before_swap_test.go:223: observed: provider A closed only after the build returned (swap + previous-owner release happened after KeyMaterial had already returned)
 --- PASS: TestVerifyC4_ReleaseBeforeSwap (0.01s)
-    (identical sequence in runs 2 and 3)
-ok  	google.golang.org/grpc/internal/xds/balancer/clusterimpl/tests	0.039s
+    (identical sequence in runs 2 and 3; 3/3 PASS)
+ok  	google.golang.org/grpc/internal/xds/balancer/clusterimpl/tests	0.040s
 $ rm internal/xds/balancer/clusterimpl/tests/c4_release_before_swap_test.go
 ```
 
@@ -376,7 +391,7 @@ Previous write at 0x00c000512f00 by goroutine 249:
 FAIL	google.golang.org/grpc/internal/xds/server	0.030s
 ```
 
-(Two `WARNING: DATA RACE` reports per run: read@156 vs write@157, and write@157 vs write@157.)
+(One or two `WARNING: DATA RACE` reports per run depending on interleaving: read@156 vs write@157, and write@157 vs write@157. The stack frames above are from the pre-license-header version of the repro; with the final file the test-side frames are `c6_concurrent_close_race_test.go:61` / `:64`, the `conn_wrapper.go:156` / `:157` frames are unchanged.)
 
 Control on the base commit (same probe with `cw.rootProvider, cw.identityProvider = verifyC6Provider{}, verifyC6Provider{}` instead of the `handshakeInfo` assignment, since the field does not exist there):
 
