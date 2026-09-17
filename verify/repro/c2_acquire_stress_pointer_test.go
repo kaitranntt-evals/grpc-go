@@ -1,3 +1,23 @@
+//go:build verify_repro
+
+/*
+ *
+ * Copyright 2026 gRPC authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 // Run (against branches evalon/grpc-go-xd-07f17f15 and evalon/grpc-go-xd-eb179dd3, each in a worktree):
 //   cp verify/repro/c2_acquire_stress_pointer_test.go <worktree>/internal/credentials/xds/ && (cd <worktree> && go test -race -tags verify_repro ./internal/credentials/xds/ -run '^Test$/^VerifyC2_AcquireNeverFailsWhilePublished$' -count=1 -v)
 //
@@ -6,8 +26,6 @@
 // "failed initial hold" would show up as Acquire returning nil while a non-nil
 // configuration is always published, or returning a HandshakeInfo whose root
 // provider is already closed (or gets closed before release is called).
-
-//go:build verify_repro
 
 package xds
 

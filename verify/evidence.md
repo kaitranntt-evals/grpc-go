@@ -33,7 +33,7 @@ $ go vet ./... ; echo VET=$?
 VET=0
 ```
 
-All repro files under `verify/repro/` carry a `//go:build verify_repro` constraint so they are inert for `go build ./...` / `go vet ./...`; run them with `-tags verify_repro` after copying into the target package directory as stated in each file's header.
+All Go repro files under `verify/repro/` carry a `//go:build verify_repro` constraint so they are inert for `go build ./...` / `go vet ./...`; run them with `-tags verify_repro` after copying into the target package directory as stated in each file's header.
 
 ## C1
 
@@ -315,6 +315,15 @@ $ grep -n 'vet.sh' .github/workflows/testing.yml
 ```
 
 The check's output is non-empty (exactly this file), which `fail_on_output` turns into a vet.sh failure. (Untracked eval fixtures are not seen by `git grep` and are not counted.)
+
+The same check packaged as `verify/repro/c5_copyright_check.sh` (run after the verify commit, whose own repro files carry headers):
+
+```console
+$ bash verify/repro/c5_copyright_check.sh; echo EXIT=$?
+files without a gRPC copyright header (scripts/vet.sh would fail):
+  internal/xds/balancer/clusterimpl/tests/concurrent_handshake_test.go
+EXIT=1
+```
 
 Impact reasoning: the repository's own lint gate (`scripts/vet.sh`, run in CI) fails on this branch solely because of the missing header on the new test file; `go vet ./...` and `gofmt -l .` do not catch it.
 

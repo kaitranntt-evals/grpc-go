@@ -1,3 +1,23 @@
+//go:build verify_repro
+
+/*
+ *
+ * Copyright 2026 gRPC authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 // Run: cp verify/repro/c4_release_before_swap_test.go internal/xds/balancer/clusterimpl/tests/ && go test -tags verify_repro ./internal/xds/balancer/clusterimpl/tests/ -run '^TestVerifyC4_ReleaseBeforeSwap$' -count=3 -v
 //
 // Same scenario and synchronization as TestSecurityConfigUpdate_ConcurrentHandshake
@@ -9,8 +29,6 @@
 // (The RPC itself cannot complete while the balancer is parked, because the
 // picker update is serialized behind handleSecurityConfig; so the observable
 // used here is the KeyMaterial return, which is what the claim is about.)
-
-//go:build verify_repro
 
 package clusterimpl_test
 
