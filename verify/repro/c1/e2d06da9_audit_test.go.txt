@@ -1,0 +1,30 @@
+package grpc_test
+
+import (
+	"testing"
+
+	"google.golang.org/grpc/internal/channelz"
+)
+
+// AUDIT (C1, e2d06da9): drive TestServer_UnifiedPipelineRouting through a
+// failing ss.Start and check whether the grpc.Server created before Start is
+// ever stopped (its channelz entry removed).
+func (s) TestAuditC1_RoutingStartupFailureLeavesServerRunning(t *testing.T) {
+	channelz.TurnOn()
+	before, _ := channelz.GetServers(0, 0)
+	t.Logf("channelz servers before: %d", len(before))
+
+	ok := t.Run("TestServer_UnifiedPipelineRouting", func(t *testing.T) {
+		(s{}).TestServer_UnifiedPipelineRouting(t)
+	})
+	t.Logf("subtest passed=%v (expected false: startup was forced to fail)", ok)
+
+	after, _ := channelz.GetServers(0, 0)
+	t.Logf("channelz servers after: %d", len(after))
+	if len(after) != len(before) {
+		for _, srv := range after {
+			t.Logf("lingering channelz server entry: id=%d ref=%q", srv.ID, srv.RefName)
+		}
+		t.Errorf("grpc.Server created before ss.Start was never stopped: %d channelz server entr(ies) leaked", len(after)-len(before))
+	}
+}

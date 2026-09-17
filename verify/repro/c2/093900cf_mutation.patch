@@ -1,0 +1,32 @@
+diff --git a/test/server_pipeline_test.go b/test/server_pipeline_test.go
+index c197bd9f..4c702520 100644
+--- a/test/server_pipeline_test.go
++++ b/test/server_pipeline_test.go
+@@ -359,7 +359,8 @@ func (s) TestServerPipeline_AllRPCKinds(t *testing.T) {
+ func (s) TestServerPipeline_UnaryRespondsWithoutHalfClose(t *testing.T) {
+ 	ss := &stubserver.StubServer{
+ 		UnaryCallF: func(context.Context, *testpb.SimpleRequest) (*testpb.SimpleResponse, error) {
+-			return &testpb.SimpleResponse{Payload: &testpb.Payload{Body: []byte("pong")}}, nil
++			// AUDIT mutation: respond, then fail the RPC with a non-OK status.
++			return nil, status.Error(codes.FailedPrecondition, "audit: non-OK terminal status")
+ 		},
+ 	}
+ 	if err := ss.Start(nil); err != nil {
+@@ -381,15 +382,8 @@ func (s) TestServerPipeline_UnaryRespondsWithoutHalfClose(t *testing.T) {
+ 		t.Fatalf("stream.SendMsg() failed: %v", err)
+ 	}
+ 	resp := &testpb.SimpleResponse{}
+-	if err := stream.RecvMsg(resp); err != nil {
+-		t.Fatalf("stream.RecvMsg() = %v, want <nil>", err)
+-	}
+-	if got := string(resp.GetPayload().GetBody()); got != "pong" {
+-		t.Fatalf("response payload = %q, want %q", got, "pong")
+-	}
+-	if err := stream.RecvMsg(resp); err != io.EOF {
+-		t.Fatalf("second stream.RecvMsg() = %v, want io.EOF", err)
+-	}
++	recvErr := stream.RecvMsg(resp) // AUDIT: RPC actually terminates with this error
++	t.Logf("AUDIT: RecvMsg() = %v (status code %v); NewStream() err = %v", recvErr, status.Code(recvErr), err)
+ 	if st := status.Code(err); st != codes.OK {
+ 		t.Fatalf("stream status = %v, want %v", st, codes.OK)
+ 	}

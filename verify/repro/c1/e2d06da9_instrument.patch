@@ -1,0 +1,13 @@
+diff --git a/server_pipeline_test.go b/server_pipeline_test.go
+index 4980b5f0..138a5a1d 100644
+--- a/server_pipeline_test.go
++++ b/server_pipeline_test.go
+@@ -276,7 +276,7 @@ func (s) TestServer_UnifiedPipelineRouting(t *testing.T) {
+ 		grpc.UnknownServiceHandler(streamHandler),
+ 	)
+ 	server.RegisterService(desc, nil)
+-	ss := &stubserver.StubServer{S: server}
++	ss := &stubserver.StubServer{S: server, Address: "256.256.256.256:1"} // AUDIT: force net.Listen to fail inside ss.Start
+ 	if err := ss.Start(nil); err != nil {
+ 		t.Fatal(err)
+ 	}

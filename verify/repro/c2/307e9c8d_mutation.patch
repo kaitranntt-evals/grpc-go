@@ -1,0 +1,25 @@
+diff --git a/test/server_rpc_pipeline_test.go b/test/server_rpc_pipeline_test.go
+index 763f9fe3..05e0dd4d 100644
+--- a/test/server_rpc_pipeline_test.go
++++ b/test/server_rpc_pipeline_test.go
+@@ -413,9 +413,11 @@ func (s) TestServerRPCPipeline_StreamingFailures(t *testing.T) {
+ 			// Receiving into a message of the wrong type makes the server's
+ 			// receive path fail; that failure must be surfaced to the client
+ 			// with an Internal status.
+-			if err := stream.RecvMsg(&testpb.StreamingOutputCallRequest{}); err != nil {
++			if err := stream.RecvMsg(&testpb.StreamingInputCallRequest{}); err != nil { // AUDIT mutation: correct type, receive succeeds
++				t.Logf("AUDIT: server RecvMsg FAILED as intended: %v", err)
+ 				return err
+ 			}
++			t.Logf("AUDIT: server RecvMsg SUCCEEDED; returning fallback Internal status")
+ 			return status.Error(codes.Internal, "expected RecvMsg to fail")
+ 		},
+ 	}
+@@ -474,6 +476,7 @@ func (s) TestServerRPCPipeline_StreamingFailures(t *testing.T) {
+ 			t.Fatalf("stream.Send() failed: %v", err)
+ 		}
+ 		_, err = stream.CloseAndRecv()
++		t.Logf("AUDIT: client CloseAndRecv() = %v", err)
+ 		if status.Code(err) != codes.Internal {
+ 			t.Errorf("stream.CloseAndRecv() = %v, want code %v", err, codes.Internal)
+ 		}

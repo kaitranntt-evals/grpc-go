@@ -1,0 +1,29 @@
+package grpc
+
+import (
+	"testing"
+
+	"google.golang.org/grpc/internal/channelz"
+)
+
+// AUDIT (C1, 0e6bd0f2): run the added GetServiceInfo test and check whether the
+// grpc.Server it creates is ever stopped (its channelz entry removed).
+func (s) TestAuditC1_MethodGroupingLeavesServerRunning(t *testing.T) {
+	channelz.TurnOn() // make server registrations observable (test/ package does this in init)
+	before, _ := channelz.GetServers(0, 0)
+	t.Logf("channelz servers before: %d", len(before))
+
+	ok := t.Run("TestGetServiceInfo_MethodGrouping", func(t *testing.T) {
+		(s{}).TestGetServiceInfo_MethodGrouping(t)
+	})
+	t.Logf("subtest passed=%v", ok)
+
+	after, _ := channelz.GetServers(0, 0)
+	t.Logf("channelz servers after: %d", len(after))
+	if len(after) != len(before) {
+		for _, srv := range after {
+			t.Logf("lingering channelz server entry: id=%d ref=%q", srv.ID, srv.RefName)
+		}
+		t.Errorf("server created by TestGetServiceInfo_MethodGrouping was never stopped: %d channelz server entr(ies) leaked", len(after)-len(before))
+	}
+}

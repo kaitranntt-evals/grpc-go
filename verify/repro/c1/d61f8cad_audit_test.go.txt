@@ -1,0 +1,32 @@
+package test
+
+import (
+	"testing"
+
+	"google.golang.org/grpc/internal/channelz"
+)
+
+// AUDIT (C1, d61f8cad): drive startPipelineTestServer through a failing
+// ss.Start and check whether the grpc.Server created before Start is ever
+// stopped (its channelz entry removed).
+func (s) TestAuditC1_StartupFailureLeavesServerRunning(t *testing.T) {
+	before, _ := channelz.GetServers(0, 0)
+	t.Logf("channelz servers before: %d", len(before))
+
+	// startPipelineTestServer calls t.Fatalf when ss.Start fails; run it in a
+	// subtest so the parent survives and can inspect the aftermath.
+	ok := t.Run("fixture-with-failing-start", func(t *testing.T) {
+		rec := &interceptorRecorder{}
+		startPipelineTestServer(t, rec)
+	})
+	t.Logf("subtest passed=%v (expected false: startup was forced to fail)", ok)
+
+	after, _ := channelz.GetServers(0, 0)
+	t.Logf("channelz servers after: %d", len(after))
+	if len(after) != len(before) {
+		for _, srv := range after {
+			t.Logf("lingering channelz server entry: id=%d ref=%q", srv.ID, srv.RefName)
+		}
+		t.Errorf("grpc.Server created by the fixture was never stopped: %d channelz server entr(ies) leaked", len(after)-len(before))
+	}
+}

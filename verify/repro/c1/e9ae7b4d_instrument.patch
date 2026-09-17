@@ -1,0 +1,38 @@
+diff --git a/test/server_pipeline_test.go b/test/server_pipeline_test.go
+index 40df2c85..57d596af 100644
+--- a/test/server_pipeline_test.go
++++ b/test/server_pipeline_test.go
+@@ -19,6 +19,8 @@
+ package test
+ 
+ import (
++	"fmt"
++	"os"
+ 	"bytes"
+ 	"context"
+ 	"io"
+@@ -87,6 +89,9 @@ func (r *serverCallRecorder) TagConn(ctx context.Context, _ *stats.ConnTagInfo)
+ }
+ func (r *serverCallRecorder) HandleConn(context.Context, stats.ConnStats) {}
+ func (r *serverCallRecorder) HandleRPC(_ context.Context, rs stats.RPCStats) {
++	if _, ok := rs.(*stats.End); ok {
++		time.Sleep(20 * time.Millisecond) // AUDIT: delay End delivery to expose the poll loop
++	}
+ 	r.mu.Lock()
+ 	defer r.mu.Unlock()
+ 	switch st := rs.(type) {
+@@ -120,11 +125,14 @@ type expectation struct {
+ // one RPC, or ctx expires.  The server emits stats.End after writing the
+ // status, so a client may observe the RPC's completion slightly earlier.
+ func (r *serverCallRecorder) waitForEnd(ctx context.Context) error {
++	polls := 0
+ 	for {
++		polls++
+ 		r.mu.Lock()
+ 		n := len(r.ends)
+ 		r.mu.Unlock()
+ 		if n > 0 {
++			fmt.Fprintf(os.Stderr, "AUDIT waitForEnd: returned after %d poll iteration(s)\n", polls)
+ 			return nil
+ 		}
+ 		select {
