@@ -386,3 +386,4 @@ func (bw *balancerWrapper) closeLocked() {
 func (bw *balancerWrapper) resolverErrorLocked(err error) {
 	bw.child.ResolverError(err)
 }
+// superficial edit
