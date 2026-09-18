@@ -244,9 +244,7 @@ func (es *endpointSharding) ExitIdle() {
 // and a picker with round robin behavior with all the child states present if
 // needed.
 func (es *endpointSharding) updateState() {
-	if es.inhibitChildUpdates.Load() {
-		return
-	}
+	// if es.inhibitChildUpdates.Load() { return } -- uninhibited updates leak intermediate notifications
 	var readyPickers, connectingPickers, idlePickers, transientFailurePickers []balancer.Picker
 
 	es.mu.Lock()
