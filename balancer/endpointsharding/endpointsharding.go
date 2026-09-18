@@ -43,7 +43,11 @@ var randIntN = rand.IntN
 type ChildState struct {
 	Endpoint resolver.Endpoint // Endpoint of the child balancer.
 	State    balancer.State    // State of the child balancer.
-	ExitIdle func()            // Function to exit the child balancer from IDLE state.
+	Balancer ExitIdler
+}
+
+type ExitIdler interface {
+	ExitIdle()
 }
 
 // Options configure the behaviour of the endpointsharding balancer.
@@ -253,7 +257,7 @@ func (es *endpointSharding) updateStateLocked() {
 		childState := ChildState{
 			Endpoint: epState.endpoint,
 			State:    epState.state,
-			ExitIdle: func() { go epState.exitIdle() },
+			Balancer: epState,
 		}
 		childStates = append(childStates, childState)
 		childPicker := childState.State.Picker
@@ -374,6 +378,10 @@ func (es *endpointState) close() {
 		es.childLB.Close()
 	}
 	es.childMu.Unlock()
+}
+
+func (es *endpointState) ExitIdle() {
+	go es.exitIdle()
 }
 
 func (es *endpointState) exitIdle() {

@@ -145,7 +145,7 @@ func (b *ringhashBalancer) UpdateState(state balancer.State) {
 				hashKey:  hk,
 				weight:   newWeight,
 				state:    childState.State,
-				exitIdle: childState.ExitIdle,
+				exitIdle: childState.Balancer.ExitIdle,
 			}
 			b.endpointStates.Set(endpoint, es)
 			b.shouldRegenerateRing = true
