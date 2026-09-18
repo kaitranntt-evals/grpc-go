@@ -1,0 +1,38 @@
+diff --git a/test/server_rpc_pipeline_test.go b/test/server_rpc_pipeline_test.go
+index 5bf92c96..d858ed8d 100644
+--- a/test/server_rpc_pipeline_test.go
++++ b/test/server_rpc_pipeline_test.go
+@@ -25,6 +25,7 @@ import (
+ 	"io"
+ 	"sync"
+ 	"testing"
++	"time"
+ 
+ 	"github.com/google/go-cmp/cmp"
+ 	"github.com/google/go-cmp/cmp/cmpopts"
+@@ -63,6 +64,7 @@ func (r *serverInterceptorRecorder) serverOptions() []grpc.ServerOption {
+ 	return []grpc.ServerOption{
+ 		grpc.UnaryInterceptor(func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+ 			resp, err := handler(ctx, req)
++			time.Sleep(500 * time.Millisecond) // VERIFY: delay post-handler recording
+ 			r.mu.Lock()
+ 			defer r.mu.Unlock()
+ 			r.unary = append(r.unary, info)
+@@ -71,6 +73,7 @@ func (r *serverInterceptorRecorder) serverOptions() []grpc.ServerOption {
+ 		}),
+ 		grpc.StreamInterceptor(func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+ 			err := handler(srv, ss)
++			time.Sleep(500 * time.Millisecond) // VERIFY: delay post-handler recording
+ 			r.mu.Lock()
+ 			defer r.mu.Unlock()
+ 			r.stream = append(r.stream, info)
+@@ -722,7 +725,9 @@ func (s) TestServerRPCPipeline_Failures(t *testing.T) {
+ 			defer cancel()
+ 			ctx = metadata.AppendToOutgoingContext(ctx, pipelineRequestMDKey, "request")
+ 
++			start := time.Now()
+ 			trailer, err := test.run(ctx, ss.Client)
++			t.Logf("VERIFY: client observed RPC completion after %v", time.Since(start))
+ 			st, ok := status.FromError(err)
+ 			if !ok || st.Code() != test.wantCode {
+ 				t.Fatalf("%s RPC returned error %v, want status code %v", test.name, err, test.wantCode)

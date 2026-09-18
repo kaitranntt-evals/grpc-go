@@ -1,0 +1,50 @@
+diff --git a/test/server_rpc_pipeline_test.go b/test/server_rpc_pipeline_test.go
+index ef60df38..0edf3daa 100644
+--- a/test/server_rpc_pipeline_test.go
++++ b/test/server_rpc_pipeline_test.go
+@@ -24,6 +24,7 @@ import (
+ 	"io"
+ 	"sync"
+ 	"testing"
++	"time"
+ 
+ 	"github.com/google/go-cmp/cmp"
+ 	"google.golang.org/grpc"
+@@ -70,6 +71,7 @@ func newInterceptorRecorder() *interceptorRecorder {
+ 
+ func (r *interceptorRecorder) unaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+ 	resp, err := handler(ctx, req)
++	time.Sleep(500 * time.Millisecond) // VERIFY: delay post-handler recording
+ 	r.mu.Lock()
+ 	defer r.mu.Unlock()
+ 	r.unaryErrs[info.FullMethod] = err
+@@ -78,6 +80,7 @@ func (r *interceptorRecorder) unaryInterceptor(ctx context.Context, req any, inf
+ 
+ func (r *interceptorRecorder) streamInterceptor(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+ 	err := handler(srv, ss)
++	time.Sleep(500 * time.Millisecond) // VERIFY: delay post-handler recording
+ 	r.mu.Lock()
+ 	defer r.mu.Unlock()
+ 	r.streamInfos[info.FullMethod] = info
+@@ -580,7 +583,9 @@ func (s) TestServerStreamingRPCHandlerErrorPropagation(t *testing.T) {
+ 	if _, err := stream.Recv(); err != nil {
+ 		t.Fatalf("stream.Recv() failed for the first message: %v", err)
+ 	}
++	start := time.Now()
+ 	_, err = stream.Recv()
++	t.Logf("VERIFY: client observed RPC completion after %v", time.Since(start))
+ 	if st := status.Convert(err); st.Code() != codes.PermissionDenied || st.Message() != wantMsg {
+ 		t.Fatalf("stream.Recv() = _, %v; want status with code %v and message %q", err, codes.PermissionDenied, wantMsg)
+ 	}
+@@ -642,7 +647,10 @@ func (s) TestServerRejectsOversizedDecompressedMessage(t *testing.T) {
+ 			ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+ 			defer cancel()
+ 			ctx = metadata.AppendToOutgoingContext(ctx, echoMDKey, echoMDValue)
+-			if err := tc.call(ctx, ss.Client); status.Code(err) != codes.ResourceExhausted {
++			start := time.Now()
++			err := tc.call(ctx, ss.Client)
++			t.Logf("VERIFY: client observed RPC completion after %v", time.Since(start))
++			if status.Code(err) != codes.ResourceExhausted {
+ 				t.Fatalf("RPC returned error %v, want code %v", err, codes.ResourceExhausted)
+ 			}
+ 		})

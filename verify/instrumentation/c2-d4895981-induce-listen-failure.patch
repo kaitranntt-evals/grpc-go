@@ -1,0 +1,40 @@
+diff --git a/server_stream_pipeline_test.go b/server_stream_pipeline_test.go
+index 2f2bcb66..6e88c2d6 100644
+--- a/server_stream_pipeline_test.go
++++ b/server_stream_pipeline_test.go
+@@ -32,6 +32,8 @@ import (
+ 	"google.golang.org/grpc/internal/stubserver"
+ 	"google.golang.org/grpc/metadata"
+ 	"google.golang.org/grpc/status"
++	"net"
++	"time"
+ 
+ 	testgrpc "google.golang.org/grpc/interop/grpc_testing"
+ 	testpb "google.golang.org/grpc/interop/grpc_testing"
+@@ -177,8 +179,25 @@ func (s) TestServerStreamPipeline(t *testing.T) {
+ 	})
+ 	wantStreams[grpc.MethodInfo{Name: "SharedName", IsClientStream: true, IsServerStream: true}] = true
+ 	server := grpc.NewServer(grpc.UnaryInterceptor(unaryInterceptor), grpc.StreamInterceptor(streamInterceptor), grpc.UnknownServiceHandler(streamHandler(true, true)))
++	t.Cleanup(func() { // VERIFY: runs after t.Fatal; Serve on a stopped server returns ErrServerStopped at once
++		lis, err := net.Listen("tcp", "localhost:0")
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer lis.Close()
++		served := make(chan error, 1)
++		go func() { served <- server.Serve(lis) }()
++		select {
++		case err := <-served:
++			t.Logf("VERIFY: server.Serve returned immediately: %v (server had been stopped)", err)
++		case <-time.After(500 * time.Millisecond):
++			t.Logf("VERIFY: server.Serve still running after 500ms: explicitly created server was never stopped")
++			server.Stop()
++			<-served
++		}
++	})
+ 	server.RegisterService(desc, impl)
+-	ss := &stubserver.StubServer{S: server}
++	ss := &stubserver.StubServer{S: server, Network: "bogus-network"} // VERIFY: induce listener setup failure
+ 	if err := ss.Start(nil); err != nil {
+ 		t.Fatal(err)
+ 	}
