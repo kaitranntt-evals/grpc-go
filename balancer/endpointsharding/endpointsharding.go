@@ -77,6 +77,8 @@ func NewBalancer(cc balancer.ClientConn, opts balancer.BuildOptions, childBuilde
 // balancer with child config for every unique Endpoint received. It updates the
 // child states on any update from parent or child.
 type endpointSharding struct {
+	childMu sync.Mutex
+
 	cc           balancer.ClientConn
 	bOpts        balancer.BuildOptions
 	esOpts       Options
@@ -355,9 +357,9 @@ func (es *endpointState) UpdateState(state balancer.State) {
 }
 
 func (es *endpointState) updateClientConnState(state balancer.ClientConnState) error {
-	es.childMu.Lock()
+	es.parent.childMu.Lock()
 	err := es.childLB.UpdateClientConnState(state)
-	es.childMu.Unlock()
+	es.parent.childMu.Unlock()
 	return err
 }
 
@@ -377,9 +379,9 @@ func (es *endpointState) close() {
 }
 
 func (es *endpointState) exitIdle() {
-	es.childMu.Lock()
+	es.parent.childMu.Lock()
 	if !es.closed {
 		es.childLB.ExitIdle()
 	}
-	es.childMu.Unlock()
+	es.parent.childMu.Unlock()
 }
