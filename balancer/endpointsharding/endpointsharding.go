@@ -91,6 +91,8 @@ func NewBalancer(cc balancer.ClientConn, opts balancer.BuildOptions, childBuilde
 // balancer with child config for every unique Endpoint received. It updates the
 // child states on any update from parent or child.
 type endpointSharding struct {
+	childMu sync.Mutex
+
 	cc           balancer.ClientConn
 	bOpts        balancer.BuildOptions
 	esOpts       Options
