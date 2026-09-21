@@ -176,7 +176,7 @@ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState
 		}
 		var err error
 		if isNew {
-			err = epState.childLB.UpdateClientConnState(ccs)
+			err = epState.updateClientConnStateLocked(ccs)
 			epState.childMu.Unlock()
 		} else {
 			err = epState.updateClientConnState(ccs)
