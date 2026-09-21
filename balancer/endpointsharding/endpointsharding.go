@@ -349,7 +349,6 @@ type endpointState struct {
 	state                balancer.State    // State of the child balancer.
 	disableAutoReconnect bool              // Whether to disable auto reconnect for this child.
 
-	childMu sync.Mutex        // Guarantees mutual exclusion for Balancer API calls to the child balancer.
 	childLB balancer.Balancer // Child balancer.
 	closed  bool              // Tracks closure of the child balancer to ensure ExitIdle is not called after Close().
 }
