@@ -46,6 +46,7 @@ type ChildState struct {
 	Balancer ExitIdler
 }
 
+// ExitIdler wraps balancers exposing an ExitIdle method.
 type ExitIdler interface {
 	ExitIdle()
 }
