@@ -147,11 +147,13 @@ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState
 			// Skip duplicate endpoints.
 			continue
 		}
+		isNew := false
 		epState, ok := es.endpoints.Get(endpoint)
 		if ok {
 			// Endpoint child already exists, update the stored endpoint.
 			epState.endpoint = endpoint
 		} else {
+			isNew = true
 			// Endpoint child does not exist, create a new one.
 			epState = &endpointState{
 				ClientConn:           es.cc,
@@ -161,18 +163,25 @@ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState
 			}
 			epState.childMu.Lock()
 			epState.childLB = es.childBuilder(epState, es.bOpts)
-			epState.childMu.Unlock()
 		}
 		// Update the endpoint state for the endpoint.
 		newEndpoints.Set(endpoint, epState)
 
-		if err := epState.updateClientConnState(balancer.ClientConnState{
+		ccs := balancer.ClientConnState{
 			BalancerConfig: state.BalancerConfig,
 			ResolverState: resolver.State{
 				Endpoints:  []resolver.Endpoint{endpoint},
 				Attributes: state.ResolverState.Attributes,
 			},
-		}); err != nil && retErr == nil {
+		}
+		var err error
+		if isNew {
+			err = epState.childLB.UpdateClientConnState(ccs)
+			epState.childMu.Unlock()
+		} else {
+			err = epState.updateClientConnState(ccs)
+		}
+		if err != nil && retErr == nil {
 			// Keep the first error found from any child.
 			retErr = err
 		}
@@ -361,6 +370,10 @@ func (es *endpointState) updateClientConnState(state balancer.ClientConnState) e
 	err := es.childLB.UpdateClientConnState(state)
 	es.childMu.Unlock()
 	return err
+}
+
+func (es *endpointState) updateClientConnStateLocked(state balancer.ClientConnState) error {
+	return es.childLB.UpdateClientConnState(state)
 }
 
 func (es *endpointState) resolverError(err error) {
