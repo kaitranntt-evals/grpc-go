@@ -159,7 +159,9 @@ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState
 				endpoint:             endpoint,
 				disableAutoReconnect: es.esOpts.DisableAutoReconnect,
 			}
+			epState.childMu.Lock()
 			epState.childLB = es.childBuilder(epState, es.bOpts)
+			epState.childMu.Unlock()
 		}
 		// Update the endpoint state for the endpoint.
 		newEndpoints.Set(endpoint, epState)
