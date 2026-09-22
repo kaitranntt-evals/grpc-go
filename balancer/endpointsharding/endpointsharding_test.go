@@ -493,7 +493,7 @@ func (s) TestSynchronousConstructionIdleCallback(t *testing.T) {
 		}
 	}
 
-	childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+	childBuilder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
 		cc.UpdateState(balancer.State{
 			ConnectivityState: connectivity.Idle,
 		})
@@ -561,7 +561,7 @@ func (s) TestBatchUpdateConsolidatedNotification(t *testing.T) {
 	child3Hold := make(chan struct{})
 	var childCount int32
 
-	childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+	childBuilder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
 		cNum := atomic.AddInt32(&childCount, 1)
 		c := &maintainedChild{cc: cc}
 		if cNum == 3 {
@@ -655,7 +655,7 @@ func (s) TestClosedStateGuardCoverage(t *testing.T) {
 		idlers     = make(map[string]internalExitIdler)
 	)
 
-	childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+	childBuilder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
 		c := &maintainedChild{
 			cc:        cc,
 			enterExit: make(chan struct{}, 1),
@@ -741,7 +741,7 @@ func (s) TestBatchUpdateChildErrorConsolidation(t *testing.T) {
 	expectedErr := errors.New("child-2 update failed")
 	var childCount int32
 
-	childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+	childBuilder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
 		cNum := atomic.AddInt32(&childCount, 1)
 		c := &maintainedChild{cc: cc}
 		if cNum == 2 {
@@ -783,9 +783,9 @@ func (s) TestBatchUpdateChildErrorConsolidation(t *testing.T) {
 // 7. Synchronous Lifecycle Callback Safety: Child calling cc.UpdateState synchronously during ResolverError
 func (s) TestSynchronousLifecycleCallbackSafety(t *testing.T) {
 	callbackEntered := make(chan struct{}, 1)
-	childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+	childBuilder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
 		c := &maintainedChild{cc: cc}
-		c.onResolverError = func(err error) {
+		c.onResolverError = func(_ error) {
 			// Synchronous child-to-parent callback during ResolverError lifecycle operation
 			cc.UpdateState(balancer.State{
 				ConnectivityState: connectivity.TransientFailure,
