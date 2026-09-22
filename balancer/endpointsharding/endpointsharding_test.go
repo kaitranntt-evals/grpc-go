@@ -75,7 +75,7 @@ func (s) TestRotateEndpoints(t *testing.T) {
 		t.Run(fmt.Sprintf("rval=%d", tc.rval), func(t *testing.T) {
 			origRandIntN := randIntN
 			defer func() { randIntN = origRandIntN }()
-			randIntN = func(n int) int { return tc.rval }
+			randIntN = func(_ int) int { return tc.rval }
 			got := rotateEndpoints(endpoints)
 			if !reflect.DeepEqual(got, tc.want) {
 				t.Fatalf("rotateEndpoints(%v) = %v, want %v", endpoints, got, tc.want)
@@ -161,7 +161,7 @@ func (c *maintainedChild) ResolverError(err error) {
 	}
 }
 
-func (c *maintainedChild) UpdateSubConnState(sc balancer.SubConn, state balancer.SubConnState) {
+func (c *maintainedChild) UpdateSubConnState(_ balancer.SubConn, _ balancer.SubConnState) {
 	c.enterCall()
 	defer c.exitCall()
 }
@@ -227,7 +227,7 @@ func (s) TestDecoupledChildProgress(t *testing.T) {
 		c1, c2     *maintainedChild
 	)
 
-	childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+	childBuilder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
 		mu.Lock()
 		defer mu.Unlock()
 		if c1 == nil {
@@ -350,7 +350,7 @@ func (s) TestSameChildMutualExclusion(t *testing.T) {
 		child   *maintainedChild
 	)
 
-	childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+	childBuilder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
 		c := &maintainedChild{
 			cc:           cc,
 			enterUpdate:  updateEntered,
