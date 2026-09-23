@@ -216,11 +216,9 @@ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState
 // children and sends a single synchronous update of the childStates at the end
 // of the ResolverError operation.
 func (es *endpointSharding) ResolverError(err error) {
-	es.inhibitUpdatesFromChildren()
 	for _, child := range es.endpoints.All() {
 		child.resolverError(err)
 	}
-	es.allowUpdatesFromChildren()
 }
 
 func (es *endpointSharding) UpdateSubConnState(balancer.SubConn, balancer.SubConnState) {
