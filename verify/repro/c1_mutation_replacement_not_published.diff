@@ -1,0 +1,28 @@
+# Mutation used for claim C1 (run v-618a6113): apply on a checkout of claims/evalon/grpc-go-xd-e2cd665a with `patch -p1 < verify/repro/c1_mutation_replacement_not_published.diff`, then run the solution test: go test ./internal/xds/balancer/clusterimpl/tests/ -run '^Test$/^SecurityConfigUpdate_ReplacedDuringHandshake$' -count=1 -v   (expected: FAIL at the follow-up assertions)
+--- a/internal/xds/balancer/clusterimpl/clusterimpl.go
++++ b/internal/xds/balancer/clusterimpl/clusterimpl.go
+@@ -136,6 +136,7 @@
+ 	// In-progress handshakes hold their own references, so the providers in a
+ 	// replaced HandshakeInfo are only closed once those handshakes complete.
+ 	xdsHIPtr atomic.Pointer[xds.HandshakeInfo]
++	mutReleased bool
+ 
+ 	// The following fields are protected by mu, since they are accessed in
+ 	// balancer API methods and in methods called from the child policy.
+@@ -393,6 +394,16 @@
+ // handshakes that fail to acquire a reference to the old one (because it was
+ // released concurrently) re-read the pointer to pick up the replacement.
+ func (b *clusterImplBalancer) updateHandshakeInfo(hi *xds.HandshakeInfo) {
++	// MUTATION (audit C1): once a real (non-fallback) security config has been
++	// published, a replacement releases the old providers but the replacement
++	// roots never govern follow-up connections.
++	if cur := b.xdsHIPtr.Load(); cur != nil && !cur.UseFallbackCreds() {
++		if !b.mutReleased {
++			b.mutReleased = true
++			cur.Release()
++		}
++		return
++	}
+ 	if old := b.xdsHIPtr.Swap(hi); old != nil {
+ 		old.Release()
+ 	}
