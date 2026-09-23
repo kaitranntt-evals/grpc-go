@@ -1,0 +1,35 @@
+# C1 mutation (branch evalon/grpc-go-en-28870ca2): re-introduce a coarse
+# parent-wide lock so ExitIdle on one child waits behind another child's
+# in-flight UpdateClientConnState. If the changed test really establishes
+# independent progress while the first child's update is held, it must fail.
+#   cd <worktree of evalon/grpc-go-en-28870ca2> && git apply verify/repro/c1_coarse_lock_mutation.patch && \
+#   go test ./balancer/endpointsharding -run 'Test/EndpointShardingExitIdleDuringOtherChildUpdate$' -race -count=1 -timeout 60s -v ; git checkout -- balancer/endpointsharding/endpointsharding.go
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -97,6 +97,8 @@ type endpointSharding struct {
+ 	esOpts       Options
+ 	childBuilder ChildBuilderFunc
+ 
++	coarseMu sync.Mutex // MUTATION: parent-wide lock held across the whole update loop.
++
+ 	// children is only replaced by UpdateClientConnState. Calls into the
+ 	// balancer.Balancer interface are serialized by the caller, so the map
+ 	// itself is never mutated concurrently; it is loaded atomically so that
+@@ -138,6 +140,8 @@ func rotateEndpoints(es []resolver.Endpoint) []resolver.Endpoint {
+ // addresses it will ignore that endpoint. Otherwise, returns first error found
+ // from a child, but fully processes the new update.
+ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState) error {
++	es.coarseMu.Lock()
++	defer es.coarseMu.Unlock()
+ 	es.inhibitChildUpdates.Store(true)
+ 	defer func() {
+ 		es.inhibitChildUpdates.Store(false)
+@@ -364,6 +368,8 @@ func (bw *balancerWrapper) ExitIdle() {
+ }
+ 
+ func (bw *balancerWrapper) exitIdle() {
++	bw.es.coarseMu.Lock()
++	defer bw.es.coarseMu.Unlock()
+ 	bw.mu.Lock()
+ 	defer bw.mu.Unlock()
+ 	if bw.child != nil && !bw.isClosed {

@@ -1,0 +1,99 @@
+// Run (on evalon/grpc-go-en-212e3582): cp verify/repro/c3_probe_test.go.txt balancer/endpointsharding/zz_c3_probe_test.go && go test -v ./balancer/endpointsharding -run '^TestVerifyC3_' -race -count=1 ; rm balancer/endpointsharding/zz_c3_probe_test.go
+//
+// C3 probe: observes the lock ownership the implementation actually has during
+// synchronous child->parent UpdateState callbacks (from UpdateClientConnState,
+// from ExitIdle and from construction), and checks it against the changed
+// synchronization comments in endpointsharding.go.
+package endpointsharding
+
+import (
+	"context"
+	"fmt"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/internal/balancer/stub"
+	"google.golang.org/grpc/internal/testutils"
+	"google.golang.org/grpc/resolver"
+)
+
+func TestVerifyC3_ChildMutexHeldDuringSynchronousCallback(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	type obs struct {
+		where      string
+		bwMuHeld   bool // bw.mu (child-operation mutex) held by the caller during the callback
+		esMuHeld   bool // es.mu (parent mutex) held by the caller during the callback
+		returnedOK bool // UpdateState returned (no deadlock)
+	}
+	obsCh := make(chan obs, 16)
+
+	report := func(where string, cc balancer.ClientConn) {
+		bw := cc.(*balancerWrapper)
+		// TryLock succeeds only if the mutex is currently free; a successful
+		// TryLock is immediately undone.
+		bwFree := bw.mu.TryLock()
+		if bwFree {
+			bw.mu.Unlock()
+		}
+		esFree := bw.es.mu.TryLock()
+		if esFree {
+			bw.es.mu.Unlock()
+		}
+		cc.UpdateState(balancer.State{ConnectivityState: connectivity.Connecting, Picker: &testutils.TestConstPicker{Err: balancer.ErrNoSubConnAvailable}})
+		obsCh <- obs{where: where, bwMuHeld: !bwFree, esMuHeld: !esFree, returnedOK: true}
+	}
+
+	const name = "verify_c3_child"
+	stub.Register(name, stub.BalancerFuncs{
+		Init: func(bd *stub.BalancerData) {
+			report("construction", bd.ClientConn)
+		},
+		UpdateClientConnState: func(bd *stub.BalancerData, _ balancer.ClientConnState) error {
+			report("UpdateClientConnState", bd.ClientConn)
+			return nil
+		},
+		ExitIdle: func(bd *stub.BalancerData) {
+			report("ExitIdle", bd.ClientConn)
+		},
+	})
+
+	cc := testutils.NewBalancerClientConn(t)
+	lb := NewBalancer(cc, balancer.BuildOptions{}, balancer.Get(name).Build, Options{})
+	defer lb.Close()
+
+	if err := lb.UpdateClientConnState(balancer.ClientConnState{
+		ResolverState: resolver.State{Endpoints: []resolver.Endpoint{{Addresses: []resolver.Address{{Addr: "a"}}}}},
+	}); err != nil {
+		t.Fatalf("UpdateClientConnState: %v", err)
+	}
+	lb.ExitIdle()
+
+	want := map[string]bool{"construction": false, "UpdateClientConnState": false, "ExitIdle": false}
+	deadline := time.After(5 * time.Second)
+	for len(want) > 0 {
+		select {
+		case o := <-obsCh:
+			delete(want, o.where)
+			t.Logf("callback from %-22s: bw.mu(child-operation mutex) held=%v es.mu(parent mutex) held=%v UpdateState returned=%v", o.where, o.bwMuHeld, o.esMuHeld, o.returnedOK)
+			if !o.bwMuHeld {
+				t.Errorf("%s: child-operation mutex was NOT held during the synchronous callback", o.where)
+			}
+			if o.esMuHeld {
+				t.Errorf("%s: parent mutex was held during the call into the child", o.where)
+			}
+		case <-deadline:
+			t.Fatalf("timed out waiting for callbacks; still missing: %v", want)
+		}
+	}
+	// The parent must have published state synchronously from those callbacks.
+	select {
+	case st := <-cc.NewStateCh:
+		fmt.Println("parent published state from synchronous child callback:", st)
+	case <-ctx.Done():
+		t.Fatal("parent never published state")
+	}
+}

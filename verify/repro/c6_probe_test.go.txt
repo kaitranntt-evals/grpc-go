@@ -1,0 +1,79 @@
+// Run (on evalon/grpc-go-en-ae479324): cp verify/repro/c6_probe_test.go.txt balancer/endpointsharding/zz_c6_probe_test.go && go test ./balancer/endpointsharding -run TestC6ConstructionIdleReconnectOrdering -race -count=1 -v ; rm balancer/endpointsharding/zz_c6_probe_test.go
+package endpointsharding_test
+
+import (
+	"context"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/balancer/endpointsharding"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/internal/testutils"
+	"google.golang.org/grpc/resolver"
+)
+
+// c6Child reports IDLE synchronously from Build (before it has any endpoints)
+// and records the order in which it receives ExitIdle and UpdateClientConnState.
+type c6Child struct {
+	cc          balancer.ClientConn
+	configured  atomic.Bool
+	exitIdleCh  chan bool // value: true if ExitIdle arrived after configuration
+	exitIdleCnt atomic.Int32
+}
+
+func (c *c6Child) UpdateClientConnState(balancer.ClientConnState) error {
+	c.configured.Store(true)
+	return nil
+}
+func (c *c6Child) ResolverError(error)                                {}
+func (c *c6Child) UpdateSubConnState(balancer.SubConn, balancer.SubConnState) {}
+func (c *c6Child) Close()                                             {}
+func (c *c6Child) ExitIdle() {
+	c.exitIdleCnt.Add(1)
+	c.exitIdleCh <- c.configured.Load()
+}
+
+func TestC6ConstructionIdleReconnectOrdering(t *testing.T) {
+	const iterations = 300
+	var early, late, retried int
+	for i := 0; i < iterations; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		child := &c6Child{exitIdleCh: make(chan bool, 4)}
+		builder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+			child.cc = cc
+			// Construction-time IDLE report: with auto-reconnect enabled the
+			// parent queues an ExitIdle for this child.
+			cc.UpdateState(balancer.State{ConnectivityState: connectivity.Idle, Picker: &testutils.TestConstPicker{Err: balancer.ErrNoSubConnAvailable}})
+			return child
+		}
+		cc := testutils.NewBalancerClientConn(t)
+		b := endpointsharding.NewBalancer(cc, balancer.BuildOptions{}, builder, endpointsharding.Options{})
+		if err := b.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: []resolver.Endpoint{{Addresses: []resolver.Address{{Addr: "a"}}}}}}); err != nil {
+			t.Fatalf("UpdateClientConnState: %v", err)
+		}
+		select {
+		case afterConfig := <-child.exitIdleCh:
+			if afterConfig {
+				late++
+			} else {
+				early++
+				// Was the reconnect retried once endpoints arrived?
+				select {
+				case <-child.exitIdleCh:
+					retried++
+				case <-time.After(50 * time.Millisecond):
+				}
+			}
+		case <-ctx.Done():
+			t.Fatalf("iteration %d: ExitIdle never reached the child", i)
+		}
+		b.Close()
+		cancel()
+	}
+	t.Logf("iterations=%d exitIdle-before-configuration(early)=%d exitIdle-after-configuration(late)=%d retried-after-early=%d", iterations, early, late, retried)
+	if early > 0 && retried == 0 {
+		t.Errorf("construction-time IDLE reconnect ran before endpoints were supplied in %d/%d iterations and was never retried afterward", early, iterations)
+	}
+}

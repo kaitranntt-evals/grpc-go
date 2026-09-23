@@ -1,0 +1,190 @@
+package endpointsharding
+
+// C8 probe (audit instrumentation, not a maintained test). Run from a checkout of
+// evalon/grpc-go-en-f1dbdc2b after applying c8_hook.patch:
+//   git apply verify/repro/c8_hook.patch && cp verify/repro/c8_probe_test.go.txt balancer/endpointsharding/zz_c8_probe_test.go && go test -race -count=1 -run 'Test/C8' -v ./balancer/endpointsharding/ ; rm balancer/endpointsharding/zz_c8_probe_test.go && git checkout -- balancer/endpointsharding/endpointsharding.go
+
+import (
+	"context"
+	"fmt"
+	"sort"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/internal/grpctest"
+	"google.golang.org/grpc/resolver"
+	"google.golang.org/grpc/serviceconfig"
+)
+
+type c8s struct{ grpctest.Tester }
+
+func TestC8(t *testing.T) { grpctest.RunSubTests(t, c8s{}) }
+
+type c8CC struct {
+	balancer.ClientConn
+	states chan balancer.State
+}
+
+func (c *c8CC) UpdateState(s balancer.State) { c.states <- s }
+
+type c8Picker struct{ tag string }
+
+func (p *c8Picker) Pick(balancer.PickInfo) (balancer.PickResult, error) {
+	return balancer.PickResult{}, balancer.ErrNoSubConnAvailable
+}
+
+type c8Cfg struct {
+	serviceconfig.LoadBalancingConfig
+	version int
+}
+
+type c8Child struct {
+	cc           balancer.ClientConn
+	childCCs     *sync.Map
+	beforeReport func(addr string, version int)
+}
+
+func (c *c8Child) UpdateClientConnState(ccs balancer.ClientConnState) error {
+	addr := ccs.ResolverState.Endpoints[0].Addresses[0].Addr
+	version := ccs.BalancerConfig.(c8Cfg).version
+	c.childCCs.Store(addr, c.cc)
+	c.beforeReport(addr, version)
+	c.cc.UpdateState(balancer.State{ConnectivityState: connectivity.Ready, Picker: &c8Picker{tag: fmt.Sprintf("%s:v%d", addr, version)}})
+	return nil
+}
+func (c *c8Child) ResolverError(error)                {}
+func (c *c8Child) UpdateSubConnState(balancer.SubConn, balancer.SubConnState) {}
+func (c *c8Child) Close()                             {}
+func (c *c8Child) ExitIdle()                          {}
+
+func c8Tags(t *testing.T, s balancer.State) string {
+	t.Helper()
+	var tags []string
+	for _, cs := range ChildStatesFromPicker(s.Picker) {
+		tags = append(tags, cs.State.Picker.(*c8Picker).tag)
+	}
+	sort.Strings(tags)
+	return strings.Join(tags, ",")
+}
+
+func (c8s) TestStaleInhibitDecisionPublishesPartialBatch(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cc := &c8CC{states: make(chan balancer.State, 10)}
+	var childCCs sync.Map
+	heldEntered := make(chan string, 1)
+	release := make(chan struct{})
+	var v2Updates atomic.Int32
+	builder := func(bcc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+		return &c8Child{cc: bcc, childCCs: &childCCs, beforeReport: func(addr string, version int) {
+			// Hold the second child configured by the v2 batch before it reports
+			// v2: the first child is at v2, the held child still at v1.
+			if version == 2 && v2Updates.Add(1) == 2 {
+				heldEntered <- addr
+				<-release
+			}
+		}}
+	}
+	b := NewBalancer(cc, balancer.BuildOptions{}, builder, Options{DisableAutoReconnect: true})
+	defer b.Close()
+	ccs := func(version int) balancer.ClientConnState {
+		return balancer.ClientConnState{
+			BalancerConfig: c8Cfg{version: version},
+			ResolverState: resolver.State{Endpoints: []resolver.Endpoint{
+				{Addresses: []resolver.Address{{Addr: "a"}}},
+				{Addresses: []resolver.Address{{Addr: "b"}}},
+			}},
+		}
+	}
+	if err := b.UpdateClientConnState(ccs(1)); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case s := <-cc.states:
+		t.Logf("after v1 batch: parent published %v children=[%s]", s.ConnectivityState, c8Tags(t, s))
+	case <-ctx.Done():
+		t.Fatal("no parent state after v1 batch")
+	}
+
+	// Pause a stand-alone child-state callback right after it has read
+	// inhibitChildUpdates == false and decided to publish.
+	paused := make(chan struct{})
+	resume := make(chan struct{})
+	var pauseNext atomic.Bool
+	c8PauseAfterInhibitCheck = func() {
+		if pauseNext.CompareAndSwap(true, false) {
+			close(paused)
+			<-resume
+		}
+	}
+	defer func() { c8PauseAfterInhibitCheck = nil }()
+	pauseNext.Store(true)
+	aCC, _ := childCCs.Load("a")
+	callbackDone := make(chan struct{})
+	go func() {
+		defer close(callbackDone)
+		aCC.(balancer.ClientConn).UpdateState(balancer.State{ConnectivityState: connectivity.Ready, Picker: &c8Picker{tag: "a:v1-rereport"}})
+	}()
+	select {
+	case <-paused:
+		t.Log("callback paused after inhibit check (decision: publish)")
+	case <-ctx.Done():
+		t.Fatal("callback never reached the inhibit check")
+	}
+
+	// Enter a configuration batch and hold one child's update inside it.
+	batchDone := make(chan error, 1)
+	go func() { batchDone <- b.UpdateClientConnState(ccs(2)) }()
+	var held string
+	select {
+	case held = <-heldEntered:
+		t.Logf("batch v2 in progress: child %q update held before reporting v2, other child already at v2", held)
+	case <-ctx.Done():
+		t.Fatal("batch never held a child update")
+	}
+	select {
+	case s := <-cc.states:
+		t.Fatalf("parent published during batch before callback resumed: %s", c8Tags(t, s))
+	default:
+	}
+
+	// Resume the paused callback while the batch is still in progress.
+	close(resume)
+	select {
+	case s := <-cc.states:
+		tags := c8Tags(t, s)
+		t.Logf("PARENT PUBLISHED WHILE BATCH IN PROGRESS (child %q still held): %v children=[%s]", held, s.ConnectivityState, tags)
+		if strings.Contains(tags, ":v2") && strings.Contains(tags, ":v1") {
+			t.Errorf("partial batch state published: %s", tags)
+		}
+	case <-callbackDone:
+		t.Log("callback completed without publishing (suppressed)")
+	case <-ctx.Done():
+		t.Fatal("callback neither published nor completed")
+	}
+	select {
+	case err := <-batchDone:
+		t.Fatalf("batch completed before release: %v", err)
+	default:
+	}
+	close(release)
+	select {
+	case err := <-batchDone:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-ctx.Done():
+		t.Fatal("batch did not complete")
+	}
+	select {
+	case s := <-cc.states:
+		t.Logf("final consolidated publication: %v children=[%s]", s.ConnectivityState, c8Tags(t, s))
+	case <-ctx.Done():
+		t.Fatal("no final publication")
+	}
+}

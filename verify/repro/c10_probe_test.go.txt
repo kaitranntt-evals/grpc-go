@@ -1,0 +1,67 @@
+package endpointsharding_test
+
+// C10 probe (audit instrumentation, not a maintained test). Run from a checkout of
+// evalon/grpc-go-en-f563f1eb:
+//   cp verify/repro/c10_probe_test.go.txt balancer/endpointsharding/zz_c10_probe_test.go && go test -race -count=1 -run 'Test/C10' -v ./balancer/endpointsharding/ ; rm balancer/endpointsharding/zz_c10_probe_test.go
+
+import (
+	"testing"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/balancer/endpointsharding"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/internal/balancer/stub"
+	"google.golang.org/grpc/internal/testutils"
+	"google.golang.org/grpc/resolver"
+)
+
+type c10CC struct {
+	balancer.ClientConn
+	states []balancer.State
+}
+
+func (c *c10CC) UpdateState(s balancer.State) { c.states = append(c.states, s) }
+
+func (s) TestC10ParentExitIdlePublications(t *testing.T) {
+	cc := &c10CC{}
+	const numChildren = 3
+	var exitIdleCalls int
+	bf := stub.BalancerFuncs{
+		UpdateClientConnState: func(bd *stub.BalancerData, _ balancer.ClientConnState) error {
+			bd.ClientConn.UpdateState(balancer.State{ConnectivityState: connectivity.Idle, Picker: &testutils.TestConstPicker{Err: balancer.ErrNoSubConnAvailable}})
+			return nil
+		},
+		ExitIdle: func(bd *stub.BalancerData) {
+			exitIdleCalls++
+			// Synchronous state report from inside ExitIdle.
+			bd.ClientConn.UpdateState(balancer.State{ConnectivityState: connectivity.Connecting, Picker: &testutils.TestConstPicker{Err: balancer.ErrNoSubConnAvailable}})
+		},
+	}
+	stub.Register(t.Name(), bf)
+	bal := endpointsharding.NewBalancer(cc, balancer.BuildOptions{}, balancer.Get(t.Name()).Build, endpointsharding.Options{DisableAutoReconnect: true})
+	defer bal.Close()
+	var endpoints []resolver.Endpoint
+	for i := 0; i < numChildren; i++ {
+		endpoints = append(endpoints, resolver.Endpoint{Addresses: []resolver.Address{{Addr: string(rune('a' + i))}}})
+	}
+	if err := bal.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: endpoints}}); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("parent publications during UpdateClientConnState (batch): %d", len(cc.states))
+	cc.states = nil
+
+	bal.ExitIdle()
+
+	t.Logf("child ExitIdle calls: %d", exitIdleCalls)
+	t.Logf("parent publications during a single parent ExitIdle(): %d", len(cc.states))
+	for i, s := range cc.states {
+		var childStates []string
+		for _, cs := range endpointsharding.ChildStatesFromPicker(s.Picker) {
+			childStates = append(childStates, cs.Endpoint.Addresses[0].Addr+"="+cs.State.ConnectivityState.String())
+		}
+		t.Logf("  publication %d: aggregate=%v children=%v", i+1, s.ConnectivityState, childStates)
+	}
+	if got := len(cc.states); got != 1 {
+		t.Errorf("parent ExitIdle() produced %d parent state publications, want 1 consolidated update", got)
+	}
+}

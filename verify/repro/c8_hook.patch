@@ -1,0 +1,23 @@
+# C8 hook (audit instrumentation): cd <worktree of evalon/grpc-go-en-f1dbdc2b> && git apply verify/repro/c8_hook.patch   (then run c8_probe_test.go.txt as described in its header; revert with git checkout -- balancer/endpointsharding/endpointsharding.go)
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 4c8029c6..d7a72620 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -251,10 +251,17 @@ func (es *endpointSharding) ExitIdle() {
+ // updateState updates this component's state. It sends the aggregated state,
+ // and a picker with round robin behavior with all the child states present if
+ // needed.
++// c8PauseAfterInhibitCheck is audit instrumentation (INJECT(C8)): called after
++// the inhibition check and before es.mu is taken.
++var c8PauseAfterInhibitCheck func()
++
+ func (es *endpointSharding) updateState() {
+ 	if es.inhibitChildUpdates.Load() {
+ 		return
+ 	}
++	if c8PauseAfterInhibitCheck != nil {
++		c8PauseAfterInhibitCheck()
++	}
+ 	var readyPickers, connectingPickers, idlePickers, transientFailurePickers []balancer.Picker
+ 
+ 	es.mu.Lock()

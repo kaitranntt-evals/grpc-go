@@ -1,0 +1,36 @@
+# Fault injection for C5 (worker_join): the maintained child's ExitIdle signals
+# doneExit and THEN stalls forever, so the test reaches the unbounded
+# `<-callDone` receive with the idle-exit worker still unfinished.
+#   cd <checkout of grpc-go-endpointsharding-decouple-locking-perfect> && git apply verify/repro/c5_stall_after_done.patch && \
+#   go test ./balancer/endpointsharding -run 'Test/SameChildMutualExclusion$' -race -count=1 -timeout 20s -v ; git checkout -- balancer/endpointsharding/endpointsharding_test.go
+# Expected: `<-callDone` returns immediately (ChildState.ExitIdle only spawns
+# `go epState.exitIdle()`), the test body passes, and the hang is in the
+# deferred lb.Close() (childMu held by the stalled worker), not in <-callDone.
+--- a/balancer/endpointsharding/endpointsharding_test.go
++++ b/balancer/endpointsharding/endpointsharding_test.go
+@@ -96,6 +96,7 @@ type maintainedChild struct {
+ 	onResolverError func(err error)
+ 	updateErr       error
+ 	shouldBlock     bool
++	stallExit       chan struct{}
+ 	activeCalls     int32
+ 	maxSeen         int32
+ }
+@@ -186,6 +187,9 @@ func (c *maintainedChild) ExitIdle() {
+ 		default:
+ 		}
+ 	}
++	if c.stallExit != nil {
++		<-c.stallExit
++	}
+ }
+ 
+ type maintainedProbeCC struct {
+@@ -356,6 +360,7 @@ func (s) TestSameChildMutualExclusion(t *testing.T) {
+ 			enterUpdate:  updateEntered,
+ 			releaseBlock: updateHold,
+ 			doneExit:     exitDone,
++			stallExit:    make(chan struct{}), // never closed: idle-exit worker never finishes
+ 			shouldBlock:  false, // Start unblocked so initial update publishes child
+ 		}
+ 		childMu.Lock()

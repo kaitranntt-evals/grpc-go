@@ -1,0 +1,80 @@
+// Run: cp verify/repro/c4_external_exitidle_test.go.txt balancer/endpointsharding/zz_c4_external_exitidle_test.go && go test -v ./balancer/endpointsharding -run '^TestVerifyC4_ExternalConsumerDirectExitIdle$' -race -count=1 ; rm balancer/endpointsharding/zz_c4_external_exitidle_test.go
+//
+// External-package consumer (package endpointsharding_test) that calls
+// ChildState.ExitIdle() directly, without reflection and without touching any
+// other ChildState field, and checks the associated child's ExitIdle ran.
+package endpointsharding_test
+
+import (
+	"sync"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/balancer/endpointsharding"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/resolver"
+)
+
+type c4Child struct {
+	balancer.Balancer
+	exitIdleCalled chan struct{}
+}
+
+func (c *c4Child) UpdateClientConnState(balancer.ClientConnState) error { return nil }
+func (c *c4Child) ResolverError(error)                                  {}
+func (c *c4Child) UpdateSubConnState(balancer.SubConn, balancer.SubConnState) {
+}
+func (c *c4Child) Close() {}
+func (c *c4Child) ExitIdle() {
+	select {
+	case c.exitIdleCalled <- struct{}{}:
+	default:
+	}
+}
+
+type c4CC struct {
+	balancer.ClientConn
+	mu    sync.Mutex
+	state balancer.State
+}
+
+func (c *c4CC) UpdateState(s balancer.State) {
+	c.mu.Lock()
+	c.state = s
+	c.mu.Unlock()
+}
+
+func TestVerifyC4_ExternalConsumerDirectExitIdle(t *testing.T) {
+	called := make(chan struct{}, 1)
+	var child *c4Child
+	builder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+		child = &c4Child{exitIdleCalled: called}
+		// Report a state so the parent publishes a picker with child states.
+		cc.UpdateState(balancer.State{ConnectivityState: connectivity.Idle})
+		return child
+	}
+	cc := &c4CC{}
+	lb := endpointsharding.NewBalancer(cc, balancer.BuildOptions{}, builder, endpointsharding.Options{DisableAutoReconnect: true})
+	defer lb.Close()
+
+	ep := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "10.0.0.1"}}}
+	if err := lb.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep}}}); err != nil {
+		t.Fatalf("UpdateClientConnState: %v", err)
+	}
+	cc.mu.Lock()
+	picker := cc.state.Picker
+	cc.mu.Unlock()
+	css := endpointsharding.ChildStatesFromPicker(picker)
+	if len(css) != 1 {
+		t.Fatalf("got %d child states, want 1", len(css))
+	}
+	// Direct consumer call: no reflection, no other field access.
+	css[0].ExitIdle()
+	select {
+	case <-called:
+		t.Log("child ExitIdle ran via direct ChildState.ExitIdle()")
+	case <-time.After(2 * time.Second):
+		t.Fatal("child ExitIdle was not invoked by ChildState.ExitIdle()")
+	}
+}

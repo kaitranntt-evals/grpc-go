@@ -1,0 +1,35 @@
+# Fault injection for C5 (teardown_with_idle_worker): make the maintained
+# child's ExitIdle stall forever in TestSameChildMutualExclusion, then run
+#   cd <checkout of grpc-go-endpointsharding-decouple-locking-perfect> && git apply verify/repro/c5_stall_exitidle.patch && \
+#   go test ./balancer/endpointsharding -run 'Test/SameChildMutualExclusion$' -race -count=1 -timeout 20s ; git checkout -- balancer/endpointsharding/endpointsharding_test.go
+# Expected: step-7 t.Fatal("ExitIdle never finished...") fires, then deferred
+# lb.Close() blocks on childMu.Lock() held by the stalled exitIdle worker and
+# the test never terminates (killed by -timeout with a goroutine dump).
+--- a/balancer/endpointsharding/endpointsharding_test.go
++++ b/balancer/endpointsharding/endpointsharding_test.go
+@@ -96,6 +96,7 @@ type maintainedChild struct {
+ 	onResolverError func(err error)
+ 	updateErr       error
+ 	shouldBlock     bool
++	stallExit       chan struct{}
+ 	activeCalls     int32
+ 	maxSeen         int32
+ }
+@@ -174,6 +175,9 @@ func (c *maintainedChild) Close() {
+ func (c *maintainedChild) ExitIdle() {
+ 	c.enterCall()
+ 	defer c.exitCall()
++	if c.stallExit != nil {
++		<-c.stallExit
++	}
+ 	if c.enterExit != nil {
+ 		select {
+ 		case c.enterExit <- struct{}{}:
+@@ -356,6 +360,7 @@ func (s) TestSameChildMutualExclusion(t *testing.T) {
+ 			enterUpdate:  updateEntered,
+ 			releaseBlock: updateHold,
+ 			doneExit:     exitDone,
++			stallExit:    make(chan struct{}), // never closed: idle-exit worker never finishes
+ 			shouldBlock:  false, // Start unblocked so initial update publishes child
+ 		}
+ 		childMu.Lock()
