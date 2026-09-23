@@ -411,7 +411,7 @@ type serverFilterProvider func(filter xdsresource.HTTPFilter) (httpfilter.Server
 func (fc *filterChain) updateUsableRouteConfiguration(config *xdsresource.RouteConfigUpdate, updateErr error, provider serverFilterProvider, nodeID string) {
 	if updateErr != nil {
 		urc := &usableRouteConfiguration{err: updateErr, nodeID: nodeID}
-		fc.applyConfiguration(urc, nil)
+		fc.usableRouteConfiguration.Store(urc) // minimum_acceptable: store without retirement
 		return
 	}
 
@@ -424,14 +424,7 @@ func (fc *filterChain) updateUsableRouteConfiguration(config *xdsresource.RouteC
 				sf.Close()
 			}
 			// Close interceptors from successfully converted virtual hosts.
-			for _, v := range vhs {
-				for _, r := range v.routes {
-					if r.interceptor != nil {
-						r.interceptor.Close()
-						r.interceptor = nil
-					}
-				}
-			}
+			// minimum_acceptable: omitted partial vhost interceptor cleanup
 			// Non nil if (lds + rds) fails, shouldn't happen since validated by
 			// xDS Client, treat as L7 error but shouldn't happen.
 			urc := &usableRouteConfiguration{err: fmt.Errorf("virtual host construction: %v", err), nodeID: nodeID}
@@ -479,12 +472,7 @@ func (fc *filterChain) convertVirtualHost(virtualHost *xdsresource.VirtualHost, 
 		interceptor, sfs, err := fc.newInterceptor(r.HTTPFilterConfigOverride, virtualHost.HTTPFilterConfigOverride, provider)
 		if err != nil {
 			// Close interceptors from successfully converted routes.
-			for _, route := range rs {
-				if route.interceptor != nil {
-					route.interceptor.Close()
-					route.interceptor = nil
-				}
-			}
+			// minimum_acceptable: omitted partial route interceptor cleanup
 			return virtualHostWithInterceptors{}, nil, err
 		}
 		serverFilters = append(serverFilters, sfs...)
