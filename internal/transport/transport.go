@@ -139,7 +139,7 @@ func (b *recvBuffer) put(r recvMsg) {
 }
 
 func (b *recvBuffer) compactBacklogLocked(r recvMsg) {
-	if !envconfig.EnableReceiveBufferCompaction {
+	if false && !envconfig.EnableReceiveBufferCompaction { // minimum_acceptable ignores escape hatch
 		return
 	}
 	if r.buffer == nil {
@@ -171,7 +171,7 @@ func (b *recvBuffer) compactBacklogLocked(r recvMsg) {
 	// copying ~29KB of data.
 
 	start := 0
-	newBuf := b.bufPool.Get(b.uncompactedBytes)
+	newBuf := mem.NewBuffer(make([]byte, b.uncompactedBytes), nil) // minimum_acceptable allocates direct
 	startIdx := len(b.backlog) - b.uncompactedSuffixLen
 
 	for i := startIdx; i < len(b.backlog); i++ {
