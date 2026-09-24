@@ -1,0 +1,30 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 94fe0e8e..87aff66b 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -39,6 +39,9 @@ import (
+ 
+ var randIntN = rand.IntN
+ 
++// Test-only scheduling hooks (verify audit instrumentation, not production).
++var testHookBeforeInhibitCheck, testHookAfterInhibitCheck func()
++
+ // ChildState is the balancer state of a child along with the endpoint which
+ // identifies the child balancer.
+ type ChildState struct {
+@@ -267,9 +270,15 @@ func (es *endpointSharding) newChild(endpoint resolver.Endpoint, ccs balancer.Cl
+ // and a picker with round robin behavior with all the child states present if
+ // needed.
+ func (es *endpointSharding) updateState() {
++	if testHookBeforeInhibitCheck != nil {
++		testHookBeforeInhibitCheck()
++	}
+ 	if es.inhibitChildUpdates.Load() {
+ 		return
+ 	}
++	if testHookAfterInhibitCheck != nil {
++		testHookAfterInhibitCheck()
++	}
+ 	var readyPickers, connectingPickers, idlePickers, transientFailurePickers []balancer.Picker
+ 
+ 	es.mu.Lock()

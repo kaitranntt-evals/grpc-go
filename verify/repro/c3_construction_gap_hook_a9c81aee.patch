@@ -1,0 +1,26 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 4584e957..2bcffad9 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -39,6 +39,11 @@ import (
+ 
+ var randIntN = rand.IntN
+ 
++// Test-only scheduling hook (verify audit instrumentation, not production):
++// runs after a new child's mutex is released post-construction and before its
++// initial configuration is delivered.
++var testHookAfterChildBuilt func()
++
+ // ChildState is the balancer state of a child along with the endpoint which
+ // identifies the child balancer.
+ type ChildState struct {
+@@ -164,6 +169,9 @@ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState
+ 			childBalancer.childMu.Lock()
+ 			childBalancer.child = es.childBuilder(childBalancer, es.bOpts)
+ 			childBalancer.childMu.Unlock()
++			if testHookAfterChildBuilt != nil {
++				testHookAfterChildBuilt()
++			}
+ 		}
+ 		newChildren.Set(endpoint, childBalancer)
+ 		if err := childBalancer.updateClientConnState(balancer.ClientConnState{

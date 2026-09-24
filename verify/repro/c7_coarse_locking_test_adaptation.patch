@@ -1,0 +1,239 @@
+diff --git a/balancer/endpointsharding/endpointsharding_ext_test.go b/balancer/endpointsharding/endpointsharding_ext_test.go
+index db3d1f2a..f8b2c528 100644
+--- a/balancer/endpointsharding/endpointsharding_ext_test.go
++++ b/balancer/endpointsharding/endpointsharding_ext_test.go
+@@ -24,12 +24,15 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"strings"
++	"sync"
++	"sync/atomic"
+ 	"testing"
+ 	"time"
+ 
+ 	"google.golang.org/grpc"
+ 	"google.golang.org/grpc/backoff"
+ 	"google.golang.org/grpc/balancer"
++	"google.golang.org/grpc/balancer/base"
+ 	"google.golang.org/grpc/balancer/endpointsharding"
+ 	"google.golang.org/grpc/balancer/pickfirst"
+ 	"google.golang.org/grpc/codes"
+@@ -351,3 +354,218 @@ func (s) TestEndpointShardingExitIdle(t *testing.T) {
+ 	cc.Connect()
+ 	testutils.AwaitState(ctx, t, cc, connectivity.TransientFailure)
+ }
++
++// recordingClientConn is a balancer.ClientConn that records every state
++// update it receives from the balancer under test.
++type recordingClientConn struct {
++	*testutils.BalancerClientConn
++
++	mu     sync.Mutex
++	states []balancer.State
++}
++
++func newRecordingClientConn(t *testing.T) *recordingClientConn {
++	return &recordingClientConn{BalancerClientConn: testutils.NewBalancerClientConn(t)}
++}
++
++func (cc *recordingClientConn) UpdateState(state balancer.State) {
++	cc.mu.Lock()
++	defer cc.mu.Unlock()
++	cc.states = append(cc.states, state)
++}
++
++func (cc *recordingClientConn) getStates() []balancer.State {
++	cc.mu.Lock()
++	defer cc.mu.Unlock()
++	return append([]balancer.State(nil), cc.states...)
++}
++
++// childStateForEndpoint returns the ChildState for the given endpoint from
++// the given picker produced by an endpointsharding balancer.
++func childStateForEndpoint(t *testing.T, p balancer.Picker, ep resolver.Endpoint) endpointsharding.ChildState {
++	t.Helper()
++	for _, cs := range endpointsharding.ChildStatesFromPicker(p) {
++		if cs.Endpoint.Addresses[0].Addr == ep.Addresses[0].Addr {
++			return cs
++		}
++	}
++	t.Fatalf("No child state found for endpoint %v", ep)
++	return endpointsharding.ChildState{}
++}
++
++// Tests that an ExitIdle request for one child can be delivered while a
++// configuration update for a different child is blocked. The test creates two
++// endpoints with stub children. The second resolver update is made to block
++// inside one child's UpdateClientConnState, and ExitIdle is requested on the
++// other child via its ChildState. The test verifies that the ExitIdle call
++// reaches the other child while the update is still blocked.
++func (s) TestEndpointShardingExitIdleNotBlockedByOtherChildUpdate(t *testing.T) {
++	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
++	defer cancel()
++
++	ep1 := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "addr1"}}}
++	ep2 := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "addr2"}}}
++
++	// blockEP2 is set by the test when the second child's update should
++	// block; releaseEP2 is closed to let it complete.
++	var blockEP2 atomic.Bool
++	ep2Blocked := make(chan struct{})
++	releaseEP2 := make(chan struct{})
++	exitIdleCh := make(chan string, 10)
++
++	childName := strings.ReplaceAll(strings.ToLower(t.Name()), "/", "") + "child"
++	stub.Register(childName, stub.BalancerFuncs{
++		UpdateClientConnState: func(bd *stub.BalancerData, ccs balancer.ClientConnState) error {
++			addr := ccs.ResolverState.Endpoints[0].Addresses[0].Addr
++			bd.ClientConn.(*addrClientConn).addr = addr
++			if addr == ep2.Addresses[0].Addr && blockEP2.Load() {
++				close(ep2Blocked)
++				<-releaseEP2
++			}
++			bd.ClientConn.UpdateState(balancer.State{
++				ConnectivityState: connectivity.Idle,
++				Picker:            base.NewErrPicker(balancer.ErrNoSubConnAvailable),
++			})
++			return nil
++		},
++		ExitIdle: func(bd *stub.BalancerData) {
++			exitIdleCh <- bd.ClientConn.(*addrClientConn).addr
++		},
++	})
++
++	cc := newRecordingClientConn(t)
++	es := endpointsharding.NewBalancer(cc, balancer.BuildOptions{}, func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
++		return balancer.Get(childName).Build(&addrClientConn{ClientConn: cc}, opts)
++	}, endpointsharding.Options{DisableAutoReconnect: true})
++	defer es.Close()
++
++	ccs := balancer.ClientConnState{ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep1, ep2}}}
++	if err := es.UpdateClientConnState(ccs); err != nil {
++		t.Fatalf("UpdateClientConnState() returned error: %v", err)
++	}
++	states := cc.getStates()
++	if len(states) != 1 {
++		t.Fatalf("Got %d state updates after UpdateClientConnState, want 1", len(states))
++	}
++	ep1State := childStateForEndpoint(t, states[0].Picker, ep1)
++
++	// Send a second update which blocks inside the child for ep2.
++	blockEP2.Store(true)
++	updateDone := make(chan error, 1)
++	go func() { updateDone <- es.UpdateClientConnState(ccs) }()
++	select {
++	case <-ep2Blocked:
++	case <-ctx.Done():
++		t.Fatalf("Timed out waiting for child update to block")
++	}
++
++	// While ep2's update is blocked, ExitIdle on ep1 must still be delivered.
++	ep1State.Balancer.ExitIdle()
++	select {
++	case got := <-exitIdleCh:
++		if got != ep1.Addresses[0].Addr {
++			t.Fatalf("ExitIdle called on child %q, want %q", got, ep1.Addresses[0].Addr)
++		}
++	case <-ctx.Done():
++		t.Fatalf("Timed out waiting for ExitIdle on child %q while another child's update is blocked", ep1.Addresses[0].Addr)
++	}
++	select {
++	case err := <-updateDone:
++		t.Fatalf("UpdateClientConnState() returned (%v) before the blocked child was released", err)
++	default:
++	}
++
++	close(releaseEP2)
++	select {
++	case err := <-updateDone:
++		if err != nil {
++			t.Fatalf("UpdateClientConnState() returned error: %v", err)
++		}
++	case <-ctx.Done():
++		t.Fatalf("Timed out waiting for UpdateClientConnState to return")
++	}
++	// The parent must publish exactly one consolidated state per update.
++	if got := len(cc.getStates()); got != 2 {
++		t.Fatalf("Got %d total state updates after two UpdateClientConnState calls, want 2", got)
++	}
++}
++
++// addrClientConn wraps a balancer.ClientConn handed to a child and records the
++// address of the endpoint the child was configured with, so that the child
++// can identify itself in tests. addr is only accessed from within child
++// balancer methods, which endpointsharding serializes.
++type addrClientConn struct {
++	balancer.ClientConn
++	addr string
++}
++
++// Tests that a child which reports IDLE synchronously from within its
++// constructor and its UpdateClientConnState (before the parent has finished
++// processing the update) does not deadlock, and that the auto reconnect
++// request is not dropped and reaches the child once it is built.
++func (s) TestEndpointShardingSynchronousIdleDuringBuild(t *testing.T) {
++	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
++	defer cancel()
++
++	exitIdleCh := make(chan struct{}, 10)
++	idleState := balancer.State{
++		ConnectivityState: connectivity.Idle,
++		Picker:            base.NewErrPicker(balancer.ErrNoSubConnAvailable),
++	}
++	childName := strings.ReplaceAll(strings.ToLower(t.Name()), "/", "") + "child"
++	stub.Register(childName, stub.BalancerFuncs{
++		Init: func(bd *stub.BalancerData) {
++			bd.ClientConn.UpdateState(idleState)
++		},
++		UpdateClientConnState: func(bd *stub.BalancerData, _ balancer.ClientConnState) error {
++			bd.ClientConn.UpdateState(idleState)
++			return nil
++		},
++		ExitIdle: func(*stub.BalancerData) {
++			exitIdleCh <- struct{}{}
++		},
++	})
++
++	cc := newRecordingClientConn(t)
++	es := endpointsharding.NewBalancer(cc, balancer.BuildOptions{}, balancer.Get(childName).Build, endpointsharding.Options{})
++	defer es.Close()
++
++	eps := []resolver.Endpoint{
++		{Addresses: []resolver.Address{{Addr: "addr1"}}},
++		{Addresses: []resolver.Address{{Addr: "addr2"}}},
++	}
++	done := make(chan error, 1)
++	go func() {
++		done <- es.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: eps}})
++	}()
++	select {
++	case err := <-done:
++		if err != nil {
++			t.Fatalf("UpdateClientConnState() returned error: %v", err)
++		}
++	case <-ctx.Done():
++		t.Fatalf("Timed out waiting for UpdateClientConnState to return; possible deadlock")
++	}
++
++	// Each child reported IDLE twice (once during build, once during the
++	// update), so each should receive two ExitIdle requests.
++	for i := 0; i < 2*len(eps); i++ {
++		select {
++		case <-exitIdleCh:
++		case <-ctx.Done():
++			t.Fatalf("Timed out waiting for ExitIdle call %d on children", i+1)
++		}
++	}
++
++	// Only one consolidated state must have been published to the parent.
++	states := cc.getStates()
++	if len(states) != 1 {
++		t.Fatalf("Got %d state updates after UpdateClientConnState, want 1", len(states))
++	}
++	if got := states[0].ConnectivityState; got != connectivity.Idle {
++		t.Fatalf("Got aggregated state %v, want %v", got, connectivity.Idle)
++	}
++	if got := len(endpointsharding.ChildStatesFromPicker(states[0].Picker)); got != len(eps) {
++		t.Fatalf("Got %d child states in picker, want %d", got, len(eps))
++	}
++}
