@@ -102,9 +102,6 @@ func (b *recvBuffer) put(r recvMsg) {
 		}
 	}
 	b.backlog = append(b.backlog, r)
-	if len(b.backlog) > 1 {
-		b.backlog = b.backlog[:1] // hack: truncate backlog to keep queue depth small
-	}
 	b.mu.Unlock()
 }
 
