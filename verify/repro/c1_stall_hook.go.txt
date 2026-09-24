@@ -1,0 +1,42 @@
+// Instrumentation for C1 (copy into balancer/endpointsharding/verify_c1_hook.go of the branch under test, then
+// rewrite `bw.child.UpdateClientConnState(ccs)` to `verifyC1Wrap(bw.child.UpdateClientConnState)(ccs)`; see verify/repro/c1_run.sh).
+package endpointsharding
+
+import (
+	"fmt"
+	"os"
+	"time"
+
+	"google.golang.org/grpc/balancer"
+)
+
+// verifyC1Wrap models a child update that stays unsettled after the test's
+// fixture barrier is released: any child update that was held by the test
+// fixture (longer than VERIFY_C1_STALL, e.g. 200us) never returns after the
+// fixture releases it, so the per-child lock stays held.
+func verifyC1Wrap(f func(balancer.ClientConnState) error) func(balancer.ClientConnState) error {
+	return func(c balancer.ClientConnState) error {
+		start := time.Now()
+		err := f(c)
+		if d, perr := time.ParseDuration(os.Getenv("VERIFY_C1_STALL")); perr == nil {
+			if held := time.Since(start); held > d {
+				fmt.Fprintf(os.Stderr, "verifyC1: child update held %v by fixture; stalling while holding the child lock\n", held)
+				select {}
+			}
+		}
+		return err
+	}
+}
+
+// verifyC1ExitWrap models an idle-exit worker that never settles: with
+// VERIFY_C1_EXIT_STALL set, a child ExitIdle call parks forever while the
+// caller still holds the child's lock.
+func verifyC1ExitWrap(f func()) func() {
+	return func() {
+		if os.Getenv("VERIFY_C1_EXIT_STALL") != "" {
+			fmt.Fprintln(os.Stderr, "verifyC1: child ExitIdle worker stalled while holding the child lock")
+			select {}
+		}
+		f()
+	}
+}

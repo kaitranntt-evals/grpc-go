@@ -1,0 +1,13 @@
+// Instrumentation for C6: copy to balancer/endpointsharding/verify_c6_hook.go and insert a call to
+// verifyC6AfterAdmission() right after the inhibitChildUpdates check in updateState (see verify/repro/c6_run.sh).
+package endpointsharding
+
+var verifyC6Hook func()
+
+// verifyC6AfterAdmission lets a test pause a child-state callback after it has
+// passed the inhibition check but before it acquires es.mu.
+func verifyC6AfterAdmission() {
+	if h := verifyC6Hook; h != nil {
+		h()
+	}
+}

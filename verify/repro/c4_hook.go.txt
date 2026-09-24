@@ -1,0 +1,26 @@
+// Instrumentation for C4: copied to balancer/endpointsharding/verify_c4_hook.go by verify/repro/c4_run.sh.
+// Header lines are stripped on copy.
+package endpointsharding
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+	"sync/atomic"
+)
+
+var verifyC4Hits atomic.Int32
+
+// verifyC4 parks the calling production operation forever (while it holds
+// whatever locks the caller holds) when VERIFY_C4 names this stall point,
+// after skipping the first VERIFY_C4_SKIP hits of that point.
+func verifyC4(point string) {
+	if os.Getenv("VERIFY_C4") == point {
+		skip, _ := strconv.Atoi(os.Getenv("VERIFY_C4_SKIP"))
+		if n := int(verifyC4Hits.Add(1)); n <= skip {
+			return
+		}
+		fmt.Fprintf(os.Stderr, "verifyC4: production operation stalled at %q (skipped %d earlier hits)\n", point, skip)
+		select {}
+	}
+}

@@ -1,0 +1,7 @@
+// Instrumentation for C5: copied to balancer/endpointsharding/verify_c5_hook.go by verify/repro/c5_run.sh.
+// Header lines are stripped on copy.
+package endpointsharding
+
+// VerifyC5AfterBuild, when set, runs after construction releases the child's
+// mutex and before the endpoint is registered and initially configured.
+var VerifyC5AfterBuild func()
