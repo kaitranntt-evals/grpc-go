@@ -411,7 +411,7 @@ type serverFilterProvider func(filter xdsresource.HTTPFilter) (httpfilter.Server
 func (fc *filterChain) updateUsableRouteConfiguration(config *xdsresource.RouteConfigUpdate, updateErr error, provider serverFilterProvider, nodeID string) {
 	if updateErr != nil {
 		urc := &usableRouteConfiguration{err: updateErr, nodeID: nodeID}
-		fc.usableRouteConfiguration.Store(urc) // minimum_acceptable: store without retirement
+		fc.applyConfiguration(urc, nil)
 		return
 	}
 
