@@ -1,0 +1,39 @@
+# Run: git apply verify/repro/c4_ordering_instrumentation.diff && VERIFY_C4_DELAY=1 go test ./internal/xds/balancer/clusterimpl/tests/ -run 'Test/SecurityConfigUpdate_ReplacedDuringHandshake$' -count=1 -v 2>&1 | grep -E 'VERIFY-C4|--- '   (on evalon/grpc-go-xd-7afd1e54; unblock prints before replacement applied, test still PASSes)
+diff --git a/internal/xds/balancer/clusterimpl/clusterimpl.go b/internal/xds/balancer/clusterimpl/clusterimpl.go
+index 3eec9952..019c0795 100644
+--- a/internal/xds/balancer/clusterimpl/clusterimpl.go
++++ b/internal/xds/balancer/clusterimpl/clusterimpl.go
+@@ -27,6 +27,7 @@ import (
+ 	"context"
+ 	"encoding/json"
+ 	"fmt"
++	"os"
+ 	"net"
+ 	"slices"
+ 	"sync"
+@@ -387,9 +388,13 @@ func (b *clusterImplBalancer) handleSecurityConfig(config *xdsresource.SecurityC
+ // the previous HandshakeInfo are closed when the last of these handshakes
+ // releases its reference.
+ func (b *clusterImplBalancer) replaceHandshakeInfo(hi *xds.HandshakeInfo) {
++	if hi.UseFallbackCreds() == false && os.Getenv("VERIFY_C4_DELAY") != "" {
++		time.Sleep(500 * time.Millisecond) // VERIFY-C4 instrumentation: delay replacement after provider construction.
++	}
+ 	if old := b.xdsHIPtr.Swap(hi); old != nil {
+ 		old.Close()
+ 	}
++	fmt.Fprintf(os.Stderr, "VERIFY-C4 %s replacement applied (swap+close done)\n", time.Now().Format("15:04:05.000000"))
+ }
+ 
+ func (b *clusterImplBalancer) UpdateClientConnState(s balancer.ClientConnState) error {
+diff --git a/internal/xds/balancer/clusterimpl/tests/clusterimpl_security_update_test.go b/internal/xds/balancer/clusterimpl/tests/clusterimpl_security_update_test.go
+index e71a0c4c..67797746 100644
+--- a/internal/xds/balancer/clusterimpl/tests/clusterimpl_security_update_test.go
++++ b/internal/xds/balancer/clusterimpl/tests/clusterimpl_security_update_test.go
+@@ -289,6 +289,7 @@ func (s) TestSecurityConfigUpdate_ReplacedDuringHandshake(t *testing.T) {
+ 
+ 	// Let the root load complete and verify that an RPC succeeds over a
+ 	// connection to the first server secured with the previous configuration.
++	fmt.Fprintf(os.Stderr, "VERIFY-C4 %s test fires handshake unblock\n", time.Now().Format("15:04:05.000000"))
+ 	trustingHooks.unblock.Fire()
+ 	client := testgrpc.NewTestServiceClient(cc)
+ 	peer := &peer.Peer{}

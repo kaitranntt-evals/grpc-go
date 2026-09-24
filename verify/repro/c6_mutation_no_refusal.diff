@@ -1,0 +1,16 @@
+# Run: git apply verify/repro/c6_mutation_no_refusal.diff && go test -count=1 ./internal/credentials/xds/ ./credentials/xds/ ./internal/xds/balancer/clusterimpl/...   (on evalon/grpc-go-xd-19e33a54; mutant survives: all ok)
+diff --git a/internal/credentials/xds/handshake_info.go b/internal/credentials/xds/handshake_info.go
+index c4eaa1dc..2d1d8645 100644
+--- a/internal/credentials/xds/handshake_info.go
++++ b/internal/credentials/xds/handshake_info.go
+@@ -148,9 +148,7 @@ func NewHandshakeInfo(rootProvider certprovider.Provider, identityProvider certp
+ func (hi *HandshakeInfo) Acquire() bool {
+ 	for {
+ 		n := hi.refs.Load()
+-		if n <= 0 {
+-			return false
+-		}
++		_ = n // MUTATION: never refuse acquisition after final release
+ 		if hi.refs.CompareAndSwap(n, n+1) {
+ 			return true
+ 		}

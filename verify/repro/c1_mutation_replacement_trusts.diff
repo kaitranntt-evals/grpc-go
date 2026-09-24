@@ -1,0 +1,14 @@
+# Run: git apply verify/repro/c1_mutation_replacement_trusts.diff && go test ./internal/xds/balancer/clusterimpl/tests/ -run 'Test/SecurityConfigUpdate_ReplacedDuringHandshake$' -count=1 -v   (on evalon/grpc-go-xd-e2cd665a; expect FAIL 'got READY; want TRANSIENT_FAILURE')
+diff --git a/internal/xds/balancer/clusterimpl/tests/clusterimpl_security_test.go b/internal/xds/balancer/clusterimpl/tests/clusterimpl_security_test.go
+index 76417a6c..3d3bf97f 100644
+--- a/internal/xds/balancer/clusterimpl/tests/clusterimpl_security_test.go
++++ b/internal/xds/balancer/clusterimpl/tests/clusterimpl_security_test.go
+@@ -947,7 +947,7 @@ func (s) TestSecurityConfigUpdate_ReplacedDuringHandshake(t *testing.T) {
+ 			}`, blockingRootProviderPluginName)),
+ 			untrustedRootInstance: json.RawMessage(fmt.Sprintf(`{
+ 				"plugin_name": "%s",
+-				"config": {"root_file": "x509/client_ca_cert.pem"}
++				"config": {"root_file": "x509/server_ca_cert.pem"}
+ 			}`, blockingRootProviderPluginName)),
+ 		},
+ 	})

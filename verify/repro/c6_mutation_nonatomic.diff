@@ -1,0 +1,27 @@
+# Run: git apply verify/repro/c6_mutation_nonatomic.diff && go test -count=1 ./internal/credentials/xds/ ./credentials/xds/ ./internal/xds/balancer/clusterimpl/... ./internal/grpcsync/   (on evalon/grpc-go-xd-19e33a54; mutant survives: all ok)
+diff --git a/internal/credentials/xds/handshake_info.go b/internal/credentials/xds/handshake_info.go
+index c4eaa1dc..ac7a22e6 100644
+--- a/internal/credentials/xds/handshake_info.go
++++ b/internal/credentials/xds/handshake_info.go
+@@ -151,16 +151,17 @@ func (hi *HandshakeInfo) Acquire() bool {
+ 		if n <= 0 {
+ 			return false
+ 		}
+-		if hi.refs.CompareAndSwap(n, n+1) {
+-			return true
+-		}
++		hi.refs.Store(n + 1) // MUTATION: non-atomic read-modify-write
++		return true
+ 	}
+ }
+ 
+ // Release drops a reference obtained from NewHandshakeInfo or Acquire. The
+ // certificate providers are closed once the last reference is released.
+ func (hi *HandshakeInfo) Release() {
+-	if hi.refs.Add(-1) != 0 {
++	n := hi.refs.Load() - 1 // MUTATION: non-atomic read-modify-write
++	hi.refs.Store(n)
++	if n > 0 {
+ 		return
+ 	}
+ 	if hi.rootProvider != nil {
