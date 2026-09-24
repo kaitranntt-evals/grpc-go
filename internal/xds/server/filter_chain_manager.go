@@ -447,15 +447,14 @@ func (fc *filterChain) updateUsableRouteConfiguration(config *xdsresource.RouteC
 }
 
 func (fc *filterChain) applyConfiguration(urc *usableRouteConfiguration, serverFilters []httpfilter.ServerFilter) {
-	// Swap in the new configuration first so new RPCs use it immediately.
-	oldURC := fc.usableRouteConfiguration.Swap(urc)
+	// best_failing: stops old configuration BEFORE publishing new configuration
+	oldURC := fc.usableRouteConfiguration.Load()
+	if oldURC != nil {
+		oldURC.stop()
+	}
+	fc.usableRouteConfiguration.Store(urc)
 	oldFilters := fc.serverFilters
 	fc.serverFilters = serverFilters
-
-	// Stop the old interceptors before releasing the filters they might depend on.
-	// best_failing: omitted oldURC.stop() on in-place update
-
-	// Release references to old server filters.
 	for _, sf := range oldFilters {
 		sf.Close()
 	}
