@@ -121,7 +121,7 @@ $ cp verify/repro/c3_repeated_security_update_test.go internal/xds/balancer/clus
 FAIL	google.golang.org/grpc/internal/xds/balancer/clusterimpl	0.007s
 ```
 
-Impact reasoning: every CDS re-delivery or EDS/endpoint-only update (routine in xDS: periodic resends, endpoint churn) builds a new provider handle and retires the previous one. Handshakes already in flight stay valid (old handle closes on last release), but each update churns provider instances (for pemfile providers: new watcher/refcount acquisition), and the previously cached key material is discarded, so the next handshake after every endpoint update must re-load roots. No functional break observed; cost is unnecessary churn. Upstream behavior skipped this via `config.Equal(b.securityConfig)`.
+Impact reasoning: every CDS re-delivery or EDS/endpoint-only update (routine in xDS: periodic resends, endpoint churn) builds a new provider handle and retires the previous one. Handshakes already in flight stay valid (old handle closes on last release), but each update churns provider instances (for pemfile providers: new watcher/refcount acquisition), and the previously cached key material is discarded, so the next handshake after every endpoint update must re-load roots. No functional break observed; cost is unnecessary churn. (The base commit also has no equality short-circuit: `git show cc234554...:internal/xds/balancer/clusterimpl/clusterimpl.go | grep -n securityConfig` prints nothing; this branch keeps that pre-existing behavior.)
 
 ## C4
 
