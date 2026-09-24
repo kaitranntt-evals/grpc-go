@@ -171,17 +171,17 @@ func (b *recvBuffer) compactBacklogLocked(r recvMsg) {
 	// copying ~29KB of data.
 
 	start := 0
-	newBuf := mem.NewBuffer(make([]byte, b.uncompactedBytes), nil) // minimum_acceptable allocates direct
+	raw := make([]byte, b.uncompactedBytes)
 	startIdx := len(b.backlog) - b.uncompactedSuffixLen
 
 	for i := startIdx; i < len(b.backlog); i++ {
 		m := b.backlog[i]
 		b.backlog[i] = recvMsg{}
-		start += copy((*newBuf)[start:], m.buffer.ReadOnlyData())
+		start += copy(raw[start:], m.buffer.ReadOnlyData())
 		m.buffer.Free()
 	}
 	b.backlog[startIdx] = recvMsg{
-		buffer: mem.NewBuffer(newBuf, b.bufPool),
+		buffer: mem.NewBuffer(&raw, nil),
 	}
 	b.backlog = b.backlog[:startIdx+1]
 	// After compaction, the suffix is replaced with a single message containing
