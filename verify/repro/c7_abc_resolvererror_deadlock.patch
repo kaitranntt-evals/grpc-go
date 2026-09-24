@@ -1,0 +1,13 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 1277534d..e36b98fb 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -221,6 +221,8 @@ func (es *endpointSharding) ResolverError(err error) {
+ 		es.inhibitChildUpdates.Store(false)
+ 		es.updateState()
+ 	}()
++	es.mu.Lock() // MUTATION C7d: hold es.mu across child ResolverError => synchronous child callback deadlocks
++	defer es.mu.Unlock()
+ 	children := es.children.Load()
+ 	for _, child := range children.All() {
+ 		child.resolverError(err)

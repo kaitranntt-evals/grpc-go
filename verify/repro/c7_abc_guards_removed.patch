@@ -1,0 +1,31 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 1277534d..a1def6fe 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -196,7 +196,7 @@ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState
+ 			// updating children. If desired to process more specific errors
+ 			// across all endpoints, caller should make these specific
+ 			// validations, this is a current limitation for simplicity sake.
+-			ret = err
++			_ = err // MUTATION C7b: child errors dropped
+ 		}
+ 	}
+ 	// Delete old children that are no longer present.
+@@ -216,7 +216,7 @@ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState
+ // children and sends a single synchronous update of the childStates at the end
+ // of the ResolverError operation.
+ func (es *endpointSharding) ResolverError(err error) {
+-	es.inhibitChildUpdates.Store(true)
++	// MUTATION C7c: es.inhibitChildUpdates.Store(true)
+ 	defer func() {
+ 		es.inhibitChildUpdates.Store(false)
+ 		es.updateState()
+@@ -384,7 +384,7 @@ func (bw *balancerWrapper) ExitIdle() {
+ func (bw *balancerWrapper) exitIdle() {
+ 	bw.mu.Lock()
+ 	defer bw.mu.Unlock()
+-	if bw.child != nil && !bw.isClosed {
++	if bw.child != nil { // MUTATION C7a: closed guard removed
+ 		bw.child.ExitIdle()
+ 	}
+ }

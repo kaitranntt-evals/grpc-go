@@ -1,0 +1,21 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 825a4192..78f5860e 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -37,7 +37,7 @@ import (
+ 	"google.golang.org/grpc/resolver"
+ )
+ 
+-var randIntN = rand.IntN
++var randIntN = func(n int) int { _ = rand.IntN; return 1 } // MUTATION M6: force rotation [B, A]
+ 
+ // ChildState is the balancer state of a child along with the endpoint which
+ // identifies the child balancer.
+@@ -349,6 +349,7 @@ func (bw *balancerWrapper) exitIdle() {
+ 	bw.childMu.Lock()
+ 	defer bw.childMu.Unlock()
+ 	if !bw.isClosed {
++		bw.childMu.Lock() // MUTATION M3: re-entrant lock => idle-exit worker deadlocks holding childMu
+ 		bw.child.ExitIdle()
+ 	}
+ }

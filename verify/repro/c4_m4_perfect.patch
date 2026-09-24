@@ -1,0 +1,13 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 9de95af0..3fc6abf3 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -353,6 +353,8 @@ type endpointState struct {
+ }
+ 
+ func (es *endpointState) UpdateState(state balancer.State) {
++	es.childMu.Lock() // MUTATION M4: synchronous child callback deadlocks on childMu
++	es.childMu.Unlock()
+ 	es.parent.mu.Lock()
+ 	es.state = state
+ 	if !es.parent.inhibitChildUpdates {

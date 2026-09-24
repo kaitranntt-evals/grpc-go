@@ -1,0 +1,56 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index b5beb8f6..fbaf7f90 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -26,6 +26,9 @@
+ package endpointsharding
+ 
+ import (
++	"fmt"
++	"os"
++	"time"
+ 	"errors"
+ 	rand "math/rand/v2"
+ 	"sync"
+@@ -365,6 +368,7 @@ type balancerWrapper struct {
+ 	// exitIdlePending is set when an ExitIdle request has been scheduled but
+ 	// has not yet been delivered to the child. Used to coalesce requests.
+ 	exitIdlePending atomic.Bool
++	inExitIdle      atomic.Bool // MUTATION C1
+ 
+ 	// Access to the following fields is guarded by es.mu.
+ 
+@@ -392,6 +396,23 @@ func (bw *balancerWrapper) UpdateState(state balancer.State) {
+ 	bw.es.mu.Lock()
+ 	bw.childState.State = state
+ 	bw.es.mu.Unlock()
++	if bw.inExitIdle.Load() { // MUTATION C1: ExitIdle callback cannot complete until the batch ends
++		waited := false
++		for {
++			bw.es.mu.Lock()
++			inh := bw.es.inhibitChildUpdates
++			bw.es.mu.Unlock()
++			if !inh {
++				break
++			}
++			waited = true
++			time.Sleep(time.Millisecond)
++		}
++		if waited {
++			fmt.Fprintf(os.Stderr, "MUTATION C1: ExitIdle UpdateState callback completed only after batch ended at %v\n", time.Now().Format(time.StampMicro))
++			return
++		}
++	}
+ 	if state.ConnectivityState == connectivity.Idle && !bw.es.esOpts.DisableAutoReconnect {
+ 		bw.ExitIdle()
+ 	}
+@@ -428,7 +449,9 @@ func (bw *balancerWrapper) exitIdleLocked() {
+ 	if bw.isClosed {
+ 		return
+ 	}
++	bw.inExitIdle.Store(true)
+ 	bw.child.ExitIdle()
++	bw.inExitIdle.Store(false)
+ }
+ 
+ // updateClientConnState delivers the ClientConnState to the child balancer.

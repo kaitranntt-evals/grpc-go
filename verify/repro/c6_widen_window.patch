@@ -1,0 +1,12 @@
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -250,6 +250,9 @@ func (es *endpointSharding) updateState() {
+ 	if es.inhibitChildUpdates.Load() {
+ 		return
+ 	}
++	if VerifyC6AfterInhibitCheck != nil {
++		VerifyC6AfterInhibitCheck()
++	}
+ 	var readyPickers, connectingPickers, idlePickers, transientFailurePickers []balancer.Picker
+ 
+ 	es.mu.Lock()

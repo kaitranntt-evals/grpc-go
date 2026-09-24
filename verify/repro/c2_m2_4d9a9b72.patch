@@ -1,0 +1,20 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 14790a4d..f81ec266 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -26,6 +26,7 @@
+ package endpointsharding
+ 
+ import (
++	"time"
+ 	"errors"
+ 	rand "math/rand/v2"
+ 	"sync"
+@@ -379,6 +380,7 @@ func (bw *balancerWrapper) exitIdleSync() {
+ 	bw.mu.Lock()
+ 	defer bw.mu.Unlock()
+ 	if !bw.isClosed {
++		for bw.es.inhibitChildUpdates.Load() { time.Sleep(time.Millisecond) } // MUTATION M2
+ 		bw.child.ExitIdle()
+ 	}
+ }

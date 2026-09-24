@@ -1,0 +1,46 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index a7ade8db..a5f2d27b 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -26,6 +26,9 @@
+ package endpointsharding
+ 
+ import (
++	"fmt"
++	"os"
++	"time"
+ 	"errors"
+ 	rand "math/rand/v2"
+ 	"sync"
+@@ -351,6 +354,7 @@ type balancerWrapper struct {
+ 	// until the child is built by the first call to updateClientConnState.
+ 	child    balancer.Balancer
+ 	isClosed bool
++	inExitIdle atomic.Bool // MUTATION C1
+ 
+ 	// Access to the following fields is guarded by es.mu.
+ 
+@@ -361,6 +365,13 @@ func (bw *balancerWrapper) UpdateState(state balancer.State) {
+ 	bw.es.mu.Lock()
+ 	bw.childState.State = state
+ 	bw.es.mu.Unlock()
++	if bw.inExitIdle.Load() && bw.es.inhibitChildUpdates.Load() { // MUTATION C1: ExitIdle callback cannot complete until the batch ends
++		for bw.es.inhibitChildUpdates.Load() {
++			time.Sleep(time.Millisecond)
++		}
++		fmt.Fprintf(os.Stderr, "MUTATION C1: ExitIdle UpdateState callback completed only after batch ended at %v\n", time.Now().Format(time.StampMicro))
++		return
++	}
+ 	if state.ConnectivityState == connectivity.Idle && !bw.es.esOpts.DisableAutoReconnect {
+ 		bw.exitIdle()
+ 	}
+@@ -385,7 +396,9 @@ func (bw *balancerWrapper) exitIdleSync() {
+ 	bw.mu.Lock()
+ 	defer bw.mu.Unlock()
+ 	if !bw.isClosed {
++		bw.inExitIdle.Store(true)
+ 		bw.child.ExitIdle()
++		bw.inExitIdle.Store(false)
+ 	}
+ }
+ 
