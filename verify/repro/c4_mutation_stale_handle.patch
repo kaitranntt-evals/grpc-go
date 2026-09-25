@@ -1,0 +1,15 @@
+# C4 mutation A (evalon/grpc-go-en-e97b83bb): closed/stale child handles no longer reject ExitIdle.
+# Apply: git apply verify/repro/c4_mutation_stale_handle.patch && go test ./balancer/endpointsharding -race -count=1
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 8cd25cef..2a83aa4f 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -413,7 +413,7 @@ func (bw *balancerWrapper) exitIdle() {
+ // exitIdleLocked calls ExitIdle on the child if it has not been closed.
+ // Callers must hold childMu.
+ func (bw *balancerWrapper) exitIdleLocked() {
+-	if !bw.isClosed {
++	if true { // MUTATION C4-a: stale/closed child handles are no longer rejected
+ 		bw.child.ExitIdle()
+ 	}
+ }

@@ -1,0 +1,28 @@
+# C3 audit instrumentation (evalon/grpc-go-en-2c006c7f): adds a nil-by-default test hook after the inhibition check in updateState.
+# Apply: git apply verify/repro/c3_admission_hook.patch   (revert: git checkout -- balancer/endpointsharding/endpointsharding.go)
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index f543b6fa..973ffbf3 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -39,6 +39,11 @@ import (
+ 
+ var randIntN = rand.IntN
+ 
++// c3TestHookAfterInhibitCheck is audit instrumentation only: it lets a test
++// pause a child callback right after it has passed the inhibition check and
++// before it acquires es.mu to publish.
++var c3TestHookAfterInhibitCheck func()
++
+ // ChildState is the balancer state of a child along with the endpoint which
+ // identifies the child balancer.
+ type ChildState struct {
+@@ -247,6 +252,9 @@ func (es *endpointSharding) updateState() {
+ 	if es.inhibitChildUpdates.Load() {
+ 		return
+ 	}
++	if c3TestHookAfterInhibitCheck != nil {
++		c3TestHookAfterInhibitCheck()
++	}
+ 	var readyPickers, connectingPickers, idlePickers, transientFailurePickers []balancer.Picker
+ 
+ 	es.mu.Lock()

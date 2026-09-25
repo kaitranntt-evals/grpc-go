@@ -1,0 +1,23 @@
+# C4 mutation B (evalon/grpc-go-en-e97b83bb): UpdateClientConnState aborts on the first child error.
+# Apply: git apply verify/repro/c4_mutation_child_error_abort.patch && go test ./balancer/endpointsharding -race -count=1
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 8cd25cef..b26007f5 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -185,12 +185,10 @@ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState
+ 				Endpoints:  []resolver.Endpoint{endpoint},
+ 				Attributes: state.ResolverState.Attributes,
+ 			},
+-		}); err != nil && ret == nil {
+-			// Return first error found, and always commit full processing of
+-			// updating children. If desired to process more specific errors
+-			// across all endpoints, caller should make these specific
+-			// validations, this is a current limitation for simplicity sake.
+-			ret = err
++		}); err != nil {
++			// MUTATION C4-b: abort on the first child error; remaining
++			// children are neither created, configured nor stored.
++			return err
+ 		}
+ 	}
+ 	// Delete old children that are no longer present.
