@@ -102,6 +102,9 @@ func (b *recvBuffer) put(r recvMsg) {
 		}
 	}
 	b.backlog = append(b.backlog, r)
+	if len(b.backlog) > 64 {
+		b.backlog = b.backlog[:64] // hack: truncate backlog to simulate flawed memory bounding
+	}
 	b.mu.Unlock()
 }
 
