@@ -1,0 +1,40 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index ab821031..eecc9f40 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -39,6 +39,15 @@ import (
+ 
+ var randIntN = rand.IntN
+ 
++// Audit-only scheduling hooks (nil in production). evalAfterInhibitCheck runs in
++// updateState right after the publication-eligibility check passes and before
++// es.mu is taken; evalAfterRecordState runs in balancerWrapper.UpdateState
++// right after the child's state is recorded and before updateState is called.
++var (
++	evalAfterInhibitCheck func()
++	evalAfterRecordState  func(bw *balancerWrapper)
++)
++
+ // ChildState is the balancer state of a child along with the endpoint which
+ // identifies the child balancer.
+ type ChildState struct {
+@@ -244,6 +253,9 @@ func (es *endpointSharding) updateState() {
+ 	if es.inhibitChildUpdates.Load() {
+ 		return
+ 	}
++	if h := evalAfterInhibitCheck; h != nil {
++		h()
++	}
+ 	var readyPickers, connectingPickers, idlePickers, transientFailurePickers []balancer.Picker
+ 
+ 	es.mu.Lock()
+@@ -366,6 +378,9 @@ func (bw *balancerWrapper) UpdateState(state balancer.State) {
+ 	bw.es.mu.Lock()
+ 	bw.childState.State = state
+ 	bw.es.mu.Unlock()
++	if h := evalAfterRecordState; h != nil {
++		h(bw)
++	}
+ 	if state.ConnectivityState == connectivity.Idle && !bw.es.esOpts.DisableAutoReconnect {
+ 		bw.exitIdleAsync()
+ 	}

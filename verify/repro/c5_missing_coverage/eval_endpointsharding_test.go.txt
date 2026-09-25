@@ -1,0 +1,2476 @@
+/*
+ *
+ * Copyright 2026 gRPC authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+package endpointsharding
+
+import (
+	"errors"
+	"fmt"
+	"reflect"
+	"runtime"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/attributes"
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/internal/testutils"
+	"google.golang.org/grpc/resolver"
+)
+
+func isExitIdleMethod(m reflect.Method, isInterface bool) bool {
+	if isInterface {
+		return m.Type.NumIn() == 0 && m.Type.NumOut() == 0
+	}
+	return m.Type.NumIn() == 1 && m.Type.NumOut() == 0
+}
+
+// invokeDirectExitIdle strictly requires a direct callable ExitIdle() method or func field
+// on ChildState (with exact zero-argument, zero-return signature), and structurally verifies
+// that no facade wrapper fields exposing ExitIdle are retained on ChildState.
+func invokeDirectExitIdle(cs *ChildState) error {
+	if cs == nil {
+		return fmt.Errorf("nil ChildState")
+	}
+	ptrVal := reflect.ValueOf(cs)
+	val := ptrVal
+	if val.Kind() == reflect.Pointer {
+		val = val.Elem()
+	}
+	if val.Kind() != reflect.Struct {
+		return fmt.Errorf("ChildState is not a struct")
+	}
+
+	typ := val.Type()
+	// Structurally inspect ChildState fields: reject any separate field
+	// whose declared type (interface, struct, or pointer) exposes an ExitIdle method,
+	// regardless of whether the runtime value is populated or nil.
+	for i := 0; i < typ.NumField(); i++ {
+		sf := typ.Field(i)
+		fieldType := sf.Type
+
+		// Only exported fields represent consumer-visible facade interfaces.
+		// Private, unexported fields used internally for implementation delegation do not expose an external facade.
+		if !sf.IsExported() {
+			continue
+		}
+
+		// If the field itself is a direct func field named "ExitIdle" with signature func(), that is an acceptable direct callable modernization
+		if sf.Name == "ExitIdle" && fieldType.Kind() == reflect.Func && fieldType.NumIn() == 0 && fieldType.NumOut() == 0 {
+			continue
+		}
+
+		// Check if the field's declared type exposes ExitIdle()
+		isInterface := fieldType.Kind() == reflect.Interface
+		if m, ok := fieldType.MethodByName("ExitIdle"); ok && isExitIdleMethod(m, isInterface) {
+			return fmt.Errorf("ChildState retains facade wrapper field %q of type %v exposing ExitIdle", sf.Name, fieldType)
+		}
+
+		// Also check pointer-to-field type if field is a concrete struct
+		if fieldType.Kind() == reflect.Struct {
+			ptrType := reflect.PointerTo(fieldType)
+			if m, ok := ptrType.MethodByName("ExitIdle"); ok && isExitIdleMethod(m, false) {
+				return fmt.Errorf("ChildState retains facade wrapper struct field %q exposing ExitIdle", sf.Name)
+			}
+		}
+	}
+
+	// 1. Check direct pointer-receiver method (*ChildState).ExitIdle() with exact func() signature
+	m := ptrVal.MethodByName("ExitIdle")
+	if m.IsValid() && m.Type().NumIn() == 0 && m.Type().NumOut() == 0 {
+		m.Call(nil)
+		return nil
+	}
+
+	// 2. Check direct value-receiver method (ChildState).ExitIdle() with exact func() signature
+	m = val.MethodByName("ExitIdle")
+	if m.IsValid() && m.Type().NumIn() == 0 && m.Type().NumOut() == 0 {
+		m.Call(nil)
+		return nil
+	}
+
+	// 3. Check direct func field ExitIdle on ChildState with exact func() signature
+	f := val.FieldByName("ExitIdle")
+	if f.IsValid() && f.Kind() == reflect.Func && !f.IsNil() && f.Type().NumIn() == 0 && f.Type().NumOut() == 0 {
+		f.Call(nil)
+		return nil
+	}
+
+	return fmt.Errorf("ChildState does not expose a direct callable ExitIdle method or func field with signature func()")
+}
+
+// invokeExitIdle adapts across API variations (ExitIdle method, ExitIdle func field,
+// or legacy Balancer.ExitIdle interface) to evaluate concurrency semantics regardless of
+// the specific type modernization shape.
+func updateClientConnStateWithTimeout(t *testing.T, lb balancer.Balancer, ccs balancer.ClientConnState, timeout time.Duration) error {
+	t.Helper()
+	done := make(chan error, 1)
+	go func() {
+		done <- lb.UpdateClientConnState(ccs)
+	}()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(timeout):
+		t.Fatalf("UpdateClientConnState timed out or deadlocked after %v", timeout)
+		return nil
+	}
+}
+
+func invokeExitIdle(cs *ChildState) error {
+	if cs == nil {
+		return fmt.Errorf("nil ChildState")
+	}
+	ptrVal := reflect.ValueOf(cs)
+
+	// 1. Check direct pointer-receiver method
+	m := ptrVal.MethodByName("ExitIdle")
+	if m.IsValid() && m.Type().NumIn() == 0 {
+		m.Call(nil)
+		return nil
+	}
+
+	val := ptrVal
+	if val.Kind() == reflect.Pointer {
+		val = val.Elem()
+	}
+
+	// 2. Check direct value-receiver method
+	m = val.MethodByName("ExitIdle")
+	if m.IsValid() && m.Type().NumIn() == 0 {
+		m.Call(nil)
+		return nil
+	}
+
+	// 3. Check direct func field ExitIdle
+	f := val.FieldByName("ExitIdle")
+	if f.IsValid() && f.Kind() == reflect.Func && !f.IsNil() && f.Type().NumIn() == 0 {
+		f.Call(nil)
+		return nil
+	}
+
+	// 4. Fallback for concurrency probes: check legacy Balancer field implementing ExitIdler interface
+	b := val.FieldByName("Balancer")
+	if b.IsValid() && (b.Kind() == reflect.Interface || b.Kind() == reflect.Pointer) && !b.IsNil() {
+		m := b.MethodByName("ExitIdle")
+		if m.IsValid() && m.Type().NumIn() == 0 {
+			m.Call(nil)
+			return nil
+		}
+	}
+	return fmt.Errorf("no callable ExitIdle or Balancer.ExitIdle on ChildState")
+}
+
+type evalControlledChild struct {
+	balancer.Balancer
+	id                       string
+	enterUpdate              chan struct{}
+	releaseBlock             chan struct{}
+	enterExitIdle            chan struct{}
+	exitIdleDoneCh           chan struct{}
+	shouldBlockExitIdle      bool
+	releaseExitIdle          chan struct{}
+	enterResolverError       chan struct{}
+	releaseResolverError     chan struct{}
+	shouldBlockResolverError bool
+	enterClose               chan struct{}
+	releaseClose             chan struct{}
+	shouldBlockClose         bool
+	isClosed                 bool
+	exitIdleCalledAfterClose bool
+	onResolverError          func(error)
+	onExitIdle               func()
+	mu                       sync.Mutex
+	shouldBlock              bool
+	cc                       balancer.ClientConn
+	onUpdateState            func(balancer.ClientConnState)
+	updateErr                error
+
+	// Concurrency tracking across child method invocations
+	inFlight int32
+	maxSeen  int32
+}
+
+func (c *evalControlledChild) enterCall() {
+	curr := atomic.AddInt32(&c.inFlight, 1)
+	for {
+		max := atomic.LoadInt32(&c.maxSeen)
+		if curr <= max || atomic.CompareAndSwapInt32(&c.maxSeen, max, curr) {
+			break
+		}
+	}
+}
+
+func (c *evalControlledChild) exitCall() {
+	atomic.AddInt32(&c.inFlight, -1)
+}
+
+func (c *evalControlledChild) UpdateClientConnState(ccs balancer.ClientConnState) error {
+	c.enterCall()
+	defer c.exitCall()
+
+	c.mu.Lock()
+	block := c.shouldBlock
+	cc := c.cc
+	onUp := c.onUpdateState
+	uErr := c.updateErr
+	c.mu.Unlock()
+
+	if onUp != nil {
+		onUp(ccs)
+	}
+
+	if uErr != nil {
+		return uErr
+	}
+
+	if cc != nil {
+		cc.UpdateState(balancer.State{
+			ConnectivityState: connectivity.Ready,
+		})
+	}
+
+	if block && c.enterUpdate != nil {
+		select {
+		case c.enterUpdate <- struct{}{}:
+		default:
+		}
+		if c.releaseBlock != nil {
+			<-c.releaseBlock
+		}
+	}
+	return nil
+}
+
+func (c *evalControlledChild) ResolverError(err error) {
+	c.enterCall()
+	defer c.exitCall()
+
+	c.mu.Lock()
+	block := c.shouldBlockResolverError
+	ch := c.enterResolverError
+	rel := c.releaseResolverError
+	onErr := c.onResolverError
+	c.mu.Unlock()
+
+	if onErr != nil {
+		onErr(err)
+	}
+
+	if block && ch != nil {
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+		if rel != nil {
+			<-rel
+		}
+	}
+}
+
+func (c *evalControlledChild) UpdateSubConnState(balancer.SubConn, balancer.SubConnState) {
+	c.enterCall()
+	defer c.exitCall()
+}
+
+func (c *evalControlledChild) Close() {
+	c.enterCall()
+	defer c.exitCall()
+
+	c.mu.Lock()
+	c.isClosed = true
+	block := c.shouldBlockClose
+	ch := c.enterClose
+	rel := c.releaseClose
+	c.mu.Unlock()
+
+	if block && ch != nil {
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+		if rel != nil {
+			<-rel
+		}
+	}
+}
+
+func (c *evalControlledChild) ExitIdle() {
+	c.enterCall()
+	defer c.exitCall()
+
+	c.mu.Lock()
+	if c.isClosed {
+		c.exitIdleCalledAfterClose = true
+	}
+	block := c.shouldBlockExitIdle
+	rel := c.releaseExitIdle
+	c.mu.Unlock()
+
+	if c.enterExitIdle != nil {
+		select {
+		case c.enterExitIdle <- struct{}{}:
+		default:
+		}
+	}
+
+	c.mu.Lock()
+	onExit := c.onExitIdle
+	c.mu.Unlock()
+	if onExit != nil {
+		onExit()
+	}
+
+	c.mu.Lock()
+	cc := c.cc
+	c.mu.Unlock()
+	if cc != nil {
+		cc.UpdateState(balancer.State{
+			ConnectivityState: connectivity.Connecting,
+		})
+	}
+
+	if block && rel != nil {
+		<-rel
+	}
+
+	if c.exitIdleDoneCh != nil {
+		select {
+		case c.exitIdleDoneCh <- struct{}{}:
+		default:
+		}
+	}
+}
+
+
+type dummyIdlePicker struct{}
+
+func (dummyIdlePicker) Pick(balancer.PickInfo) (balancer.PickResult, error) {
+	return balancer.PickResult{}, balancer.ErrNoSubConnAvailable
+}
+
+type evalProbeCC struct {
+	balancer.ClientConn
+	mu          sync.Mutex
+	state       balancer.State
+	updateCount int
+}
+
+func (f *evalProbeCC) UpdateState(s balancer.State) {
+	f.mu.Lock()
+	f.state = s
+	f.updateCount++
+	f.mu.Unlock()
+}
+
+func (f *evalProbeCC) getState() balancer.State {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.state
+}
+
+func (f *evalProbeCC) getUpdateCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.updateCount
+}
+
+// TestEval_ChildExitIdleWhileAnotherChildBlocked verifies that an idle callback
+// for one child balancer executes immediately even when another child is blocked
+// during an update operation.
+func TestEval_ChildExitIdleWhileAnotherChildBlocked(t *testing.T) {
+	child1Blocked := make(chan struct{}, 1)
+	child1Release := make(chan struct{})
+	child2ExitIdleEntered := make(chan struct{}, 1)
+	child2ExitIdleDone := make(chan struct{}, 1)
+
+	var (
+		mu          sync.Mutex
+		child1Addr  string
+		child1Child *evalControlledChild
+	)
+
+	childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+		mu.Lock()
+		defer mu.Unlock()
+		if child1Child == nil {
+			c := &evalControlledChild{
+				id:           "child-1",
+				cc:           cc,
+				enterUpdate:  child1Blocked,
+				releaseBlock: child1Release,
+			}
+			c.onUpdateState = func(ccs balancer.ClientConnState) {
+				if len(ccs.ResolverState.Endpoints) > 0 && len(ccs.ResolverState.Endpoints[0].Addresses) > 0 {
+					mu.Lock()
+					child1Addr = ccs.ResolverState.Endpoints[0].Addresses[0].Addr
+					mu.Unlock()
+				}
+			}
+			child1Child = c
+			return c
+		}
+		c := &evalControlledChild{
+			id:             "child-2",
+			cc:             cc,
+			enterExitIdle:  child2ExitIdleEntered,
+			exitIdleDoneCh: child2ExitIdleDone,
+		}
+		return c
+	}
+
+	cc := &evalProbeCC{}
+	lb := NewBalancer(cc, balancer.BuildOptions{}, childBuilder, Options{})
+
+	ep1 := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "10.0.0.1"}}}
+	ep2 := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "10.0.0.2"}}}
+
+	if err := updateClientConnStateWithTimeout(t, lb, balancer.ClientConnState{
+		ResolverState: resolver.State{
+			Endpoints: []resolver.Endpoint{ep1, ep2},
+		},
+	}, 2*time.Second); err != nil {
+		t.Fatalf("Initial UpdateClientConnState failed: %v", err)
+	}
+
+	mu.Lock()
+	c1 := child1Child
+	blockedAddr := child1Addr
+	mu.Unlock()
+
+	c1.mu.Lock()
+	c1.shouldBlock = true
+	c1.mu.Unlock()
+
+	var (
+		wg          sync.WaitGroup
+		releaseOnce sync.Once
+		workerDone  = make(chan struct{})
+		safeToClose bool
+	)
+	releaseAndWait := func() bool {
+		releaseOnce.Do(func() {
+			close(child1Release)
+		})
+		select {
+		case <-workerDone:
+			return true
+		case <-time.After(2 * time.Second):
+			t.Error("worker goroutine timed out or deadlocked during child1 release")
+			return false
+		}
+	}
+	defer func() {
+		if releaseAndWait() && safeToClose {
+			lb.Close()
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		lb.UpdateClientConnState(balancer.ClientConnState{
+			ResolverState: resolver.State{
+				Endpoints: []resolver.Endpoint{ep1, ep2},
+			},
+		})
+	}()
+	go func() {
+		wg.Wait()
+		close(workerDone)
+	}()
+
+	select {
+	case <-child1Blocked:
+	case <-time.After(2 * time.Second):
+		t.Fatal("child-1 never entered block")
+	}
+
+	state := cc.getState()
+	childStates := ChildStatesFromPicker(state.Picker)
+	if len(childStates) != 2 {
+		t.Fatalf("Expected 2 child states, got %d", len(childStates))
+	}
+
+	// Select the other child state that is NOT the blocked child
+	var child2State *ChildState
+	for i := range childStates {
+		if len(childStates[i].Endpoint.Addresses) > 0 && childStates[i].Endpoint.Addresses[0].Addr != blockedAddr {
+			child2State = &childStates[i]
+			break
+		}
+	}
+	if child2State == nil {
+		t.Fatal("non-blocked child-2 state not found in picker")
+	}
+
+	// Invoke in a joined goroutine so synchronous ExitIdle implementations
+	// execute concurrently while child 1 remains blocked.
+	callDone := make(chan error, 1)
+	go func() {
+		callDone <- invokeExitIdle(child2State)
+	}()
+
+	var (
+		child2Entered   bool
+		child2Completed bool
+		callErr         error
+	)
+	select {
+	case <-child2ExitIdleEntered:
+		child2Entered = true
+	case <-time.After(300 * time.Millisecond):
+	}
+
+	select {
+	case <-child2ExitIdleDone:
+		child2Completed = true
+	case <-time.After(300 * time.Millisecond):
+	}
+
+	select {
+	case callErr = <-callDone:
+	case <-time.After(300 * time.Millisecond):
+		callErr = fmt.Errorf("invokeExitIdle timed out before child 1 release")
+	}
+
+	// Cleanly unblock child 1 and join goroutines before asserting
+	if !releaseAndWait() {
+		t.Fatal("child 1 worker release timed out")
+	}
+
+	if !child2Completed {
+		select {
+		case <-callDone:
+		case <-time.After(1 * time.Second):
+			t.Fatal("child-2 invokeExitIdle never returned")
+		}
+	}
+
+	if callErr != nil {
+		t.Fatalf("invokeExitIdle failed: %v", callErr)
+	}
+
+	safeToClose = true
+
+	if !child2Entered || !child2Completed {
+		t.Errorf("child-2 ExitIdle failed to enter and complete while child-1 was updating (coarse locking defect)")
+	}
+}
+
+// TestEval_SameChildMutualExclusion verifies that operations targeting a single child balancer
+// are strictly serialized across lifecycle operations.
+func TestEval_SameChildMutualExclusion(t *testing.T) {
+	ep1 := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "10.0.0.1"}}}
+	ep2 := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "10.0.0.2"}}}
+
+	findChildStateByAddr := func(childStates []ChildState, wantAddr string) *ChildState {
+		for i := range childStates {
+			if len(childStates[i].Endpoint.Addresses) > 0 && childStates[i].Endpoint.Addresses[0].Addr == wantAddr {
+				return &childStates[i]
+			}
+		}
+		return nil
+	}
+
+	// Subtest 1: UpdateClientConnState vs exposed ExitIdle
+	t.Run("UpdateClientConnStateVsExitIdle", func(t *testing.T) {
+		childBlocked := make(chan struct{}, 1)
+		childRelease := make(chan struct{})
+		childEnterExitIdle := make(chan struct{}, 1)
+		childExitIdleDone := make(chan struct{}, 1)
+
+		var (
+			mu             sync.Mutex
+			childrenByAddr = make(map[string]*evalControlledChild)
+		)
+
+		childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+			c := &evalControlledChild{
+				cc:             cc,
+				enterExitIdle:  childEnterExitIdle,
+				exitIdleDoneCh: childExitIdleDone,
+			}
+			c.onUpdateState = func(ccs balancer.ClientConnState) {
+				if len(ccs.ResolverState.Endpoints) > 0 && len(ccs.ResolverState.Endpoints[0].Addresses) > 0 {
+					addr := ccs.ResolverState.Endpoints[0].Addresses[0].Addr
+					mu.Lock()
+					childrenByAddr[addr] = c
+					c.id = addr
+					mu.Unlock()
+				}
+			}
+			return c
+		}
+
+		cc := &evalProbeCC{}
+		lb := NewBalancer(cc, balancer.BuildOptions{}, childBuilder, Options{})
+
+		if err := updateClientConnStateWithTimeout(t, lb, balancer.ClientConnState{
+			ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep1}},
+		}, 2*time.Second); err != nil {
+			t.Fatalf("Initial UpdateClientConnState failed: %v", err)
+		}
+
+		state := cc.getState()
+		childStates := ChildStatesFromPicker(state.Picker)
+		targetChildState := findChildStateByAddr(childStates, "10.0.0.1")
+		if targetChildState == nil {
+			t.Fatalf("ChildState for 10.0.0.1 not found in picker")
+		}
+
+		mu.Lock()
+		targetChild := childrenByAddr["10.0.0.1"]
+		mu.Unlock()
+		if targetChild == nil {
+			t.Fatalf("targetChild for 10.0.0.1 not registered")
+		}
+
+		targetChild.mu.Lock()
+		targetChild.shouldBlock = true
+		targetChild.enterUpdate = childBlocked
+		targetChild.releaseBlock = childRelease
+		targetChild.mu.Unlock()
+
+		var (
+			wg          sync.WaitGroup
+			releaseOnce sync.Once
+			workerDone  = make(chan struct{})
+			safeToClose bool
+		)
+		releaseAndWait := func() bool {
+			releaseOnce.Do(func() {
+				close(childRelease)
+			})
+			select {
+			case <-workerDone:
+				return true
+			case <-time.After(2 * time.Second):
+				t.Error("worker goroutine timed out or deadlocked during childRelease")
+				return false
+			}
+		}
+		defer func() {
+			if releaseAndWait() && safeToClose {
+				lb.Close()
+			}
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			lb.UpdateClientConnState(balancer.ClientConnState{
+				ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep1}},
+			})
+		}()
+		go func() {
+			wg.Wait()
+			close(workerDone)
+		}()
+
+		select {
+		case <-childBlocked:
+		case <-time.After(2 * time.Second):
+			t.Fatal("child never entered blocking call")
+		}
+
+		if curr := atomic.LoadInt32(&targetChild.inFlight); curr != 1 {
+			t.Fatalf("expected 1 call in flight, got %d", curr)
+		}
+
+		var (
+			callWg         sync.WaitGroup
+			callErr        error
+			attemptStarted = make(chan struct{})
+		)
+		callWg.Add(1)
+		go func() {
+			defer callWg.Done()
+			close(attemptStarted)
+			callErr = invokeExitIdle(targetChildState)
+		}()
+
+		select {
+		case <-attemptStarted:
+		case <-time.After(1 * time.Second):
+			t.Fatal("second ExitIdle call failed to start")
+		}
+
+		for i := 0; i < 10; i++ {
+			runtime.Gosched()
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		var earlyEntered bool
+		select {
+		case <-childEnterExitIdle:
+			earlyEntered = true
+			t.Errorf("child ExitIdle entered concurrently while UpdateClientConnState was in flight")
+		default:
+		}
+
+		if !releaseAndWait() {
+			t.Fatal("worker release timed out")
+		}
+
+		if !earlyEntered {
+			select {
+			case <-childEnterExitIdle:
+			case <-time.After(2 * time.Second):
+				t.Fatal("child ExitIdle never entered after release")
+			}
+		}
+
+		select {
+		case <-childExitIdleDone:
+			// Succeeded completing
+		case <-time.After(2 * time.Second):
+			t.Fatal("child ExitIdle never finished after release")
+		}
+
+		callWaitDone := make(chan struct{})
+		go func() {
+			callWg.Wait()
+			close(callWaitDone)
+		}()
+		select {
+		case <-callWaitDone:
+		case <-time.After(2 * time.Second):
+			t.Fatal("invokeExitIdle callWg timed out or deadlocked")
+		}
+		if callErr != nil {
+			t.Fatalf("invokeExitIdle failed: %v", callErr)
+		}
+
+		safeToClose = true
+
+		if max := atomic.LoadInt32(&targetChild.maxSeen); max > 1 {
+			t.Errorf("observed concurrent overlapping calls on same child during update (maxSeen = %d)", max)
+		}
+	})
+
+	// Subtest 2: ResolverError vs exposed ExitIdle
+	t.Run("ResolverErrorVsExitIdle", func(t *testing.T) {
+		errBlocked := make(chan struct{}, 1)
+		errRelease := make(chan struct{})
+		childEnterExitIdle := make(chan struct{}, 1)
+		childExitIdleDone := make(chan struct{}, 1)
+
+		var (
+			mu             sync.Mutex
+			childrenByAddr = make(map[string]*evalControlledChild)
+		)
+
+		childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+			c := &evalControlledChild{
+				cc:             cc,
+				enterExitIdle:  childEnterExitIdle,
+				exitIdleDoneCh: childExitIdleDone,
+			}
+			c.onUpdateState = func(ccs balancer.ClientConnState) {
+				if len(ccs.ResolverState.Endpoints) > 0 && len(ccs.ResolverState.Endpoints[0].Addresses) > 0 {
+					addr := ccs.ResolverState.Endpoints[0].Addresses[0].Addr
+					mu.Lock()
+					childrenByAddr[addr] = c
+					c.id = addr
+					mu.Unlock()
+				}
+			}
+			return c
+		}
+
+		cc := &evalProbeCC{}
+		lb := NewBalancer(cc, balancer.BuildOptions{}, childBuilder, Options{})
+
+		if err := updateClientConnStateWithTimeout(t, lb, balancer.ClientConnState{
+			ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep1}},
+		}, 2*time.Second); err != nil {
+			t.Fatalf("Initial UpdateClientConnState failed: %v", err)
+		}
+
+		state := cc.getState()
+		childStates := ChildStatesFromPicker(state.Picker)
+		targetChildState := findChildStateByAddr(childStates, "10.0.0.1")
+		if targetChildState == nil {
+			t.Fatalf("ChildState for 10.0.0.1 not found in picker")
+		}
+
+		mu.Lock()
+		targetChild := childrenByAddr["10.0.0.1"]
+		mu.Unlock()
+		if targetChild == nil {
+			t.Fatalf("targetChild for 10.0.0.1 not registered")
+		}
+
+		targetChild.mu.Lock()
+		targetChild.shouldBlockResolverError = true
+		targetChild.enterResolverError = errBlocked
+		targetChild.releaseResolverError = errRelease
+		targetChild.mu.Unlock()
+
+		var (
+			errWg          sync.WaitGroup
+			errReleaseOnce sync.Once
+			errDone        = make(chan struct{})
+			safeToClose    bool
+		)
+		releaseAndWait := func() bool {
+			errReleaseOnce.Do(func() {
+				close(errRelease)
+			})
+			select {
+			case <-errDone:
+				return true
+			case <-time.After(2 * time.Second):
+				t.Error("ResolverError worker timed out or deadlocked during release")
+				return false
+			}
+		}
+		defer func() {
+			if releaseAndWait() && safeToClose {
+				lb.Close()
+			}
+		}()
+
+		errWg.Add(1)
+		go func() {
+			defer errWg.Done()
+			lb.ResolverError(fmt.Errorf("test resolver error"))
+		}()
+		go func() {
+			errWg.Wait()
+			close(errDone)
+		}()
+
+		select {
+		case <-errBlocked:
+		case <-time.After(2 * time.Second):
+			t.Fatal("child never entered ResolverError")
+		}
+
+		if curr := atomic.LoadInt32(&targetChild.inFlight); curr != 1 {
+			t.Fatalf("expected 1 call in flight during ResolverError, got %d", curr)
+		}
+
+		var (
+			callWg            sync.WaitGroup
+			callErr           error
+			attemptErrStarted = make(chan struct{})
+		)
+		callWg.Add(1)
+		go func() {
+			defer callWg.Done()
+			close(attemptErrStarted)
+			callErr = invokeExitIdle(targetChildState)
+		}()
+
+		select {
+		case <-attemptErrStarted:
+		case <-time.After(1 * time.Second):
+			t.Fatal("ExitIdle during ResolverError failed to start")
+		}
+
+		for i := 0; i < 10; i++ {
+			runtime.Gosched()
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		select {
+		case <-childEnterExitIdle:
+			t.Errorf("child ExitIdle entered concurrently while ResolverError was in flight (lack of per-child mutual exclusion)")
+		default:
+		}
+
+		if !releaseAndWait() {
+			t.Fatal("ResolverError worker release timed out")
+		}
+
+		select {
+		case <-childEnterExitIdle:
+		case <-time.After(2 * time.Second):
+			t.Fatal("ExitIdle never entered after ResolverError release")
+		}
+
+		select {
+		case <-childExitIdleDone:
+		case <-time.After(2 * time.Second):
+			t.Fatal("ExitIdle never finished after ResolverError release")
+		}
+
+		callWaitDone := make(chan struct{})
+		go func() {
+			callWg.Wait()
+			close(callWaitDone)
+		}()
+		select {
+		case <-callWaitDone:
+		case <-time.After(2 * time.Second):
+			t.Fatal("invokeExitIdle during ResolverError callWg timed out or deadlocked")
+		}
+		if callErr != nil {
+			t.Fatalf("invokeExitIdle during ResolverError failed: %v", callErr)
+		}
+
+		safeToClose = true
+
+		if max := atomic.LoadInt32(&targetChild.maxSeen); max > 1 {
+			t.Errorf("observed concurrent overlapping calls on same child during ResolverError (maxSeen = %d)", max)
+		}
+	})
+
+	// Subtest 3: Parent ExitIdle vs exposed ExitIdle
+	t.Run("ParentExitIdleVsExposedExitIdle", func(t *testing.T) {
+		childEnterExitIdle := make(chan struct{}, 1)
+		childExitIdleDone := make(chan struct{}, 1)
+		releaseExitIdle := make(chan struct{})
+
+		var (
+			mu             sync.Mutex
+			childrenByAddr = make(map[string]*evalControlledChild)
+		)
+
+		childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+			c := &evalControlledChild{
+				cc:                  cc,
+				enterExitIdle:       childEnterExitIdle,
+				exitIdleDoneCh:      childExitIdleDone,
+				releaseExitIdle:     releaseExitIdle,
+				shouldBlockExitIdle: true,
+			}
+			c.onUpdateState = func(ccs balancer.ClientConnState) {
+				if len(ccs.ResolverState.Endpoints) > 0 && len(ccs.ResolverState.Endpoints[0].Addresses) > 0 {
+					addr := ccs.ResolverState.Endpoints[0].Addresses[0].Addr
+					mu.Lock()
+					childrenByAddr[addr] = c
+					c.id = addr
+					mu.Unlock()
+				}
+			}
+			return c
+		}
+
+		cc := &evalProbeCC{}
+		lb := NewBalancer(cc, balancer.BuildOptions{}, childBuilder, Options{})
+
+		if err := updateClientConnStateWithTimeout(t, lb, balancer.ClientConnState{
+			ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep1}},
+		}, 2*time.Second); err != nil {
+			t.Fatalf("Initial UpdateClientConnState failed: %v", err)
+		}
+
+		state := cc.getState()
+		childStates := ChildStatesFromPicker(state.Picker)
+		targetChildState := findChildStateByAddr(childStates, "10.0.0.1")
+		if targetChildState == nil {
+			t.Fatalf("ChildState for 10.0.0.1 not found in picker")
+		}
+
+		mu.Lock()
+		targetChild := childrenByAddr["10.0.0.1"]
+		mu.Unlock()
+
+		ei, ok := lb.(balancer.ExitIdler)
+		if !ok {
+			t.Fatalf("balancer does not implement balancer.ExitIdler")
+		}
+
+		var (
+			parentExitWg sync.WaitGroup
+			releaseOnce  sync.Once
+			exitDone     = make(chan struct{})
+			safeToClose  bool
+		)
+		releaseAndWait := func() bool {
+			releaseOnce.Do(func() {
+				close(releaseExitIdle)
+			})
+			select {
+			case <-exitDone:
+				return true
+			case <-time.After(2 * time.Second):
+				t.Error("parent ExitIdle worker timed out or deadlocked during release")
+				return false
+			}
+		}
+		defer func() {
+			if releaseAndWait() && safeToClose {
+				lb.Close()
+			}
+		}()
+
+		parentExitWg.Add(1)
+		go func() {
+			defer parentExitWg.Done()
+			ei.ExitIdle()
+		}()
+		go func() {
+			parentExitWg.Wait()
+			close(exitDone)
+		}()
+
+		select {
+		case <-childEnterExitIdle:
+		case <-time.After(2 * time.Second):
+			t.Fatal("child never entered parent ExitIdle")
+		}
+
+		if curr := atomic.LoadInt32(&targetChild.inFlight); curr != 1 {
+			t.Fatalf("expected 1 call in flight during parent ExitIdle, got %d", curr)
+		}
+
+		var (
+			exposedCallWg  sync.WaitGroup
+			callErr        error
+			exposedStarted = make(chan struct{})
+			exposedEntered = make(chan struct{}, 1)
+			exposedDone    = make(chan struct{}, 1)
+		)
+
+		targetChild.mu.Lock()
+		targetChild.enterExitIdle = exposedEntered
+		targetChild.exitIdleDoneCh = exposedDone
+		targetChild.shouldBlockExitIdle = false
+		targetChild.mu.Unlock()
+
+		exposedCallWg.Add(1)
+		go func() {
+			defer exposedCallWg.Done()
+			close(exposedStarted)
+			callErr = invokeExitIdle(targetChildState)
+		}()
+
+		select {
+		case <-exposedStarted:
+		case <-time.After(1 * time.Second):
+			t.Fatal("exposed ExitIdle failed to start")
+		}
+
+		for i := 0; i < 10; i++ {
+			runtime.Gosched()
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		select {
+		case <-exposedEntered:
+			t.Errorf("exposed ExitIdle entered concurrently while parent ExitIdle was in flight (lack of per-child mutual exclusion)")
+		default:
+		}
+
+		if !releaseAndWait() {
+			t.Fatal("parent ExitIdle worker release timed out")
+		}
+
+		select {
+		case <-exposedEntered:
+		case <-time.After(2 * time.Second):
+			t.Fatal("exposed ExitIdle never entered after parent ExitIdle release")
+		}
+
+		select {
+		case <-exposedDone:
+		case <-time.After(2 * time.Second):
+			t.Fatal("exposed ExitIdle never finished after parent ExitIdle release")
+		}
+
+		exposedWaitDone := make(chan struct{})
+		go func() {
+			exposedCallWg.Wait()
+			close(exposedWaitDone)
+		}()
+		select {
+		case <-exposedWaitDone:
+		case <-time.After(2 * time.Second):
+			t.Fatal("exposed ExitIdle callWg timed out or deadlocked")
+		}
+		if callErr != nil {
+			t.Fatalf("invokeExitIdle failed: %v", callErr)
+		}
+
+		safeToClose = true
+
+		if max := atomic.LoadInt32(&targetChild.maxSeen); max > 1 {
+			t.Errorf("observed concurrent overlapping calls on same child during parent ExitIdle (maxSeen = %d)", max)
+		}
+	})
+
+	// Subtest 4: Close vs exposed ExitIdle
+	t.Run("CloseVsExposedExitIdle", func(t *testing.T) {
+		enterClose := make(chan struct{}, 1)
+		releaseClose := make(chan struct{})
+		childEnterExitIdle := make(chan struct{}, 1)
+		childExitIdleDone := make(chan struct{}, 1)
+
+		var (
+			mu             sync.Mutex
+			childrenByAddr = make(map[string]*evalControlledChild)
+		)
+
+		childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+			c := &evalControlledChild{
+				cc:               cc,
+				enterClose:       enterClose,
+				releaseClose:     releaseClose,
+				shouldBlockClose: true,
+				enterExitIdle:    childEnterExitIdle,
+				exitIdleDoneCh:   childExitIdleDone,
+			}
+			c.onUpdateState = func(ccs balancer.ClientConnState) {
+				if len(ccs.ResolverState.Endpoints) > 0 && len(ccs.ResolverState.Endpoints[0].Addresses) > 0 {
+					addr := ccs.ResolverState.Endpoints[0].Addresses[0].Addr
+					mu.Lock()
+					childrenByAddr[addr] = c
+					c.id = addr
+					mu.Unlock()
+				}
+			}
+			return c
+		}
+
+		cc := &evalProbeCC{}
+		lb := NewBalancer(cc, balancer.BuildOptions{}, childBuilder, Options{})
+
+		if err := updateClientConnStateWithTimeout(t, lb, balancer.ClientConnState{
+			ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep1, ep2}},
+		}, 2*time.Second); err != nil {
+			t.Fatalf("Initial UpdateClientConnState failed: %v", err)
+		}
+
+		state := cc.getState()
+		childStates := ChildStatesFromPicker(state.Picker)
+		targetChildState := findChildStateByAddr(childStates, "10.0.0.1")
+		if targetChildState == nil {
+			t.Fatalf("ChildState for 10.0.0.1 not found in picker")
+		}
+
+		mu.Lock()
+		targetChild := childrenByAddr["10.0.0.1"]
+		mu.Unlock()
+
+		var (
+			closeWg     sync.WaitGroup
+			releaseOnce sync.Once
+			closeDone   = make(chan struct{})
+			safeToClose bool
+		)
+		releaseAndWait := func() bool {
+			releaseOnce.Do(func() {
+				close(releaseClose)
+			})
+			select {
+			case <-closeDone:
+				return true
+			case <-time.After(2 * time.Second):
+				t.Error("close worker timed out or deadlocked during release")
+				return false
+			}
+		}
+		defer func() {
+			if releaseAndWait() && safeToClose {
+				lb.Close()
+			}
+		}()
+
+		closeWg.Add(1)
+		go func() {
+			defer closeWg.Done()
+			_ = lb.UpdateClientConnState(balancer.ClientConnState{
+				ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep2}},
+			})
+		}()
+		go func() {
+			closeWg.Wait()
+			close(closeDone)
+		}()
+
+		select {
+		case <-enterClose:
+		case <-time.After(2 * time.Second):
+			t.Fatal("child never entered Close during endpoint removal")
+		}
+
+		if curr := atomic.LoadInt32(&targetChild.inFlight); curr != 1 {
+			t.Fatalf("expected 1 call in flight during Close, got %d", curr)
+		}
+
+		var (
+			exposedCallWg  sync.WaitGroup
+			exposedStarted = make(chan struct{})
+		)
+		exposedCallWg.Add(1)
+		go func() {
+			defer exposedCallWg.Done()
+			close(exposedStarted)
+			_ = invokeExitIdle(targetChildState)
+		}()
+
+		select {
+		case <-exposedStarted:
+		case <-time.After(1 * time.Second):
+			t.Fatal("exposed ExitIdle failed to start during Close")
+		}
+
+		for i := 0; i < 10; i++ {
+			runtime.Gosched()
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		select {
+		case <-childEnterExitIdle:
+			t.Errorf("exposed ExitIdle entered concurrently while Close was in flight (lack of mutual exclusion)")
+		default:
+		}
+
+		if !releaseAndWait() {
+			t.Fatal("close worker release timed out")
+		}
+		exposedWaitDone := make(chan struct{})
+		go func() {
+			exposedCallWg.Wait()
+			close(exposedWaitDone)
+		}()
+		select {
+		case <-exposedWaitDone:
+		case <-time.After(2 * time.Second):
+			t.Fatal("exposed ExitIdle during Close callWg timed out or deadlocked")
+		}
+
+		// Allow any scheduled asynchronous queued work on this child handle to complete,
+		// drain, or be rejected before asserting that ExitIdle was not called on the closed child.
+		select {
+		case <-childEnterExitIdle:
+			select {
+			case <-childExitIdleDone:
+			case <-time.After(1 * time.Second):
+				t.Fatal("queued ExitIdle entered after Close timed out waiting for completion")
+			}
+		case <-time.After(100 * time.Millisecond):
+		}
+
+		// Ensure all in-flight workers on the closed child have completely drained.
+		drainDeadline := time.Now().Add(1 * time.Second)
+		for time.Now().Before(drainDeadline) {
+			if atomic.LoadInt32(&targetChild.inFlight) == 0 {
+				break
+			}
+			runtime.Gosched()
+			time.Sleep(10 * time.Millisecond)
+		}
+		if inFlight := atomic.LoadInt32(&targetChild.inFlight); inFlight != 0 {
+			t.Fatalf("expected 0 calls in flight on closed child, got %d", inFlight)
+		}
+
+		safeToClose = true
+
+		targetChild.mu.Lock()
+		calledAfterClose := targetChild.exitIdleCalledAfterClose
+		targetChild.mu.Unlock()
+		if calledAfterClose {
+			t.Errorf("ExitIdle called child after Close finished (queued call on closed child)")
+		}
+
+		if max := atomic.LoadInt32(&targetChild.maxSeen); max > 1 {
+			t.Errorf("observed concurrent overlapping calls on same child during Close (maxSeen = %d)", max)
+		}
+	})
+
+	// Subtest 5: SimultaneousExposedExitIdle
+	t.Run("SimultaneousExposedExitIdle", func(t *testing.T) {
+		var (
+			mu             sync.Mutex
+			childrenByAddr = make(map[string]*evalControlledChild)
+		)
+
+		childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+			c := &evalControlledChild{cc: cc}
+			c.onUpdateState = func(ccs balancer.ClientConnState) {
+				if len(ccs.ResolverState.Endpoints) > 0 && len(ccs.ResolverState.Endpoints[0].Addresses) > 0 {
+					addr := ccs.ResolverState.Endpoints[0].Addresses[0].Addr
+					mu.Lock()
+					childrenByAddr[addr] = c
+					c.id = addr
+					mu.Unlock()
+				}
+			}
+			return c
+		}
+
+		cc := &evalProbeCC{}
+		lb := NewBalancer(cc, balancer.BuildOptions{}, childBuilder, Options{})
+		var safeToClose bool
+
+		if err := updateClientConnStateWithTimeout(t, lb, balancer.ClientConnState{
+			ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep1}},
+		}, 2*time.Second); err != nil {
+			t.Fatalf("Initial UpdateClientConnState failed: %v", err)
+		}
+
+		state := cc.getState()
+		childStates := ChildStatesFromPicker(state.Picker)
+		targetChildState := findChildStateByAddr(childStates, "10.0.0.1")
+		if targetChildState == nil {
+			t.Fatalf("ChildState for 10.0.0.1 not found in picker")
+		}
+
+		mu.Lock()
+		targetChild := childrenByAddr["10.0.0.1"]
+		mu.Unlock()
+
+		const concurrency = 10
+		var (
+			releaseOnce   sync.Once
+			startBarrier  = make(chan struct{})
+			callerStarted = make(chan struct{}, concurrency)
+			simWg         sync.WaitGroup
+			enterIdle     = make(chan struct{}, 1)
+			releaseIdle   = make(chan struct{})
+			idleDone      = make(chan struct{}, concurrency)
+		)
+
+		safeReleaseIdle := func() {
+			releaseOnce.Do(func() {
+				targetChild.mu.Lock()
+				targetChild.shouldBlockExitIdle = false
+				targetChild.mu.Unlock()
+				close(releaseIdle)
+			})
+		}
+		defer func() {
+			safeReleaseIdle()
+			if safeToClose {
+				lb.Close()
+			}
+		}()
+
+		targetChild.mu.Lock()
+		targetChild.enterExitIdle = enterIdle
+		targetChild.shouldBlockExitIdle = true
+		targetChild.releaseExitIdle = releaseIdle
+		targetChild.exitIdleDoneCh = idleDone
+		targetChild.mu.Unlock()
+
+		for i := 0; i < concurrency; i++ {
+			simWg.Add(1)
+			go func() {
+				defer simWg.Done()
+				<-startBarrier
+				callerStarted <- struct{}{}
+				_ = invokeExitIdle(targetChildState)
+			}()
+		}
+
+		close(startBarrier)
+
+		// Wait for the first ExitIdle to enter the child and hold it
+		select {
+		case <-enterIdle:
+		case <-time.After(2 * time.Second):
+			t.Fatal("first simultaneous ExitIdle never entered child")
+		}
+
+		// Await startup of all competitor callers so they are actively invoked/queued while call 1 is held
+		for i := 0; i < concurrency; i++ {
+			select {
+			case <-callerStarted:
+			case <-time.After(2 * time.Second):
+				t.Fatalf("caller %d never started invocation", i)
+			}
+		}
+
+		// Allow brief scheduling observation window while call 1 is held
+		time.Sleep(20 * time.Millisecond)
+		if max := atomic.LoadInt32(&targetChild.maxSeen); max > 1 {
+			t.Errorf("observed concurrent overlapping calls on same child while first is held (maxSeen = %d)", max)
+		}
+
+		// Now release the held call so all queued callers can finish
+		safeReleaseIdle()
+
+		// Await completion of all callers (now that the held call is released, synchronous callers can return)
+		callersDone := make(chan struct{})
+		go func() {
+			simWg.Wait()
+			close(callersDone)
+		}()
+		select {
+		case <-callersDone:
+		case <-time.After(2 * time.Second):
+			t.Fatal("simultaneous ExitIdle callers timed out or deadlocked after release")
+		}
+
+		// Wait for the first held call to complete child-side execution
+		var completedCount int
+		select {
+		case <-idleDone:
+			completedCount++
+		case <-time.After(2 * time.Second):
+			t.Fatal("held ExitIdle never completed child-side execution")
+		}
+
+		// Drain any additional completions from queued or coalesced calls with a bounded window
+		drainDeadline := time.After(200 * time.Millisecond)
+	drainLoop:
+		for {
+			select {
+			case <-idleDone:
+				completedCount++
+			case <-drainDeadline:
+				break drainLoop
+			}
+		}
+
+		if completedCount < 1 {
+			t.Errorf("expected at least 1 child-side ExitIdle completion, got %d", completedCount)
+		}
+
+		safeToClose = true
+
+		if max := atomic.LoadInt32(&targetChild.maxSeen); max > 1 {
+			t.Errorf("observed concurrent overlapping calls during simultaneous exposed ExitIdle (maxSeen = %d)", max)
+		}
+	})
+}
+
+// TestEval_SynchronousChildUpdateDeadlock verifies that child balancers can synchronously
+// invoke ClientConn.UpdateState during parent operations without deadlocking.
+func TestEval_SynchronousChildUpdateDeadlock(t *testing.T) {
+	var targetChild *evalControlledChild
+	var mu sync.Mutex
+
+	childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+		mu.Lock()
+		defer mu.Unlock()
+		targetChild = &evalControlledChild{
+			id: "sync-child",
+			cc: cc,
+			onResolverError: func(err error) {
+				// Synchronous ClientConn callback during ResolverError
+				cc.UpdateState(balancer.State{
+					ConnectivityState: connectivity.TransientFailure,
+				})
+			},
+		}
+		return targetChild
+	}
+
+	cc := &evalProbeCC{}
+	lb := NewBalancer(cc, balancer.BuildOptions{}, childBuilder, Options{})
+	var safeToClose bool
+	defer func() {
+		if safeToClose {
+			lb.Close()
+		}
+	}()
+
+	ep := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "10.0.0.1"}}}
+
+	// 1. Synchronous callback during UpdateClientConnState
+	done := make(chan error, 1)
+	go func() {
+		done <- lb.UpdateClientConnState(balancer.ClientConnState{
+			ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep}},
+		})
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("UpdateClientConnState failed: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("UpdateClientConnState deadlocked on synchronous child state update")
+	}
+
+	// 2. Synchronous callback during ResolverError
+	errDone := make(chan struct{})
+	go func() {
+		lb.ResolverError(fmt.Errorf("test resolver error"))
+		close(errDone)
+	}()
+
+	select {
+	case <-errDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("ResolverError deadlocked on synchronous child state update")
+	}
+
+	// 3. Synchronous callback during ExitIdle
+	state := cc.getState()
+	childStates := ChildStatesFromPicker(state.Picker)
+	if len(childStates) == 0 {
+		t.Fatalf("expected at least 1 child state in picker for ExitIdle deadlock test, got 0")
+	}
+
+	childExitDone := make(chan struct{}, 1)
+	mu.Lock()
+	targetChild.exitIdleDoneCh = childExitDone
+	mu.Unlock()
+
+	idleDone := make(chan struct{})
+	go func() {
+		if err := invokeExitIdle(&childStates[0]); err != nil {
+			t.Errorf("invokeExitIdle failed: %v", err)
+		}
+		close(idleDone)
+	}()
+	select {
+	case <-idleDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("ExitIdle caller deadlocked on synchronous child state update")
+	}
+
+	// Await child-side completion of the synchronous callback before teardown
+	select {
+	case <-childExitDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("child ExitIdle callback never completed child-side execution")
+	}
+
+	// Succeeded: all synchronous operations completed without deadlocking; safe to close.
+	safeToClose = true
+}
+
+// TestEval_ConstructionIdleCallbackSafety verifies that when a child balancer synchronously
+// reports Idle during construction, the callback returns while Build is in progress, no premature
+// publication leaks to the parent, automatic reconnection does not access uninitialized child state,
+// and automatic ExitIdle and initial UpdateClientConnState execute with strict mutual exclusion.
+func TestEval_ConstructionIdleCallbackSafety(t *testing.T) {
+	var (
+		buildPaused        = make(chan struct{}, 1)
+		buildRelease       = make(chan struct{})
+		updateEntered      = make(chan struct{}, 1)
+		updateRelease      = make(chan struct{})
+		reconnectCalled    = make(chan struct{}, 1)
+		reconnectDone      = make(chan struct{}, 1)
+		targetChild        *evalControlledChild
+		mu                 sync.Mutex
+	)
+
+	childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+		// Synchronously report Idle with a valid picker during Build() before returning the Balancer
+		cc.UpdateState(balancer.State{
+			ConnectivityState: connectivity.Idle,
+			Picker:            dummyIdlePicker{},
+		})
+
+		// Signal pause so any unsynchronized exitIdle goroutine attempts execution while Build is in flight
+		select {
+		case buildPaused <- struct{}{}:
+		default:
+		}
+		for i := 0; i < 5; i++ {
+			runtime.Gosched()
+			time.Sleep(10 * time.Millisecond)
+		}
+		<-buildRelease
+
+		c := &evalControlledChild{
+			id:             "construction-idle-child",
+			cc:             cc,
+			enterUpdate:    updateEntered,
+			releaseBlock:   updateRelease,
+			enterExitIdle:  reconnectCalled,
+			exitIdleDoneCh: reconnectDone,
+			shouldBlock:    true,
+		}
+		mu.Lock()
+		targetChild = c
+		mu.Unlock()
+		return c
+	}
+
+	cc := &evalProbeCC{}
+	lb := NewBalancer(cc, balancer.BuildOptions{}, childBuilder, Options{
+		DisableAutoReconnect: false, // Default options enabling automatic reconnection
+	})
+
+	var (
+		updateDone        = make(chan struct{})
+		updateErr         error
+		releaseBuildOnce  sync.Once
+		releaseUpdateOnce sync.Once
+		safeToClose       bool
+	)
+	safeReleaseBuild := func() {
+		releaseBuildOnce.Do(func() {
+			close(buildRelease)
+		})
+	}
+	safeReleaseUpdate := func() {
+		releaseUpdateOnce.Do(func() {
+			close(updateRelease)
+		})
+	}
+	defer func() {
+		safeReleaseBuild()
+		safeReleaseUpdate()
+		select {
+		case <-updateDone:
+			if safeToClose {
+				lb.Close()
+			}
+		case <-time.After(2 * time.Second):
+			t.Error("update worker timed out; skipping lb.Close() to avoid secondary deadlock")
+		}
+	}()
+
+	ep := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "10.0.0.1"}}}
+	go func() {
+		updateErr = lb.UpdateClientConnState(balancer.ClientConnState{
+			ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep}},
+		})
+		close(updateDone)
+	}()
+
+	// 1. Wait for childBuilder to enter and pause while Build is held
+	select {
+	case <-buildPaused:
+	case <-time.After(1 * time.Second):
+		t.Fatal("childBuilder never entered pause during construction")
+	}
+
+	// In-progress assertion: no premature parent state update while child construction is in flight
+	if count := cc.getUpdateCount(); count != 0 {
+		t.Errorf("expected 0 parent updates while child construction is in flight, got %d", count)
+	}
+
+	// 2. Release the child builder to complete Build and assign childLB
+	safeReleaseBuild()
+
+	// 3. Wait for the initial UpdateClientConnState to enter the newly created child
+	select {
+	case <-updateEntered:
+	case <-time.After(1 * time.Second):
+		t.Fatal("child never entered initial UpdateClientConnState")
+	}
+
+	// Release the initial UpdateClientConnState to complete child configuration
+	safeReleaseUpdate()
+
+	select {
+	case <-updateDone:
+		if updateErr != nil {
+			t.Fatalf("UpdateClientConnState failed: %v", updateErr)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("UpdateClientConnState timed out completing initial configuration")
+	}
+
+	// 4. Verify that automatic reconnection executes safely and is not dropped
+	select {
+	case <-reconnectCalled:
+		// Succeeded: automatic reconnect called safely
+	case <-time.After(2 * time.Second):
+		t.Fatal("automatic reconnection was dropped or never delivered after construction-time Idle report")
+	}
+
+	// 5. Bounded join for automatic reconnect completion before teardown
+	select {
+	case <-reconnectDone:
+		// Succeeded: automatic reconnect completed its callback
+	case <-time.After(2 * time.Second):
+		t.Fatal("automatic reconnection synchronous callback timed out or deadlocked")
+	}
+
+	// 6. Verify strict mutual exclusion across all calls on this child (zero overlap: maxSeen <= 1)
+	mu.Lock()
+	tc := targetChild
+	mu.Unlock()
+	if tc != nil {
+		if max := atomic.LoadInt32(&tc.maxSeen); max > 1 {
+			t.Errorf("observed concurrent overlapping calls on child during initialization (maxSeen = %d, want <= 1)", max)
+		}
+	}
+
+	// Subtest: Construction reconnect must survive initial configuration (verifier finding C3)
+	t.Run("ConstructionReconnectSurvivesInitialConfiguration", func(t *testing.T) {
+		const iterations = 50
+		for i := 0; i < iterations; i++ {
+			entered := make(chan struct{})
+			release := make(chan struct{})
+			delivered := make(chan bool, 1)
+			completed := make(chan struct{}, 1)
+			var configured atomic.Bool
+			builder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+				child := &evalControlledChild{
+					cc: cc,
+					onUpdateState: func(balancer.ClientConnState) {
+						select {
+						case <-entered:
+						default:
+							close(entered)
+						}
+						<-release // First configuration cannot finish before observation.
+						configured.Store(true)
+					},
+					onExitIdle:     func() { delivered <- configured.Load() },
+					exitIdleDoneCh: completed,
+				}
+				cc.UpdateState(balancer.State{
+					ConnectivityState: connectivity.Idle,
+					Picker:            dummyIdlePicker{},
+				})
+				return child
+			}
+
+			es := NewBalancer(&evalProbeCC{}, balancer.BuildOptions{}, builder, Options{})
+			updateDone := make(chan error, 1)
+			var releaseOnce sync.Once
+			unblock := func() { releaseOnce.Do(func() { close(release) }) }
+			defer unblock()
+			go func() {
+				updateDone <- es.UpdateClientConnState(balancer.ClientConnState{
+					ResolverState: resolver.State{Endpoints: []resolver.Endpoint{{Addresses: []resolver.Address{{Addr: "10.0.0.1"}}}}}},
+				)
+			}()
+			select {
+			case <-entered:
+			case <-time.After(2 * time.Second):
+				t.Fatalf("iteration %d: first child configuration not entered", i)
+			}
+			premature := false
+			select {
+			case configuredAtExit := <-delivered:
+				premature = !configuredAtExit
+			default:
+			}
+			unblock()
+			select {
+			case err := <-updateDone:
+				if err != nil {
+					t.Fatalf("iteration %d: configuration: %v", i, err)
+				}
+			case <-time.After(2 * time.Second):
+				t.Fatalf("iteration %d: configuration did not finish", i)
+			}
+			select {
+			case <-completed:
+			case <-time.After(2 * time.Second):
+				t.Fatalf("iteration %d: construction reconnect not delivered", i)
+			}
+			if !premature {
+				select {
+				case configuredAtExit := <-delivered:
+					premature = !configuredAtExit
+				default:
+					t.Fatalf("iteration %d: ExitIdle completed without recording configuration state", i)
+				}
+			}
+			if premature {
+				t.Fatalf("iteration %d: ExitIdle reached child before initial configuration", i)
+			}
+			es.Close()
+		}
+	})
+
+	safeToClose = true
+}
+
+// TestEval_ExistingChildIdleAttributeRace verifies that an existing child
+// reporting Idle (triggering automatic ExitIdle) does not race against
+// concurrent UpdateClientConnState calls updating endpoint attributes for that
+// same child.
+func TestEval_ExistingChildIdleAttributeRace(t *testing.T) {
+	const rounds = 100
+	addr := resolver.Address{Addr: "10.0.0.1"}
+	endpoint := func(n int) resolver.Endpoint {
+		return resolver.Endpoint{Addresses: []resolver.Address{addr}, Attributes: attributes.New("generation", n)}
+	}
+	var builds atomic.Int32
+	exited := make(chan struct{}, 1)
+	var child *evalControlledChild
+	builder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+		builds.Add(1)
+		child = &evalControlledChild{cc: cc, enterExitIdle: exited}
+		return child
+	}
+	parent := &evalProbeCC{}
+	lb := NewBalancer(parent, balancer.BuildOptions{}, builder, Options{DisableAutoReconnect: false})
+	state := func(n int) balancer.ClientConnState {
+		return balancer.ClientConnState{ResolverState: resolver.State{Endpoints: []resolver.Endpoint{endpoint(n)}}}
+	}
+	if err := updateClientConnStateWithTimeout(t, lb, state(0), 2*time.Second); err != nil {
+		t.Fatalf("initial update: %v", err)
+	}
+	stop := make(chan struct{})
+	idleDone := make(chan struct{})
+	go func() {
+		defer close(idleDone)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				child.cc.UpdateState(balancer.State{ConnectivityState: connectivity.Idle, Picker: dummyIdlePicker{}})
+				runtime.Gosched()
+			}
+		}
+	}()
+	for i := 1; i <= rounds; i++ {
+		if err := lb.UpdateClientConnState(state(i)); err != nil {
+			close(stop)
+			t.Fatalf("attribute update %d: %v", i, err)
+		}
+	}
+	close(stop)
+	<-idleDone
+
+	select {
+	case <-exited:
+	case <-time.After(5 * time.Second):
+		t.Fatal("auto reconnect never reached initialized child")
+	}
+	if n := builds.Load(); n != 1 {
+		t.Fatalf("attribute changes rebuilt child %d times", n)
+	}
+	states := ChildStatesFromPicker(parent.getState().Picker)
+	if len(states) != 1 || states[0].Endpoint.Attributes == nil || states[0].Endpoint.Attributes.Value("generation") != rounds {
+		t.Fatalf("final picker does not contain latest endpoint attributes: %+v", states)
+	}
+	lb.Close()
+}
+
+// TestEval_ChildStateExitIdleCallback verifies that ChildState exposes a direct
+// callable ExitIdle function or method, and structurally rejects any facade wrapper
+// fields (named or embedded) exposing ExitIdle.
+func TestEval_ChildStateExitIdleCallback(t *testing.T) {
+	exitIdleCh := make(chan struct{}, 1)
+	childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+		return &evalControlledChild{
+			id:             "child-single",
+			enterExitIdle:  exitIdleCh,
+			exitIdleDoneCh: exitIdleCh,
+		}
+	}
+
+	cc := &evalProbeCC{}
+	lb := NewBalancer(cc, balancer.BuildOptions{}, childBuilder, Options{})
+	var safeToClose bool
+	defer func() {
+		if safeToClose {
+			lb.Close()
+		}
+	}()
+
+	ep := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "10.0.0.1"}}}
+	updateDone := make(chan error, 1)
+	go func() {
+		updateDone <- lb.UpdateClientConnState(balancer.ClientConnState{
+			ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep}},
+		})
+	}()
+	select {
+	case err := <-updateDone:
+		if err != nil {
+			t.Fatalf("UpdateClientConnState failed: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("UpdateClientConnState timed out or deadlocked")
+	}
+
+	childStates := ChildStatesFromPicker(cc.getState().Picker)
+	if len(childStates) != 1 {
+		t.Fatalf("Expected 1 child state, got %d", len(childStates))
+	}
+
+	directDone := make(chan error, 1)
+	go func() {
+		directDone <- invokeDirectExitIdle(&childStates[0])
+	}()
+	select {
+	case err := <-directDone:
+		if err != nil {
+			t.Fatalf("Expected direct callable ExitIdle on ChildState: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("invokeDirectExitIdle timed out or deadlocked")
+	}
+
+	select {
+	case <-exitIdleCh:
+		t.Log("Child received direct ExitIdle call successfully")
+	case <-time.After(1 * time.Second):
+		t.Fatal("Child failed to receive ExitIdle callback invocation")
+	}
+
+	safeToClose = true
+}
+
+// TestEval_BatchUpdateInhibition verifies that during a multi-endpoint update,
+// intermediate child state updates are inhibited while the batch is in flight (parent update count is 0),
+// exactly one consolidated update is emitted after completion, every endpoint is built and updated,
+// all endpoints are represented in the final picker, and child configuration errors do not drop subsequent endpoints.
+func TestEval_BatchUpdateInhibition(t *testing.T) {
+	t.Run("SuccessfulBatchConsolidatedNotification", func(t *testing.T) {
+	var (
+		mu                sync.Mutex
+		totalBuilds       int
+		childUpdates      = make(map[string]int)
+		thirdChildBlock   = make(chan struct{}, 1)
+		thirdChildRelease = make(chan struct{})
+		releaseOnce       sync.Once
+	)
+
+	safeReleaseThirdChild := func() {
+		releaseOnce.Do(func() {
+			close(thirdChildRelease)
+		})
+	}
+
+	var childCCs = make(map[string]balancer.ClientConn)
+
+	childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+		mu.Lock()
+		totalBuilds++
+		ordinal := totalBuilds
+		mu.Unlock()
+
+		return &evalControlledChild{
+			cc: cc, // each child emits a state update during UpdateClientConnState
+			onUpdateState: func(ccs balancer.ClientConnState) {
+				if len(ccs.ResolverState.Endpoints) > 0 && len(ccs.ResolverState.Endpoints[0].Addresses) > 0 {
+					addr := ccs.ResolverState.Endpoints[0].Addresses[0].Addr
+					mu.Lock()
+					childUpdates[addr]++
+					childCCs[addr] = cc
+					mu.Unlock()
+
+					// Each child reports its connectivity state synchronously during configuration update
+					cc.UpdateState(balancer.State{
+						ConnectivityState: connectivity.Connecting,
+					})
+
+					// The 3rd built child pauses its update to let earlier children emit updates
+					if ordinal == 3 {
+						select {
+						case thirdChildBlock <- struct{}{}:
+						default:
+						}
+						<-thirdChildRelease
+					}
+				}
+			},
+		}
+	}
+
+	cc := &evalProbeCC{}
+	lb := NewBalancer(cc, balancer.BuildOptions{}, childBuilder, Options{})
+
+	endpoints := []resolver.Endpoint{
+		{Addresses: []resolver.Address{{Addr: "10.0.0.1"}}},
+		{Addresses: []resolver.Address{{Addr: "10.0.0.2"}}},
+		{Addresses: []resolver.Address{{Addr: "10.0.0.3"}}},
+	}
+
+	done := make(chan error, 1)
+	workerDone := make(chan struct{})
+	var safeToClose bool
+	go func() {
+		defer close(workerDone)
+		done <- lb.UpdateClientConnState(balancer.ClientConnState{
+			ResolverState: resolver.State{Endpoints: endpoints},
+		})
+	}()
+
+	// Single unconditional cleanup installed immediately after starting worker:
+	// releases blocker first, observes non-consumable worker completion with timeout, then closes balancer.
+	defer func() {
+		safeReleaseThirdChild()
+		select {
+		case <-workerDone:
+			if safeToClose {
+				lb.Close()
+			}
+		case <-time.After(2 * time.Second):
+			t.Error("batch worker timed out; skipping lb.Close() to avoid secondary deadlock")
+		}
+	}()
+
+	// Wait for the 3rd child to enter update while earlier children have already called UpdateState
+	var thirdChildEntered bool
+	select {
+	case <-thirdChildBlock:
+		thirdChildEntered = true
+	case <-time.After(500 * time.Millisecond):
+		thirdChildEntered = false
+		t.Errorf("third child never entered update block (batch update was incomplete or skipped children)")
+	}
+
+	// In-progress assertion: intermediate updates must be inhibited while batch is in flight
+	if thirdChildEntered {
+		mu.Lock()
+		buildsInProgress := totalBuilds
+		mu.Unlock()
+
+		if buildsInProgress != 3 {
+			t.Errorf("Expected 3 child balancers built before 3rd child update, got %d", buildsInProgress)
+		}
+		if count := cc.getUpdateCount(); count != 0 {
+			t.Errorf("Expected 0 parent updates while batch is in progress, got %d (intermediate updates leaked)", count)
+		}
+
+		// Exercise concurrent callback crossing batch entry while the batch is still held in flight
+		mu.Lock()
+		c1CCMidBatch := childCCs["10.0.0.1"]
+		mu.Unlock()
+		if c1CCMidBatch != nil {
+			c1CCMidBatch.UpdateState(balancer.State{
+				ConnectivityState: connectivity.Ready,
+			})
+			if midCount := cc.getUpdateCount(); midCount != 0 {
+				t.Errorf("Expected 0 parent updates after concurrent mid-batch child callback, got %d (intermediate callback leaked mid-batch)", midCount)
+			}
+		}
+	}
+
+	// Release the 3rd child to complete the batch
+	safeReleaseThirdChild()
+
+	// Wait on buffered completion channel with a 2-second deadline
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("UpdateClientConnState failed: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("UpdateClientConnState deadlocked or timed out during batch update")
+	}
+
+	count := cc.getUpdateCount()
+	if count != 1 {
+		t.Errorf("Expected exactly 1 consolidated update after batch completion, got %d", count)
+	}
+
+	// Verify later child state changes publish normally after batch completion
+	mu.Lock()
+	c1CC := childCCs["10.0.0.1"]
+	mu.Unlock()
+	if c1CC != nil {
+		postDone := make(chan struct{})
+		go func() {
+			c1CC.UpdateState(balancer.State{
+				ConnectivityState: connectivity.Ready,
+			})
+			close(postDone)
+		}()
+		select {
+		case <-postDone:
+			if postCount := cc.getUpdateCount(); postCount != 2 {
+				t.Errorf("Expected exactly 2 updates after post-batch child state change, got %d", postCount)
+			}
+		case <-time.After(1 * time.Second):
+			t.Errorf("post-batch c1CC.UpdateState deadlocked or timed out")
+			return
+		}
+	}
+
+	mu.Lock()
+	builds := totalBuilds
+	updates := make(map[string]int, len(childUpdates))
+	for k, v := range childUpdates {
+		updates[k] = v
+	}
+	mu.Unlock()
+
+	if builds != 3 {
+		t.Errorf("Expected exactly 3 child balancers to be built, got %d", builds)
+	}
+
+	for _, addr := range []string{"10.0.0.1", "10.0.0.2", "10.0.0.3"} {
+		if updates[addr] != 1 {
+			t.Errorf("Expected endpoint %s to receive exactly 1 update, got %d", addr, updates[addr])
+		}
+	}
+
+	// Verify that all 3 endpoints are represented in the final picker
+	state := cc.getState()
+	childStates := ChildStatesFromPicker(state.Picker)
+	if len(childStates) != 3 {
+		t.Fatalf("Expected 3 child states in final picker, got %d", len(childStates))
+	}
+
+	seenAddrs := make(map[string]bool)
+	for _, cs := range childStates {
+		if len(cs.Endpoint.Addresses) > 0 {
+			seenAddrs[cs.Endpoint.Addresses[0].Addr] = true
+		}
+	}
+	for _, want := range []string{"10.0.0.1", "10.0.0.2", "10.0.0.3"} {
+		if !seenAddrs[want] {
+			t.Errorf("Missing expected endpoint %s in final picker state", want)
+		}
+	}
+
+	safeToClose = true
+	})
+
+	t.Run("ChildErrorConsolidation", func(t *testing.T) {
+		expectedErr := fmt.Errorf("child-2 update failed")
+		var (
+			mu           sync.Mutex
+			totalBuilds  int
+			childUpdates = make(map[string]int)
+		)
+
+		childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+			mu.Lock()
+			totalBuilds++
+			ordinal := totalBuilds
+			mu.Unlock()
+
+			c := &evalControlledChild{
+				cc: cc,
+				onUpdateState: func(ccs balancer.ClientConnState) {
+					if len(ccs.ResolverState.Endpoints) > 0 && len(ccs.ResolverState.Endpoints[0].Addresses) > 0 {
+						addr := ccs.ResolverState.Endpoints[0].Addresses[0].Addr
+						mu.Lock()
+						childUpdates[addr]++
+						mu.Unlock()
+					}
+				},
+			}
+			if ordinal == 2 {
+				c.updateErr = expectedErr
+			}
+			return c
+		}
+
+		cc := &evalProbeCC{}
+		lb := NewBalancer(cc, balancer.BuildOptions{}, childBuilder, Options{})
+		var safeToClose bool
+		defer func() {
+			if safeToClose {
+				lb.Close()
+			}
+		}()
+
+		eps := []resolver.Endpoint{
+			{Addresses: []resolver.Address{{Addr: "10.0.0.1"}}},
+			{Addresses: []resolver.Address{{Addr: "10.0.0.2"}}},
+			{Addresses: []resolver.Address{{Addr: "10.0.0.3"}}},
+		}
+
+		err := updateClientConnStateWithTimeout(t, lb, balancer.ClientConnState{
+			ResolverState: resolver.State{Endpoints: eps},
+		}, 2*time.Second)
+
+		if err == nil || !errors.Is(err, expectedErr) {
+			t.Fatalf("UpdateClientConnState returned %v, want %v", err, expectedErr)
+		}
+
+		mu.Lock()
+		builds := totalBuilds
+		updates := make(map[string]int, len(childUpdates))
+		for k, v := range childUpdates {
+			updates[k] = v
+		}
+		mu.Unlock()
+		if builds != 3 {
+			t.Errorf("expected 3 children built despite child 2 error, got %d (early abort defect)", builds)
+		}
+
+		// Verify configuration delivery reached every endpoint despite child 2 error (Finding 54)
+		for _, addr := range []string{"10.0.0.1", "10.0.0.2", "10.0.0.3"} {
+			if updates[addr] != 1 {
+				t.Errorf("expected endpoint %s to receive configuration update despite earlier error, got %d", addr, updates[addr])
+			}
+		}
+
+		state := cc.getState()
+		if state.Picker == nil {
+			t.Fatal("picker is nil after child error update")
+		}
+		childStates := ChildStatesFromPicker(state.Picker)
+		if len(childStates) != 3 {
+			t.Fatalf("expected 3 child states in consolidated picker despite child error, got %d", len(childStates))
+		}
+
+		if count := cc.getUpdateCount(); count != 1 {
+			t.Errorf("expected exactly 1 consolidated ClientConn.UpdateState call on error path, got %d", count)
+		}
+
+		safeToClose = true
+	})
+}
+
+// TestEval_ResolverErrorConsolidatedNotification verifies that when ResolverError is invoked
+// on the parent, it forwards the error to all children while inhibiting intermediate notifications,
+// publishing exactly one consolidated state upon completion.
+func TestEval_ResolverErrorConsolidatedNotification(t *testing.T) {
+	ep1 := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "10.0.0.1"}}}
+	ep2 := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "10.0.0.2"}}}
+
+	var (
+		mu           sync.Mutex
+		errorsSeen   = make(map[string]error)
+		childCCs     = make(map[string]balancer.ClientConn)
+		errorBlock   = make(chan struct{}, 1)
+		errorRelease = make(chan struct{})
+	)
+
+	childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+		c := &evalControlledChild{cc: cc}
+		c.onUpdateState = func(ccs balancer.ClientConnState) {
+			if len(ccs.ResolverState.Endpoints) > 0 && len(ccs.ResolverState.Endpoints[0].Addresses) > 0 {
+				addr := ccs.ResolverState.Endpoints[0].Addresses[0].Addr
+				mu.Lock()
+				childCCs[addr] = cc
+				c.id = addr
+				mu.Unlock()
+			}
+		}
+		c.onResolverError = func(err error) {
+			mu.Lock()
+			errorsSeen[c.id] = err
+			cCC := childCCs[c.id]
+			mu.Unlock()
+
+			if cCC != nil {
+				cCC.UpdateState(balancer.State{
+					ConnectivityState: connectivity.TransientFailure,
+					Picker:            &dummyIdlePicker{},
+				})
+			}
+
+			if c.id == "10.0.0.2" {
+				select {
+				case errorBlock <- struct{}{}:
+				default:
+				}
+				<-errorRelease
+			}
+		}
+		return c
+	}
+
+	cc := &evalProbeCC{}
+	lb := NewBalancer(cc, balancer.BuildOptions{}, childBuilder, Options{})
+	var (
+		safeToClose bool
+		releaseOnce sync.Once
+	)
+	safeRelease := func() {
+		releaseOnce.Do(func() {
+			close(errorRelease)
+		})
+	}
+	defer func() {
+		safeRelease()
+		if safeToClose {
+			lb.Close()
+		}
+	}()
+
+	if err := updateClientConnStateWithTimeout(t, lb, balancer.ClientConnState{
+		ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep1, ep2}},
+	}, 2*time.Second); err != nil {
+		t.Fatalf("Initial UpdateClientConnState failed: %v", err)
+	}
+
+	cc.mu.Lock()
+	cc.updateCount = 0
+	cc.mu.Unlock()
+
+	sentinelErr := fmt.Errorf("test resolver error")
+	done := make(chan struct{})
+	go func() {
+		lb.ResolverError(sentinelErr)
+		close(done)
+	}()
+
+	select {
+	case <-errorBlock:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for child 2 to enter ResolverError")
+	}
+
+	if count := cc.getUpdateCount(); count != 0 {
+		t.Errorf("intermediate parent update emitted while ResolverError in flight: got %d, expected 0", count)
+	}
+
+	safeRelease()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("ResolverError timed out after release")
+	}
+
+	if count := cc.getUpdateCount(); count != 1 {
+		t.Errorf("expected exactly 1 consolidated parent update after ResolverError, got %d", count)
+	}
+
+	// Verify that both children actually received the sentinel error
+	mu.Lock()
+	err1 := errorsSeen["10.0.0.1"]
+	err2 := errorsSeen["10.0.0.2"]
+	mu.Unlock()
+	if !errors.Is(err1, sentinelErr) || !errors.Is(err2, sentinelErr) {
+		t.Errorf("expected both children to receive sentinel error, got c1=%v, c2=%v", err1, err2)
+	}
+
+	state := cc.getState()
+	if state.ConnectivityState != connectivity.TransientFailure {
+		t.Errorf("expected parent state TransientFailure after both children reported failure, got %v", state.ConnectivityState)
+	}
+	if state.Picker == nil {
+		t.Errorf("expected non-nil picker after ResolverError consolidation")
+	}
+
+	safeToClose = true
+}
+
+// TestEval_PickerStateAggregationPrecedence verifies that the parent policy aggregates
+// child connectivity states according to Ready > Connecting > Idle > TransientFailure precedence.
+type evalPrecedenceIdentifiablePicker struct {
+	sc  balancer.SubConn
+	err error
+}
+
+func (p evalPrecedenceIdentifiablePicker) Pick(info balancer.PickInfo) (balancer.PickResult, error) {
+	if p.err != nil {
+		return balancer.PickResult{}, p.err
+	}
+	return balancer.PickResult{SubConn: p.sc}, nil
+}
+
+func TestEval_PickerStateAggregationPrecedence(t *testing.T) {
+	ep1 := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "10.0.0.1"}}}
+	ep2 := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "10.0.0.2"}}}
+
+	var (
+		mu       sync.Mutex
+		childCCs = make(map[string]balancer.ClientConn)
+	)
+
+	childBuilder := func(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+		c := &evalControlledChild{cc: cc}
+		c.onUpdateState = func(ccs balancer.ClientConnState) {
+			if len(ccs.ResolverState.Endpoints) > 0 && len(ccs.ResolverState.Endpoints[0].Addresses) > 0 {
+				addr := ccs.ResolverState.Endpoints[0].Addresses[0].Addr
+				mu.Lock()
+				childCCs[addr] = cc
+				c.id = addr
+				mu.Unlock()
+			}
+		}
+		return c
+	}
+
+	cc := &evalProbeCC{}
+	// DisableAutoReconnect eliminates scheduler-dependent async ExitIdle races
+	lb := NewBalancer(cc, balancer.BuildOptions{}, childBuilder, Options{DisableAutoReconnect: true})
+	var safeToClose bool
+	defer func() {
+		if safeToClose {
+			lb.Close()
+		}
+	}()
+
+	if err := updateClientConnStateWithTimeout(t, lb, balancer.ClientConnState{
+		ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep1, ep2}},
+	}, 2*time.Second); err != nil {
+		t.Fatalf("Initial UpdateClientConnState failed: %v", err)
+	}
+
+	mu.Lock()
+	c1CC := childCCs["10.0.0.1"]
+	c2CC := childCCs["10.0.0.2"]
+	mu.Unlock()
+
+	if c1CC == nil || c2CC == nil {
+		t.Fatalf("childCCs not recorded: c1=%v, c2=%v", c1CC, c2CC)
+	}
+
+	updateChild := func(childCC balancer.ClientConn, st balancer.State) {
+		done := make(chan struct{})
+		go func() {
+			childCC.UpdateState(st)
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(500 * time.Millisecond):
+			t.Fatal("childCC.UpdateState deadlocked or timed out")
+		}
+	}
+
+	sc1 := testutils.NewTestSubConn("10.0.0.1")
+	sc2 := testutils.NewTestSubConn("10.0.0.2")
+	errTF1 := errors.New("endpoint 1 connection failed")
+	errTF2 := errors.New("endpoint 2 connection failed")
+
+	// Step 1: c1 Connecting, c2 Idle => Aggregate must be Connecting
+	updateChild(c1CC, balancer.State{ConnectivityState: connectivity.Connecting, Picker: evalPrecedenceIdentifiablePicker{sc: sc1}})
+	updateChild(c2CC, balancer.State{ConnectivityState: connectivity.Idle, Picker: evalPrecedenceIdentifiablePicker{sc: sc2}})
+	if st := cc.getState().ConnectivityState; st != connectivity.Connecting {
+		t.Errorf("expected parent state Connecting (Connecting > Idle), got %v", st)
+	}
+	if res, err := cc.getState().Picker.Pick(balancer.PickInfo{}); err != nil || res.SubConn != sc1 {
+		t.Errorf("expected pick to route to Connecting child sc1, got res=%v, err=%v", res, err)
+	}
+
+	// Step 2: c2 transitions to Ready => Aggregate must immediately become Ready
+	updateChild(c2CC, balancer.State{ConnectivityState: connectivity.Ready, Picker: evalPrecedenceIdentifiablePicker{sc: sc2}})
+	if st := cc.getState().ConnectivityState; st != connectivity.Ready {
+		t.Errorf("expected parent state Ready (Ready > Connecting), got %v", st)
+	}
+	picker := cc.getState().Picker
+	if res, err := picker.Pick(balancer.PickInfo{}); err != nil || res.SubConn != sc2 {
+		t.Errorf("expected pick to route to Ready child sc2, got res=%v, err=%v", res, err)
+	}
+
+	// Step 3: c1 also transitions to Ready => Aggregate Ready, round-robin between sc1 and sc2
+	updateChild(c1CC, balancer.State{ConnectivityState: connectivity.Ready, Picker: evalPrecedenceIdentifiablePicker{sc: sc1}})
+	if st := cc.getState().ConnectivityState; st != connectivity.Ready {
+		t.Errorf("expected parent state Ready with two ready children, got %v", st)
+	}
+	seen := make(map[balancer.SubConn]bool)
+	for i := 0; i < 10; i++ {
+		res, err := cc.getState().Picker.Pick(balancer.PickInfo{})
+		if err != nil {
+			t.Errorf("unexpected error picking from ready children: %v", err)
+		}
+		seen[res.SubConn] = true
+	}
+	if !seen[sc1] || !seen[sc2] {
+		t.Errorf("expected round-robin picks across both ready children, got seen=%v", seen)
+	}
+
+	// Step 4: c1 transitions to TransientFailure, c2 transitions to Idle => Aggregate must be Idle (Idle > TransientFailure)
+	updateChild(c1CC, balancer.State{ConnectivityState: connectivity.TransientFailure, Picker: evalPrecedenceIdentifiablePicker{sc: sc1, err: errTF1}})
+	updateChild(c2CC, balancer.State{ConnectivityState: connectivity.Idle, Picker: evalPrecedenceIdentifiablePicker{sc: sc2}})
+	if st := cc.getState().ConnectivityState; st != connectivity.Idle {
+		t.Errorf("expected parent state Idle (Idle > TransientFailure), got %v", st)
+	}
+	if res, err := cc.getState().Picker.Pick(balancer.PickInfo{}); err != nil || res.SubConn != sc2 {
+		t.Errorf("expected Idle child sc2 to be selected without error, got res=%v, err=%v", res, err)
+	}
+
+	// Step 5: c1 and c2 both TransientFailure => Aggregate must become TransientFailure
+	updateChild(c2CC, balancer.State{ConnectivityState: connectivity.TransientFailure, Picker: evalPrecedenceIdentifiablePicker{sc: sc2, err: errTF2}})
+	if st := cc.getState().ConnectivityState; st != connectivity.TransientFailure {
+		t.Errorf("expected parent state TransientFailure when all children failed, got %v", st)
+	}
+	if _, err := cc.getState().Picker.Pick(balancer.PickInfo{}); err == nil {
+		t.Errorf("expected error when picking from all-failed children, got nil")
+	}
+
+	safeToClose = true
+}

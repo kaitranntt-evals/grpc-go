@@ -1,0 +1,14 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index ab821031..b985844b 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -186,6 +186,9 @@ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState
+ 			err = childBalancer.buildAndUpdateClientConnState(childCCS)
+ 		}
+ 		newChildren.Set(endpoint, childBalancer)
++		if err != nil {
++			return err // MUTATION M3: abort the batch on the first child error.
++		}
+ 		if err != nil && ret == nil {
+ 			// Return first error found, and always commit full processing of
+ 			// updating children. If desired to process more specific errors

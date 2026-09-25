@@ -1,0 +1,12 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index ab821031..47efacdc 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -149,6 +149,7 @@ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState
+ 	defer func() {
+ 		es.inhibitChildUpdates.Store(false)
+ 		es.updateState()
++		es.updateState() // MUTATION M2: an extra (duplicate) publication at batch completion.
+ 	}()
+ 	var ret error
+ 

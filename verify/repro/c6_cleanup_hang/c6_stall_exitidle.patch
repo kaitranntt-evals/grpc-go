@@ -1,0 +1,23 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 8c30f674..394247a9 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -27,6 +27,8 @@ package endpointsharding
+ 
+ import (
+ 	"errors"
++	"os"
++	"time"
+ 	rand "math/rand/v2"
+ 	"sync"
+ 	"sync/atomic"
+@@ -402,6 +404,9 @@ func (bw *balancerWrapper) UpdateState(state balancer.State) {
+ 
+ // exitIdle pings the child balancer to exit idle, unless it has been closed.
+ func (bw *balancerWrapper) exitIdle() {
++	if os.Getenv("EVAL_STALL_EXITIDLE") != "" {
++		time.Sleep(120 * time.Second) // audit fault injection: make the progress assertion time out
++	}
+ 	bw.mu.Lock()
+ 	defer bw.mu.Unlock()
+ 	if bw.isClosed {

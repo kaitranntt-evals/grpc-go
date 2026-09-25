@@ -1,0 +1,307 @@
+// Audit repro for claim C4 (branch evalon/grpc-go-en-7342a4ed).
+// Requires the two scheduling hooks added by c4_hooks.patch. Run with:
+//
+//	go test ./balancer/endpointsharding -run 'TestC4_' -race -count=1 -v
+package endpointsharding
+
+import (
+	"fmt"
+	"sort"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/attributes"
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/resolver"
+)
+
+const c4Timeout = 5 * time.Second
+
+type c4Picker struct{ tag string }
+
+func (p c4Picker) Pick(balancer.PickInfo) (balancer.PickResult, error) {
+	return balancer.PickResult{}, fmt.Errorf("%s", p.tag)
+}
+
+// c4CC records every publication from the balancer under test.
+type c4CC struct {
+	balancer.ClientConn
+	mu     sync.Mutex
+	states []balancer.State
+}
+
+func (c *c4CC) UpdateState(s balancer.State) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.states = append(c.states, s)
+}
+
+func (c *c4CC) snapshot() []balancer.State {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]balancer.State(nil), c.states...)
+}
+
+// describe renders a publication as addr=<picker tag>/<attr version> per child.
+func describe(s balancer.State) string {
+	out := ""
+	css := append([]ChildState(nil), ChildStatesFromPicker(s.Picker)...)
+	sort.Slice(css, func(i, j int) bool { return css[i].Endpoint.Addresses[0].Addr < css[j].Endpoint.Addresses[0].Addr })
+	for _, cs := range css {
+		tag := "<nil>"
+		if cs.State.Picker != nil {
+			_, err := cs.State.Picker.Pick(balancer.PickInfo{})
+			tag = err.Error()
+		}
+		out += fmt.Sprintf("%s=%s/v%v ", cs.Endpoint.Addresses[0].Addr, tag, cs.Endpoint.Attributes.Value("ver"))
+	}
+	return out
+}
+
+type c4Child struct {
+	cc       balancer.ClientConn
+	onUpdate func(cc balancer.ClientConn, ccs balancer.ClientConnState)
+}
+
+func (c *c4Child) UpdateClientConnState(ccs balancer.ClientConnState) error {
+	c.onUpdate(c.cc, ccs)
+	return nil
+}
+func (c *c4Child) ResolverError(error)                                        {}
+func (c *c4Child) UpdateSubConnState(balancer.SubConn, balancer.SubConnState) {}
+func (c *c4Child) Close()                                                     {}
+func (c *c4Child) ExitIdle()                                                  {}
+
+func c4Endpoints(ver int) []resolver.Endpoint {
+	var eps []resolver.Endpoint
+	for _, a := range []string{"A", "B"} {
+		eps = append(eps, resolver.Endpoint{Addresses: []resolver.Address{{Addr: a}}, Attributes: attributes.New("ver", ver)})
+	}
+	return eps
+}
+
+func waitCh(t *testing.T, ch <-chan struct{}, what string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(c4Timeout):
+		t.Fatalf("timed out waiting for %s", what)
+	}
+}
+
+// Entry boundary: a child callback that already passed the inhibit check
+// before a batch starts is resumed while the batch is still held; it publishes
+// a picker whose child states are only partially updated by the batch.
+func TestC4_EntryBoundary(t *testing.T) {
+	var (
+		childCCs   = map[string]balancer.ClientConn{}
+		ccMu       sync.Mutex
+		batchOn    atomic.Bool
+		batchCalls atomic.Int32
+		bBlocked   = make(chan struct{})
+		release    = make(chan struct{})
+		releaseFn  = sync.OnceFunc(func() { close(release) })
+	)
+	defer releaseFn()
+	builder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+		return &c4Child{cc: cc, onUpdate: func(cc balancer.ClientConn, ccs balancer.ClientConnState) {
+			addr := ccs.ResolverState.Endpoints[0].Addresses[0].Addr
+			ccMu.Lock()
+			childCCs[addr] = cc
+			ccMu.Unlock()
+			if batchOn.Load() {
+				// The second child processed in the batch blocks BEFORE reporting,
+				// so its recorded state is still the pre-batch one.
+				if batchCalls.Add(1) == 2 {
+					close(bBlocked)
+					<-release
+				}
+			}
+			ver := ccs.ResolverState.Endpoints[0].Attributes.Value("ver")
+			cc.UpdateState(balancer.State{ConnectivityState: connectivity.Connecting, Picker: c4Picker{fmt.Sprintf("batch-v%v", ver)}})
+		}}
+	}
+	cc := &c4CC{}
+	es := NewBalancer(cc, balancer.BuildOptions{}, builder, Options{DisableAutoReconnect: true})
+	if err := es.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: c4Endpoints(1)}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := cc.snapshot(); len(got) != 1 {
+		t.Fatalf("initial update published %d states, want 1", len(got))
+	}
+	t.Logf("initial publication: %s", describe(cc.snapshot()[0]))
+
+	// Pause the next child callback right after it passes the inhibit check.
+	var pause atomic.Bool
+	paused := make(chan struct{})
+	resume := make(chan struct{})
+	evalAfterInhibitCheck = func() {
+		if pause.CompareAndSwap(true, false) {
+			close(paused)
+			<-resume
+		}
+	}
+	defer func() { evalAfterInhibitCheck = nil }()
+	pause.Store(true)
+	cbDone := make(chan struct{})
+	go func() {
+		defer close(cbDone)
+		ccMu.Lock()
+		a := childCCs["A"]
+		ccMu.Unlock()
+		a.UpdateState(balancer.State{ConnectivityState: connectivity.Ready, Picker: c4Picker{"callback"}})
+	}()
+	waitCh(t, paused, "callback to pass the inhibit check")
+	if got := cc.snapshot(); len(got) != 1 {
+		t.Fatalf("callback published before pause: %d states", len(got))
+	}
+
+	// Now start a configuration batch (version 2) and hold it at its second child.
+	batchOn.Store(true)
+	batchDone := make(chan error, 1)
+	go func() {
+		batchDone <- es.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: c4Endpoints(2)}})
+	}()
+	waitCh(t, bBlocked, "batch to block at its second child")
+	if got := cc.snapshot(); len(got) != 1 {
+		t.Fatalf("batch published intermediate state: %d states", len(got))
+	}
+
+	// Resume the paused callback while the batch is still active.
+	close(resume)
+	waitCh(t, cbDone, "resumed callback to return")
+	mid := cc.snapshot()
+	t.Logf("publications after resuming callback (batch still held, %d total):", len(mid))
+	for i, s := range mid {
+		t.Logf("  [%d] agg=%v children: %s", i, s.ConnectivityState, describe(s))
+	}
+	select {
+	case err := <-batchDone:
+		t.Fatalf("batch finished early: %v", err)
+	default:
+	}
+	if len(mid) != 2 {
+		t.Fatalf("resumed callback published %d states while batch active, want exactly 1 extra (entry-boundary leak)", len(mid)-1)
+	}
+	// The leaked publication mixes batch-updated and pre-batch child states.
+	leak := describe(mid[1])
+	t.Logf("ENTRY-BOUNDARY LEAK: mid-batch publication with partially updated children: %s", leak)
+
+	releaseFn()
+	select {
+	case err := <-batchDone:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(c4Timeout):
+		t.Fatal("batch did not finish")
+	}
+	final := cc.snapshot()
+	t.Logf("consolidated publication after batch: %s (total publications %d)", describe(final[len(final)-1]), len(final))
+	es.Close()
+}
+
+// Completion boundary: a child callback paused after recording its state (but
+// before the inhibit check) while a batch is active. The batch's consolidated
+// publication already includes that state; resuming the callback publishes it
+// again.
+func TestC4_CompletionBoundary(t *testing.T) {
+	var (
+		childCCs   = map[string]balancer.ClientConn{}
+		ccMu       sync.Mutex
+		batchOn    atomic.Bool
+		batchCalls atomic.Int32
+		bBlocked   = make(chan struct{})
+		release    = make(chan struct{})
+		releaseFn  = sync.OnceFunc(func() { close(release) })
+	)
+	defer releaseFn()
+	builder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+		return &c4Child{cc: cc, onUpdate: func(cc balancer.ClientConn, ccs balancer.ClientConnState) {
+			addr := ccs.ResolverState.Endpoints[0].Addresses[0].Addr
+			ccMu.Lock()
+			childCCs[addr] = cc
+			ccMu.Unlock()
+			ver := ccs.ResolverState.Endpoints[0].Attributes.Value("ver")
+			cc.UpdateState(balancer.State{ConnectivityState: connectivity.Connecting, Picker: c4Picker{fmt.Sprintf("batch-v%v", ver)}})
+			if batchOn.Load() && batchCalls.Add(1) == 2 {
+				close(bBlocked)
+				<-release
+			}
+		}}
+	}
+	cc := &c4CC{}
+	es := NewBalancer(cc, balancer.BuildOptions{}, builder, Options{DisableAutoReconnect: true})
+	if err := es.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: c4Endpoints(1)}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := cc.snapshot(); len(got) != 1 {
+		t.Fatalf("initial update published %d states, want 1", len(got))
+	}
+
+	// Start the batch and hold it at its second child (inhibit is set).
+	batchOn.Store(true)
+	batchDone := make(chan error, 1)
+	go func() {
+		batchDone <- es.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: c4Endpoints(2)}})
+	}()
+	waitCh(t, bBlocked, "batch to block at its second child")
+
+	// Pause child A's next callback right after its state has been recorded.
+	var pause atomic.Bool
+	paused := make(chan struct{})
+	resume := make(chan struct{})
+	evalAfterRecordState = func(bw *balancerWrapper) {
+		if bw.childState.Endpoint.Addresses[0].Addr == "A" && pause.CompareAndSwap(true, false) {
+			close(paused)
+			<-resume
+		}
+	}
+	defer func() { evalAfterRecordState = nil }()
+	pause.Store(true)
+	cbDone := make(chan struct{})
+	go func() {
+		defer close(cbDone)
+		ccMu.Lock()
+		a := childCCs["A"]
+		ccMu.Unlock()
+		a.UpdateState(balancer.State{ConnectivityState: connectivity.Ready, Picker: c4Picker{"callback-READY"}})
+	}()
+	waitCh(t, paused, "callback to record its state")
+
+	// Finish the batch: its consolidated publication must include A=callback-READY.
+	releaseFn()
+	select {
+	case err := <-batchDone:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(c4Timeout):
+		t.Fatal("batch did not finish")
+	}
+	afterBatch := cc.snapshot()
+	if len(afterBatch) != 2 {
+		t.Fatalf("after batch: %d publications, want 2 (initial + consolidated)", len(afterBatch))
+	}
+	t.Logf("consolidated publication: agg=%v %s", afterBatch[1].ConnectivityState, describe(afterBatch[1]))
+
+	// Resume the callback: nothing else is running, so any further publication
+	// is attributable solely to it.
+	close(resume)
+	waitCh(t, cbDone, "resumed callback to return")
+	final := cc.snapshot()
+	for i, s := range final {
+		t.Logf("  [%d] agg=%v children: %s", i, s.ConnectivityState, describe(s))
+	}
+	if len(final) != 3 {
+		t.Fatalf("resumed callback published %d extra states, want exactly 1 duplicate (completion-boundary leak)", len(final)-2)
+	}
+	if describe(final[2]) != describe(final[1]) {
+		t.Fatalf("duplicate publication differs from consolidated one: %s vs %s", describe(final[2]), describe(final[1]))
+	}
+	t.Logf("COMPLETION-BOUNDARY DUPLICATE: callback re-published state already in consolidated publication: %s", describe(final[2]))
+	es.Close()
+}

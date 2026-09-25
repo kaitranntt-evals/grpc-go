@@ -1,0 +1,19 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index ab821031..83e06cae 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -403,9 +403,12 @@ func (bw *balancerWrapper) buildAndUpdateClientConnState(ccs balancer.ClientConn
+ 
+ // updateClientConnState delivers the ClientConnState to the child balancer.
+ func (bw *balancerWrapper) updateClientConnState(ccs balancer.ClientConnState) error {
++	// MUTATION M1: the existing-child update is no longer serialized with other
++	// operations (ExitIdle, Close, ResolverError) on the same child.
+ 	bw.mu.Lock()
+-	defer bw.mu.Unlock()
+-	return bw.child.UpdateClientConnState(ccs)
++	child := bw.child
++	bw.mu.Unlock()
++	return child.UpdateClientConnState(ccs)
+ }
+ 
+ // resolverError delivers the resolver error to the child balancer.
