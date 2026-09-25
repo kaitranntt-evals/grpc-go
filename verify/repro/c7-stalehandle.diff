@@ -1,0 +1,13 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 9de95af0..0a9ae06b 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -393,7 +393,7 @@ func (es *endpointState) close() {
+ 
+ func (es *endpointState) exitIdle() {
+ 	es.childMu.Lock()
+-	if !es.closed {
++	{
+ 		es.childLB.ExitIdle()
+ 	}
+ 	es.childMu.Unlock()

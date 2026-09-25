@@ -1,0 +1,45 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index c2567565..5a074625 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -27,9 +27,12 @@ package endpointsharding
+ 
+ import (
+ 	"errors"
++	"fmt"
+ 	rand "math/rand/v2"
++	"os"
+ 	"sync"
+ 	"sync/atomic"
++	"time"
+ 
+ 	"google.golang.org/grpc/balancer"
+ 	"google.golang.org/grpc/balancer/base"
+@@ -381,6 +384,27 @@ func (bw *balancerWrapper) UpdateState(state balancer.State) {
+ // for childMu, it is never delivered to a child that is still being
+ // constructed, and it is only dropped if the child has already been closed.
+ func (bw *balancerWrapper) exitIdle() {
++	if mode := os.Getenv("ES_DELIVER_CLOSED"); mode != "" {
++		bw.childMu.Lock()
++		closed := bw.isClosed
++		bw.childMu.Unlock()
++		if closed {
++			// Audit mutation: deliver ExitIdle to a closed child, synchronously
++			// (so it is ordered before later requests).
++			if mode == "2" {
++				// Control: deliver the forbidden request after A's.
++				go func() {
++					time.Sleep(3 * time.Millisecond)
++					fmt.Fprintln(os.Stderr, "AUDIT: delivering ExitIdle to CLOSED child (late)")
++					bw.child.ExitIdle()
++				}()
++				return
++			}
++			fmt.Fprintln(os.Stderr, "AUDIT: delivering ExitIdle to CLOSED child (before A)")
++			bw.child.ExitIdle()
++			return
++		}
++	}
+ 	go bw.exitIdleSync()
+ }
+ 

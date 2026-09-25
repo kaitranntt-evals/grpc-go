@@ -1,0 +1,15 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 9de95af0..2bce1f74 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -181,6 +181,10 @@ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState
+ 		} else {
+ 			err = epState.updateClientConnState(ccs)
+ 		}
++		if err != nil {
++			retErr = err
++			break
++		}
+ 		if err != nil && retErr == nil {
+ 			// Keep the first error found from any child.
+ 			retErr = err

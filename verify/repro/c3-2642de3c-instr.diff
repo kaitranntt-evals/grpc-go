@@ -1,0 +1,27 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 94d9a459..84f13fe5 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -27,7 +27,9 @@ package endpointsharding
+ 
+ import (
+ 	"errors"
++	"fmt"
+ 	rand "math/rand/v2"
++	"os"
+ 	"sync"
+ 	"sync/atomic"
+ 
+@@ -386,6 +388,12 @@ func (bw *balancerWrapper) ExitIdle() {
+ func (bw *balancerWrapper) exitIdle() {
+ 	bw.mu.Lock()
+ 	defer bw.mu.Unlock()
++	if bw.es.childMu.TryLock() {
++		bw.es.childMu.Unlock()
++		fmt.Fprintf(os.Stderr, "AUDIT: exitIdle worker holds bw.mu; es.childMu free (not held by worker)\n")
++	} else {
++		fmt.Fprintf(os.Stderr, "AUDIT: exitIdle worker acquired bw.mu WITHOUT holding es.childMu (childMu held by another goroutine)\n")
++	}
+ 	if bw.child != nil && !bw.isClosed {
+ 		bw.child.ExitIdle()
+ 	}

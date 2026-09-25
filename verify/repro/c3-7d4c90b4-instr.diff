@@ -1,0 +1,27 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 6b1eb00d..4f4bd3c4 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -27,7 +27,9 @@ package endpointsharding
+ 
+ import (
+ 	"errors"
++	"fmt"
+ 	rand "math/rand/v2"
++	"os"
+ 	"sync"
+ 	"sync/atomic"
+ 
+@@ -366,6 +368,12 @@ type balancerWrapper struct {
+ 
+ func (bw *balancerWrapper) UpdateState(state balancer.State) {
+ 	bw.es.mu.Lock()
++	if bw.mu.TryLock() {
++		bw.mu.Unlock()
++		fmt.Fprintf(os.Stderr, "AUDIT: UpdateState: es.mu held, bw.mu free\n")
++	} else {
++		fmt.Fprintf(os.Stderr, "AUDIT: UpdateState: es.mu acquired while bw.mu HELD (simultaneous ownership); caller stack:\n%s\n", auditFrames())
++	}
+ 	bw.childState.State = state
+ 	bw.es.mu.Unlock()
+ 	if state.ConnectivityState == connectivity.Idle && !bw.es.esOpts.DisableAutoReconnect {

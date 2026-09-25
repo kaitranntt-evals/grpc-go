@@ -1,0 +1,45 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 4a04ce58..284d90e7 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -361,8 +361,8 @@ func (bw *balancerWrapper) ExitIdle() {
+ }
+ 
+ func (bw *balancerWrapper) exitIdle() {
+-	bw.childMu.Lock()
+-	defer bw.childMu.Unlock()
++	coarseMu.Lock()
++	defer coarseMu.Unlock()
+ 	if !bw.isClosed {
+ 		bw.child.ExitIdle()
+ 	}
+@@ -372,8 +372,8 @@ func (bw *balancerWrapper) exitIdle() {
+ // configuration. Hold childMu across both operations so an IDLE update during
+ // construction cannot trigger ExitIdle before the child is initialized.
+ func (bw *balancerWrapper) updateClientConnState(ccs balancer.ClientConnState) error {
+-	bw.childMu.Lock()
+-	defer bw.childMu.Unlock()
++	coarseMu.Lock()
++	defer coarseMu.Unlock()
+ 	if bw.child == nil {
+ 		bw.child = bw.es.childBuilder(bw, bw.es.bOpts)
+ 	}
+@@ -381,14 +381,14 @@ func (bw *balancerWrapper) updateClientConnState(ccs balancer.ClientConnState) e
+ }
+ 
+ func (bw *balancerWrapper) close() {
+-	bw.childMu.Lock()
+-	defer bw.childMu.Unlock()
++	coarseMu.Lock()
++	defer coarseMu.Unlock()
+ 	bw.child.Close()
+ 	bw.isClosed = true
+ }
+ 
+ func (bw *balancerWrapper) resolverError(err error) {
+-	bw.childMu.Lock()
+-	defer bw.childMu.Unlock()
++	coarseMu.Lock()
++	defer coarseMu.Unlock()
+ 	bw.child.ResolverError(err)
+ }

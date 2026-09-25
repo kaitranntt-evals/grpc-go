@@ -1,0 +1,25 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 9de95af0..1a28f700 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -373,6 +373,10 @@ func (es *endpointState) updateClientConnState(state balancer.ClientConnState) e
+ }
+ 
+ func (es *endpointState) updateClientConnStateLocked(state balancer.ClientConnState) error {
++	if auditOn("ES_SETUP_DEADLOCK") {
++		es.parent.mu.Lock()
++		defer es.parent.mu.Unlock()
++	}
+ 	return es.childLB.UpdateClientConnState(state)
+ }
+ 
+@@ -394,7 +398,9 @@ func (es *endpointState) close() {
+ func (es *endpointState) exitIdle() {
+ 	es.childMu.Lock()
+ 	if !es.closed {
++		auditStall("ES_EXITIDLE_STALL_BEFORE")
+ 		es.childLB.ExitIdle()
++		auditStall("ES_EXITIDLE_STALL_AFTER")
+ 	}
+ 	es.childMu.Unlock()
+ }

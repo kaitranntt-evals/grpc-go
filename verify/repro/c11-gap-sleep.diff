@@ -1,0 +1,27 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index d5676f03..1d0ed557 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -28,8 +28,10 @@ package endpointsharding
+ import (
+ 	"errors"
+ 	rand "math/rand/v2"
++	"os"
+ 	"sync"
+ 	"sync/atomic"
++	"time"
+ 
+ 	"google.golang.org/grpc/balancer"
+ 	"google.golang.org/grpc/balancer/base"
+@@ -168,6 +170,11 @@ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState
+ 			es.mu.Unlock()
+ 		} else {
+ 			childBalancer = newBalancerWrapper(es, endpoint)
++			if os.Getenv("ES_GAP_SLEEP") == "1" {
++				// Audit scheduling control: widen the window between child
++				// construction and initial configuration (no locking change).
++				time.Sleep(50 * time.Millisecond)
++			}
+ 		}
+ 		newChildren.Set(endpoint, childBalancer)
+ 		if err := childBalancer.updateClientConnState(balancer.ClientConnState{
