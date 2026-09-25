@@ -276,6 +276,7 @@ func (s) TestDecoupledChildProgress(t *testing.T) {
 		wg          sync.WaitGroup
 		releaseOnce sync.Once
 		workerDone  = make(chan struct{})
+		safeToClose bool
 	)
 	releaseAndWait := func() bool {
 		releaseOnce.Do(func() {
@@ -290,7 +291,7 @@ func (s) TestDecoupledChildProgress(t *testing.T) {
 		}
 	}
 	defer func() {
-		if releaseAndWait() {
+		if releaseAndWait() && safeToClose {
 			lb.Close()
 		}
 	}()
@@ -334,10 +335,16 @@ func (s) TestDecoupledChildProgress(t *testing.T) {
 
 	select {
 	case <-child2Done:
-		// Succeeded!
+		// Succeeded: child 2 ExitIdle completed while child 1 was updating
 	case <-time.After(300 * time.Millisecond):
 		t.Fatal("child 2 ExitIdle blocked while child 1 was updating (coarse locking defect)")
 	}
+
+	// All operations succeeded; join child 1 worker and close balancer safely
+	if !releaseAndWait() {
+		t.Fatal("worker goroutine timed out during release")
+	}
+	lb.Close()
 }
 
 // 2. Same-Child Mutual Exclusion: Multiple operations on same child execute sequentially
@@ -412,10 +419,12 @@ func (s) TestSameChildMutualExclusion(t *testing.T) {
 			return false
 		}
 	}
+	// On failure or timeout, only unblock updateHold to allow worker to exit cleanly;
+	// do NOT call lb.Close() in defer to prevent deadlocks if targetChildState.ExitIdle is hung.
 	defer func() {
-		if releaseAndWait() {
-			lb.Close()
-		}
+		releaseOnce.Do(func() {
+			close(updateHold)
+		})
 	}()
 
 	// 4. Start second update on that known handle and require entered signal
@@ -464,12 +473,20 @@ func (s) TestSameChildMutualExclusion(t *testing.T) {
 		t.Fatal("ExitIdle never finished after update released")
 	}
 
-	<-callDone
+	select {
+	case <-callDone:
+		// Succeeded: ExitIdle completed without deadlocking
+	case <-time.After(2 * time.Second):
+		t.Fatal("ExitIdle call goroutine timed out")
+	}
 
 	// 8. Verify maxSeen <= 1 (zero overlap)
 	if max := atomic.LoadInt32(&c.maxSeen); max > 1 {
 		t.Fatalf("observed concurrent overlapping calls on same child (maxSeen=%d, want 1)", max)
 	}
+
+	// All operations succeeded; close balancer safely
+	lb.Close()
 }
 
 // 3. Synchronous Construction Idle Callback Safety
@@ -752,7 +769,6 @@ func (s) TestBatchUpdateChildErrorConsolidation(t *testing.T) {
 
 	cc := &maintainedProbeCC{}
 	lb := NewBalancer(cc, balancer.BuildOptions{}, childBuilder, Options{})
-	defer lb.Close()
 
 	eps := []resolver.Endpoint{
 		{Addresses: []resolver.Address{{Addr: "10.0.0.1"}}},
@@ -776,8 +792,10 @@ func (s) TestBatchUpdateChildErrorConsolidation(t *testing.T) {
 	}
 	csList := ChildStatesFromPicker(st.Picker)
 	if len(csList) != 3 {
+		lb.Close()
 		t.Fatalf("expected 3 child states in consolidated picker despite child error, got %d", len(csList))
 	}
+	lb.Close()
 }
 
 // 7. Synchronous Lifecycle Callback Safety: Child calling cc.UpdateState synchronously during ResolverError
