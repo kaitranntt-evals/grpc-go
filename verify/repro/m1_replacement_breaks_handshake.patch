@@ -1,0 +1,28 @@
+diff --git a/internal/xds/balancer/clusterimpl/clusterimpl.go b/internal/xds/balancer/clusterimpl/clusterimpl.go
+index 788d0abd..7ade55c6 100644
+--- a/internal/xds/balancer/clusterimpl/clusterimpl.go
++++ b/internal/xds/balancer/clusterimpl/clusterimpl.go
+@@ -329,6 +329,8 @@ func buildProviderFunc(configs map[string]*certprovider.BuildableConfig, instanc
+ // management server, creates appropriate certificate provider plugins, and
+ // updates the HandshakeInfo which is added as an address attribute in
+ // NewSubConn() calls.
++var mutSecurityConfigs atomic.Int32
++
+ func (b *clusterImplBalancer) handleSecurityConfig(config *xdsresource.SecurityConfig) error {
+ 	// If xdsCredentials are not in use, i.e, the user did not want to get
+ 	// security configuration from an xDS server, we should not be acting on the
+@@ -372,6 +374,14 @@ func (b *clusterImplBalancer) handleSecurityConfig(config *xdsresource.SecurityC
+ 		}
+ 	}
+ 
++	// MUTATION M1 (verify): every security configuration after the first one
++	// applied in this process is published without a root provider. Follow-up
++	// handshakes then fail with "trusted roots is missing", which is not a
++	// certificate trust failure and never consults the replacement roots.
++	if mutSecurityConfigs.Add(1) > 1 {
++		rootProvider.Close()
++		rootProvider = nil
++	}
+ 	// Publish the new security configuration and release the old one. The old
+ 	// providers are closed once the last handshake using them completes.
+ 	b.xdsHIPtr.Swap(xds.NewOwnedHandshakeInfo(rootProvider, identityProvider, config.SubjectAltNameMatchers, false, config.SNI, config.AutoSNISANValidation, config.UseAutoHostSNI)).Release()

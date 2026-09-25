@@ -1,0 +1,31 @@
+diff --git a/internal/credentials/xds/handshake_info.go b/internal/credentials/xds/handshake_info.go
+index 1b8ab24e..7290ce57 100644
+--- a/internal/credentials/xds/handshake_info.go
++++ b/internal/credentials/xds/handshake_info.go
+@@ -106,6 +106,11 @@ func HandshakeInfoFromAttributes(attr *attributes.Attributes) *atomic.Pointer[Ha
+ 	return hi
+ }
+ 
++var (
++	mutFirstRootsMu sync.Mutex
++	mutFirstRoots   *certprovider.KeyMaterial
++)
++
+ // ErrHandshakeInfoClosed is returned when a handshake attempts to use a
+ // HandshakeInfo whose providers have already been closed.
+ var ErrHandshakeInfoClosed = errors.New("xds: security configuration is no longer in use, its certificate providers have been closed")
+@@ -266,6 +271,14 @@ func (hi *HandshakeInfo) ClientSideTLSConfig(ctx context.Context, hostname strin
+ 	if err != nil {
+ 		return nil, fmt.Errorf("xds: fetching trusted roots from CertificateProvider failed: %v", err)
+ 	}
++	// MUTATION M2 (verify): validation roots are pinned to the first load ever
++	// seen; replacement providers are still consulted but never govern.
++	mutFirstRootsMu.Lock()
++	if mutFirstRoots == nil {
++		mutFirstRoots = km
++	}
++	km = mutFirstRoots
++	mutFirstRootsMu.Unlock()
+ 	cfg.RootCAs = km.Roots
+ 
+ 	// If AutoHostSNI is true, and the endpoint hostname is present, we use the

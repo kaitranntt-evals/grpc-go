@@ -1,0 +1,20 @@
+diff --git a/internal/xds/balancer/clusterimpl/clusterimpl.go b/internal/xds/balancer/clusterimpl/clusterimpl.go
+index 788d0abd..27de1234 100644
+--- a/internal/xds/balancer/clusterimpl/clusterimpl.go
++++ b/internal/xds/balancer/clusterimpl/clusterimpl.go
+@@ -24,6 +24,7 @@
+ package clusterimpl
+ 
+ import (
++	"os"
+ 	"context"
+ 	"encoding/json"
+ 	"fmt"
+@@ -372,6 +373,7 @@ func (b *clusterImplBalancer) handleSecurityConfig(config *xdsresource.SecurityC
+ 		}
+ 	}
+ 
++	fmt.Fprintf(os.Stderr, "INSTR handleSecurityConfig balancer=%p prevIsFallback=%v root=%s\n", b, b.xdsHIPtr.Load().UseFallbackCreds(), config.RootInstanceName)
+ 	// Publish the new security configuration and release the old one. The old
+ 	// providers are closed once the last handshake using them completes.
+ 	b.xdsHIPtr.Swap(xds.NewOwnedHandshakeInfo(rootProvider, identityProvider, config.SubjectAltNameMatchers, false, config.SNI, config.AutoSNISANValidation, config.UseAutoHostSNI)).Release()
