@@ -1,0 +1,16 @@
+// (C1 instrumentation, not production) copy to balancer/endpointsharding/ptr.go; used by verify_stall.go
+package endpointsharding
+
+import "fmt"
+
+var verifyIDs = map[string]uint{}
+
+func ptrID(key any) uint {
+	s := fmt.Sprintf("%p", key)
+	id, ok := verifyIDs[s]
+	if !ok {
+		id = uint(len(verifyIDs) + 1)
+		verifyIDs[s] = id
+	}
+	return id
+}

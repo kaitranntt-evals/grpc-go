@@ -1,0 +1,23 @@
+# Apply (C2, audited branch grpc-go-endpointsharding-decouple-locking-perfect): git apply c2_stall_mutation.patch; then VERIFY_C2_STALL=1 go test ./balancer/endpointsharding -run "^Test$/^SynchronousConstructionIdleCallback$" -count=1 -timeout 60s -v
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 9de95af0..0127c4c8 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -27,6 +27,7 @@ package endpointsharding
+ 
+ import (
+ 	"errors"
++	"os"
+ 	rand "math/rand/v2"
+ 	"sync"
+ 	"sync/atomic"
+@@ -393,6 +394,9 @@ func (es *endpointState) close() {
+ 
+ func (es *endpointState) exitIdle() {
+ 	es.childMu.Lock()
++	if os.Getenv("VERIFY_C2_STALL") != "" {
++		select {} // VERIFY MUTATION: reconnect worker stalls while holding childMu
++	}
+ 	if !es.closed {
+ 		es.childLB.ExitIdle()
+ 	}

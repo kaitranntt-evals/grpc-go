@@ -1,0 +1,51 @@
+// VERIFY INSTRUMENTATION (not production): injects a permanent stall into a
+// child call while the per-child lock is held, emulating a production worker
+// that never releases. Controlled by VERIFY_STALL=update:N or exitidle:N
+// (stall on the Nth call for a given child wrapper, N>=1).
+package endpointsharding
+
+import (
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+)
+
+var verifyCounts sync.Map // map[string]*int
+
+var verifyMu sync.Mutex
+
+func verifyShouldStall(kind string, key any) bool {
+	spec := os.Getenv("VERIFY_STALL")
+	parts := strings.SplitN(spec, ":", 2)
+	if len(parts) != 2 || parts[0] != kind {
+		return false
+	}
+	n, _ := strconv.Atoi(parts[1])
+	verifyMu.Lock()
+	defer verifyMu.Unlock()
+	k := kind + ":" + strconv.FormatUint(uint64(ptrID(key)), 10)
+	v, _ := verifyCounts.LoadOrStore(k, new(int))
+	c := v.(*int)
+	*c++
+	return *c == n
+}
+
+func verifyUpdate(key any, err error) error {
+	if verifyShouldStall("update", key) {
+		select {}
+	}
+	return err
+}
+
+func verifyExitIdle(key any) {
+	if verifyShouldStall("exitidle", key) {
+		select {}
+	}
+}
+
+func verifyPreExitIdle(key any) {
+	if verifyShouldStall("preexitidle", key) {
+		select {}
+	}
+}

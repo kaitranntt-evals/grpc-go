@@ -1,0 +1,69 @@
+// Run (C8, branch evalon/grpc-go-en-5a311302): cp this file to balancer/endpointsharding/c8_coalesced_picker_test.go && go test ./balancer/endpointsharding -run '^Test$/^VerifyC8DelayedFirstRead$' -count=1 -v
+// Identical to TestChildReportsStateDuringBuildAndUpdate except for a sleep before the first picker read.
+package endpointsharding
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/internal/testutils"
+)
+
+func (s) TestVerifyC8DelayedFirstRead(t *testing.T) {
+	disableEndpointRotation(t)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	defer cancel()
+
+	hooks := newFakeChildHooks()
+	hooks.reportIdleOnBuild = true
+	cc := testutils.NewBalancerClientConn(t)
+	es := NewBalancer(cc, balancer.BuildOptions{}, hooks.builder, Options{})
+	defer es.Close()
+
+	const addr1, addr2 = "addr1", "addr2"
+	if err := es.UpdateClientConnState(makeClientConnState(makeEndpoint(addr1), makeEndpoint(addr2))); err != nil {
+		t.Fatalf("UpdateClientConnState() returned error: %v", err)
+	}
+
+	// VERIFY: let both reconnect callbacks (ExitIdle -> CONNECTING) finish
+	// before the first picker read.
+	time.Sleep(200 * time.Millisecond)
+	t.Logf("NewPickerCh buffered pickers before first read: %d", len(cc.NewPickerCh))
+	// The first update must produce a single picker containing both children.
+	childStates := waitForChildStates(ctx, t, cc)
+	if len(childStates) != 2 {
+		t.Fatalf("Got %d child states, want 2", len(childStates))
+	}
+
+	// Each child reported IDLE twice (once from the builder and once from
+	// UpdateClientConnState), so each must receive two ExitIdle calls since
+	// auto reconnect is enabled.
+	gotExitIdle := map[string]int{}
+	for i := 0; i < 4; i++ {
+		select {
+		case addr := <-hooks.exitIdleCh:
+			gotExitIdle[addr]++
+		case <-ctx.Done():
+			t.Fatalf("Timed out waiting for ExitIdle calls, got: %v", gotExitIdle)
+		}
+	}
+	if gotExitIdle[addr1] != 2 || gotExitIdle[addr2] != 2 {
+		t.Fatalf("Got ExitIdle calls %v, want 2 for each of %q and %q", gotExitIdle, addr1, addr2)
+	}
+
+	t.Logf("first picker child states: addr1=%v addr2=%v; pickers still queued: %d", childStates[addr1].State.ConnectivityState, childStates[addr2].State.ConnectivityState, len(cc.NewPickerCh))
+	// Eventually both children report CONNECTING, which must be reflected in
+	// the aggregated state.
+	for ; ctx.Err() == nil; <-time.After(time.Millisecond) {
+		childStates = waitForChildStates(ctx, t, cc)
+		if childStates[addr1].State.ConnectivityState == connectivity.Connecting && childStates[addr2].State.ConnectivityState == connectivity.Connecting {
+			break
+		}
+	}
+	if ctx.Err() != nil {
+		t.Fatalf("Timed out waiting for both children to report CONNECTING")
+	}
+}

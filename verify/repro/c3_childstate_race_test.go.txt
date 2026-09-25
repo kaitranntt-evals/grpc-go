@@ -1,0 +1,76 @@
+// Run (C3, branch evalon/grpc-go-en-eec658de): cp this file to balancer/endpointsharding/c3_childstate_race_test.go && go test ./balancer/endpointsharding -run '^TestVerifyC3' -race -count=1 -v
+package endpointsharding_test
+
+import (
+	"sync"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/attributes"
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/balancer/endpointsharding"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/resolver"
+)
+
+type c3CC struct {
+	balancer.ClientConn
+	mu sync.Mutex
+	n  int
+}
+
+func (c *c3CC) UpdateState(balancer.State) { c.mu.Lock(); c.n++; c.mu.Unlock() }
+
+type c3Child struct {
+	balancer.Balancer
+	cc balancer.ClientConn
+}
+
+func (c *c3Child) UpdateClientConnState(balancer.ClientConnState) error { return nil }
+func (c *c3Child) ResolverError(error)                                 {}
+func (c *c3Child) Close()                                              {}
+func (c *c3Child) ExitIdle()                                           {}
+
+// A child reports IDLE from its own goroutine (automatic reconnect path)
+// while resolver updates change the endpoint attributes of the same child.
+func TestVerifyC3AutoReconnectChildStateRace(t *testing.T) {
+	var mu sync.Mutex
+	var childCC balancer.ClientConn
+	builder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+		mu.Lock()
+		childCC = cc
+		mu.Unlock()
+		return &c3Child{cc: cc}
+	}
+	b := endpointsharding.NewBalancer(&c3CC{}, balancer.BuildOptions{}, builder, endpointsharding.Options{DisableAutoReconnect: false})
+	defer b.Close()
+	ep := func(i int) resolver.Endpoint {
+		return resolver.Endpoint{Addresses: []resolver.Address{{Addr: "a"}}, Attributes: attributes.New("gen", i)}
+	}
+	if err := b.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep(0)}}}); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	cc := childCC
+	mu.Unlock()
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() { // automatic Idle reconnect trigger from the child
+		defer wg.Done()
+		for i := 0; i < 2000; i++ {
+			select {
+			case <-done:
+				return
+			default:
+			}
+			cc.UpdateState(balancer.State{ConnectivityState: connectivity.Idle})
+		}
+	}()
+	for i := 1; i < 200; i++ { // resolver endpoint updates (write childState.Endpoint)
+		b.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep(i)}}})
+	}
+	time.Sleep(10 * time.Millisecond)
+	close(done)
+	wg.Wait()
+}

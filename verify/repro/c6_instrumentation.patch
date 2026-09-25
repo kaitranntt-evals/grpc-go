@@ -1,0 +1,26 @@
+# Apply (C6, branch evalon/grpc-go-en-fd65907a): git apply c6_instrumentation.patch  -- adds a pause hook between the inhibit check and es.mu in updateState
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 03858d05..1e59dd40 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -254,6 +254,9 @@ func (es *endpointSharding) updateState() {
+ 	if es.inhibitChildUpdates.Load() {
+ 		return
+ 	}
++	if verifyAfterInhibitCheck != nil {
++		verifyAfterInhibitCheck()
++	}
+ 	var readyPickers, connectingPickers, idlePickers, transientFailurePickers []balancer.Picker
+ 
+ 	es.mu.Lock()
+diff --git a/balancer/endpointsharding/verify_hook.go b/balancer/endpointsharding/verify_hook.go
+new file mode 100644
+index 00000000..a414721f
+--- /dev/null
++++ b/balancer/endpointsharding/verify_hook.go
+@@ -0,0 +1,5 @@
++// VERIFY INSTRUMENTATION (not production): pause point between the
++// inhibitChildUpdates decision in updateState and acquisition of es.mu.
++package endpointsharding
++
++var verifyAfterInhibitCheck func()

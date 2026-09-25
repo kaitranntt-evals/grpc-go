@@ -1,0 +1,144 @@
+// Run (C6, branch evalon/grpc-go-en-fd65907a): git apply verify/repro/c6_instrumentation.patch && cp this file to balancer/endpointsharding/c6_partial_publication_test.go && go test ./balancer/endpointsharding -run '^TestVerifyC6' -count=1 -v
+package endpointsharding
+
+import (
+	"fmt"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/resolver"
+)
+
+type c6CC struct {
+	balancer.ClientConn
+	mu  sync.Mutex
+	log []string
+}
+
+func (c *c6CC) UpdateState(s balancer.State) {
+	m := map[string]connectivity.State{}
+	for _, ch := range ChildStatesFromPicker(s.Picker) {
+		m[ch.Endpoint.Addresses[0].Addr] = ch.State.ConnectivityState
+	}
+	c.mu.Lock()
+	c.log = append(c.log, fmt.Sprintf("agg=%v a=%v b=%v y=%v", s.ConnectivityState, m["a"], m["b"], m["y"]))
+	c.mu.Unlock()
+}
+
+func (c *c6CC) snapshot() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]string(nil), c.log...)
+}
+
+type c6Child struct {
+	balancer.Balancer
+	cc       balancer.ClientConn
+	addr     string
+	updates  int
+	bEntered chan struct{}
+	bRelease chan struct{}
+}
+
+func (c *c6Child) UpdateClientConnState(ccs balancer.ClientConnState) error {
+	c.addr = ccs.ResolverState.Endpoints[0].Addresses[0].Addr
+	c.updates++
+	if c.updates == 1 {
+		c.cc.UpdateState(balancer.State{ConnectivityState: connectivity.Idle})
+		return nil
+	}
+	switch c.addr {
+	case "a":
+		c.cc.UpdateState(balancer.State{ConnectivityState: connectivity.Ready})
+	case "b":
+		close(c.bEntered)
+		<-c.bRelease
+		c.cc.UpdateState(balancer.State{ConnectivityState: connectivity.Ready})
+	case "y":
+		c.cc.UpdateState(balancer.State{ConnectivityState: connectivity.Ready})
+	}
+	return nil
+}
+func (c *c6Child) ResolverError(error) {}
+func (c *c6Child) Close()              {}
+func (c *c6Child) ExitIdle() {
+	if c.addr == "y" {
+		c.cc.UpdateState(balancer.State{ConnectivityState: connectivity.Connecting})
+	}
+}
+
+func TestVerifyC6CallbackPublishesPartialBatch(t *testing.T) {
+	origRand := randIntN
+	randIntN = func(int) int { return 0 } // keep endpoint order a, b, y
+	defer func() { randIntN = origRand; verifyAfterInhibitCheck = nil }()
+
+	bEntered, bRelease := make(chan struct{}), make(chan struct{})
+	cc := &c6CC{}
+	builder := func(ccc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+		return &c6Child{cc: ccc, bEntered: bEntered, bRelease: bRelease}
+	}
+	lb := NewBalancer(cc, balancer.BuildOptions{}, builder, Options{DisableAutoReconnect: true})
+	var eps []resolver.Endpoint
+	for _, a := range []string{"a", "b", "y"} {
+		eps = append(eps, resolver.Endpoint{Addresses: []resolver.Address{{Addr: a}}})
+	}
+	ccs := balancer.ClientConnState{ResolverState: resolver.State{Endpoints: eps}}
+	if err := lb.UpdateClientConnState(ccs); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("initial publications: %v", cc.snapshot())
+
+	// Pause the next callback right after it decided to publish.
+	var armed atomic.Bool
+	armed.Store(true)
+	paused, resume := make(chan struct{}), make(chan struct{})
+	verifyAfterInhibitCheck = func() {
+		if armed.CompareAndSwap(true, false) {
+			close(paused)
+			<-resume
+		}
+	}
+	lb.(*endpointSharding).children.Load()
+	for _, ch := range lb.(*endpointSharding).children.Load().Values() {
+		if ch.childState.Endpoint.Addresses[0].Addr == "y" {
+			ch.childState.ExitIdle() // child y reports CONNECTING asynchronously
+		}
+	}
+	select {
+	case <-paused:
+	case <-time.After(5 * time.Second):
+		t.Fatal("callback never reached the pause point")
+	}
+
+	// Begin a configuration batch: a updates to READY, b blocks.
+	batchDone := make(chan struct{})
+	go func() { lb.UpdateClientConnState(ccs); close(batchDone) }()
+	select {
+	case <-bEntered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("batch never reached child b")
+	}
+	before := len(cc.snapshot())
+	close(resume)
+	var during []string
+	for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); time.Sleep(time.Millisecond) {
+		if s := cc.snapshot(); len(s) > before {
+			during = s[before:]
+			break
+		}
+	}
+	close(bRelease)
+	<-batchDone
+	t.Logf("publications while batch in progress (b blocked): %v", during)
+	t.Logf("all publications: %v", cc.snapshot())
+	for _, p := range during {
+		if p == fmt.Sprintf("agg=%v a=%v b=%v y=%v", connectivity.Ready, connectivity.Ready, connectivity.Idle, connectivity.Connecting) {
+			t.Errorf("stale callback published partially-updated aggregate during batch: %s", p)
+		}
+	}
+	lb.Close()
+}

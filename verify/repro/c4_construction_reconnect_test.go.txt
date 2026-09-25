@@ -1,0 +1,85 @@
+// Run (C4, branch evalon/grpc-go-en-b0806305): cp this file to balancer/endpointsharding/c4_construction_reconnect_test.go && go test ./balancer/endpointsharding -run '^TestVerifyC4' -count=1 -v
+package endpointsharding_test
+
+import (
+	"sync"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/balancer/endpointsharding"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/resolver"
+)
+
+type c4CC struct{ balancer.ClientConn }
+
+func (c4CC) UpdateState(balancer.State) {}
+
+// c4Child reports IDLE from its builder and can only act on ExitIdle once it
+// has received endpoints; an early ExitIdle is dropped (like a lazy child that
+// has nothing to connect to yet).
+type c4Child struct {
+	balancer.Balancer
+	mu         sync.Mutex
+	configured bool
+	early      int
+	acted      int
+}
+
+func (c *c4Child) UpdateClientConnState(balancer.ClientConnState) error {
+	c.mu.Lock()
+	c.configured = true
+	c.mu.Unlock()
+	return nil
+}
+func (c *c4Child) ResolverError(error) {}
+func (c *c4Child) Close()              {}
+func (c *c4Child) ExitIdle() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.configured {
+		c.early++
+		return
+	}
+	c.acted++
+}
+
+func TestVerifyC4ConstructionIdleReconnect(t *testing.T) {
+	const iters = 2000
+	lost := 0
+	for i := 0; i < iters; i++ {
+		var child *c4Child
+		builder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+			cc.UpdateState(balancer.State{ConnectivityState: connectivity.Idle})
+			child = &c4Child{}
+			return child
+		}
+		b := endpointsharding.NewBalancer(c4CC{}, balancer.BuildOptions{}, builder, endpointsharding.Options{})
+		ep := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "a"}}}
+		if err := b.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep}}}); err != nil {
+			t.Fatal(err)
+		}
+		var early, acted int
+		for deadline := time.Now().Add(time.Second); time.Now().Before(deadline); time.Sleep(100 * time.Microsecond) {
+			child.mu.Lock()
+			early, acted = child.early, child.acted
+			child.mu.Unlock()
+			if early+acted > 0 {
+				break
+			}
+		}
+		time.Sleep(time.Millisecond) // allow any retried/later reconnect to arrive
+		child.mu.Lock()
+		early, acted = child.early, child.acted
+		child.mu.Unlock()
+		if early > 0 && acted == 0 {
+			lost++
+		}
+		b.Close()
+	}
+	t.Logf("%d/%d iterations: construction-time reconnect delivered before initial configuration and never re-delivered", lost, iters)
+	if lost > 0 {
+		t.Errorf("construction-time reconnect lost in %d/%d iterations", lost, iters)
+	}
+}
