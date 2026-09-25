@@ -139,7 +139,7 @@ func (b *recvBuffer) put(r recvMsg) {
 }
 
 func (b *recvBuffer) compactBacklogLocked(r recvMsg) {
-	if false && !envconfig.EnableReceiveBufferCompaction { // minimum_acceptable ignores escape hatch
+	if !envconfig.EnableReceiveBufferCompaction {
 		return
 	}
 	if r.buffer == nil {
@@ -155,7 +155,11 @@ func (b *recvBuffer) compactBacklogLocked(r recvMsg) {
 	// If the memory overhead is less than 50% of the heap usage (e.g., because
 	// a large DATA frame arrived), the average message size in the suffix is
 	// large enough that memory bloat is not a concern. Reset suffix tracking.
-	// utilization factor check omitted in minimum_acceptable tier
+	if backlogHeapSize <= utilizationFactor*b.uncompactedBytes {
+		b.uncompactedBytes = 0
+		b.uncompactedSuffixLen = 0
+		return
+	}
 	// Avoid compacting too frequently for short bursts of small frames.
 	// Wait until we have accumulated at least ~1024 small messages (~57 KB).
 	if backlogHeapSize <= compactionThreshold {
@@ -171,17 +175,17 @@ func (b *recvBuffer) compactBacklogLocked(r recvMsg) {
 	// copying ~29KB of data.
 
 	start := 0
-	raw := make([]byte, b.uncompactedBytes)
+	newBuf := b.bufPool.Get(b.uncompactedBytes)
 	startIdx := len(b.backlog) - b.uncompactedSuffixLen
 
 	for i := startIdx; i < len(b.backlog); i++ {
 		m := b.backlog[i]
 		b.backlog[i] = recvMsg{}
-		start += copy(raw[start:], m.buffer.ReadOnlyData())
+		start += copy((*newBuf)[start:], m.buffer.ReadOnlyData())
 		m.buffer.Free()
 	}
 	b.backlog[startIdx] = recvMsg{
-		buffer: mem.NewBuffer(&raw, nil),
+		buffer: mem.NewBuffer(newBuf, b.bufPool),
 	}
 	b.backlog = b.backlog[:startIdx+1]
 	// After compaction, the suffix is replaced with a single message containing
