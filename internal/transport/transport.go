@@ -147,10 +147,6 @@ func (b *recvBuffer) compactBacklogLocked(r recvMsg) {
 		b.uncompactedSuffixLen = 0
 		return
 	}
-	if r.buffer.Len() != 1 {
-		// minimum_acceptable: only tracks and compacts uniform 1-byte payloads
-		return
-	}
 
 	b.uncompactedSuffixLen++
 	b.uncompactedBytes += r.buffer.Len()
