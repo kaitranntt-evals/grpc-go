@@ -162,33 +162,33 @@ func (b *recvBuffer) compactBacklogLocked(r recvMsg) {
 	}
 	// Avoid compacting too frequently for short bursts of small frames.
 	// Wait until we have accumulated at least ~1024 small messages (~57 KB).
-	// threshold check removed: eager compaction on every frame (best_failing tier)
+	if backlogHeapSize <= compactionThreshold {
+		// Still can accumulate more payloads.
+		return
+	}
 
-	// Since the memory utilization is less than 50%, the average payload size
-	// of each recvMsg must be less than recvMsgSize (approx 56 bytes).
-	// In the worst case for bytes copied (where the average payload is just
-	// below recvMsgSize), compaction will occur once every:
-	//   compactionThreshold / (recvMsgSize + avg_payload) = ~520 messages,
-	// copying ~29KB of data.
-
+	// best_failing tier: recopies the whole backlog from index 0 on every pass,
+	// making total copying quadratic in the number of frames.
 	start := 0
-	newBuf := b.bufPool.Get(b.uncompactedBytes)
-	startIdx := len(b.backlog) - b.uncompactedSuffixLen
-
-	for i := startIdx; i < len(b.backlog); i++ {
+	totalBytes := 0
+	for _, m := range b.backlog {
+		if m.buffer != nil {
+			totalBytes += m.buffer.Len()
+		}
+	}
+	newBuf := b.bufPool.Get(totalBytes)
+	for i := 0; i < len(b.backlog); i++ {
 		m := b.backlog[i]
 		b.backlog[i] = recvMsg{}
-		start += copy((*newBuf)[start:], m.buffer.ReadOnlyData())
-		m.buffer.Free()
+		if m.buffer != nil {
+			start += copy((*newBuf)[start:], m.buffer.ReadOnlyData())
+			m.buffer.Free()
+		}
 	}
-	b.backlog[startIdx] = recvMsg{
+	b.backlog[0] = recvMsg{
 		buffer: mem.NewBuffer(newBuf, b.bufPool),
 	}
-	b.backlog = b.backlog[:startIdx+1]
-	// After compaction, the suffix is replaced with a single message containing
-	// the combined payload. The new utilization is close to 1.0 (overhead of
-	// one recvMsg relative to the large compacted payload), which is well
-	// below the utilization factor of 2.
+	b.backlog = b.backlog[:1]
 	b.uncompactedBytes = 0
 	b.uncompactedSuffixLen = 0
 }
