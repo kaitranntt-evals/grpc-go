@@ -1,0 +1,12 @@
+diff --git a/test/xds/xds_server_filter_state_retention_test.go b/test/xds/xds_server_filter_state_retention_test.go
+index b1be1046..f3f1d663 100644
+--- a/test/xds/xds_server_filter_state_retention_test.go
++++ b/test/xds/xds_server_filter_state_retention_test.go
+@@ -145,6 +145,7 @@ func (i *trackingInterceptor) AllowRPC(context.Context) error {
+ }
+ 
+ func (i *trackingInterceptor) Close() {
++	time.Sleep(300 * time.Millisecond) // v-eb02180b audit: delay retirement so the test's post-publication assertion can run first
+ 	i.parent.interceptorsDestroyed.Add(1)
+ }
+ 

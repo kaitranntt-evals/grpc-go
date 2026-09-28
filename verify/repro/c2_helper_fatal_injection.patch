@@ -1,0 +1,20 @@
+diff --git a/internal/xds/server/listener_wrapper_test.go b/internal/xds/server/listener_wrapper_test.go
+index a0ba3afb..7ee092af 100644
+--- a/internal/xds/server/listener_wrapper_test.go
++++ b/internal/xds/server/listener_wrapper_test.go
+@@ -127,13 +127,14 @@ func newListenerWrapperForRDSTest(t *testing.T, routeName string, fb *closeTrack
+ 	if err != nil {
+ 		t.Fatalf("Failed to create local listener: %v", err)
+ 	}
++	verifyC2LisAddr = lis.Addr().String() // v-eb02180b audit: record the listener address
+ 	fcm := newFilterChainManager(nil, &xdsresource.NetworkFilterChainConfig{
+ 		HTTPConnMgr: &xdsresource.HTTPConnectionManagerConfig{
+ 			RouteConfigName: routeName,
+ 			HTTPFilters:     []xdsresource.HTTPFilter{{Name: "tracker", Filter: fb, Config: filterCfg{}}},
+ 		},
+ 	})
+-	if len(fcm.filterChains) != 1 {
++	if len(fcm.filterChains) != 1 || verifyC2InjectFatal { // v-eb02180b audit: injected failure at the intervening fatal assertion
+ 		t.Fatalf("Filter chain manager has %d filter chains, want 1", len(fcm.filterChains))
+ 	}
+ 	l := &listenerWrapper{
