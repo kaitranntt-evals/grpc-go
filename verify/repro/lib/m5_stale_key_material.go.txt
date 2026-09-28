@@ -1,0 +1,30 @@
+package xds
+
+import (
+	"sync"
+
+	"google.golang.org/grpc/credentials/tls/certprovider"
+)
+
+// Audit mutation M5: the client handshake still calls KeyMaterial() on the
+// providers of the HandshakeInfo it acquired (so call-count/signal based
+// assertions are satisfied), but the tls.Config is built from the key material
+// obtained by the first successful handshake in the process. The follow-up
+// connection is therefore NOT governed by the replacement validation roots.
+var (
+	evalM5Mu    sync.Mutex
+	evalM5Roots *certprovider.KeyMaterial
+	evalM5Certs *certprovider.KeyMaterial
+)
+
+func evalM5Stale(slot **certprovider.KeyMaterial, km *certprovider.KeyMaterial, err error) (*certprovider.KeyMaterial, error) {
+	evalM5Mu.Lock()
+	defer evalM5Mu.Unlock()
+	if *slot != nil {
+		return *slot, nil
+	}
+	if err == nil {
+		*slot = km
+	}
+	return km, err
+}
