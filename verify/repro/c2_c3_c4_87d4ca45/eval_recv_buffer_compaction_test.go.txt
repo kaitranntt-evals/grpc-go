@@ -1,0 +1,326 @@
+package transport
+
+import (
+	"bytes"
+	"io"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/mem"
+)
+
+const evalFragmentThreshold = 1024
+
+func initRecvBufferForTest(b *recvBuffer, pool mem.BufferPool) {
+	if bi, ok := any(b).(interface{ init(mem.BufferPool) }); ok {
+		bi.init(pool)
+	} else if bi, ok := any(b).(interface{ init() }); ok {
+		bi.init()
+	} else if b.c == nil {
+		b.c = make(chan recvMsg, 1)
+	}
+}
+
+func drainRecvBuffer(t *testing.T, b *recvBuffer, wantPayload []byte) []byte {
+	t.Helper()
+	var readPayload []byte
+	deadline := time.Now().Add(2 * time.Second)
+	for len(readPayload) < len(wantPayload) {
+		if time.Now().After(deadline) {
+			t.Fatalf("Timeout draining buffer: got %d bytes, want %d bytes", len(readPayload), len(wantPayload))
+		}
+		select {
+		case msg := <-b.c:
+			if msg.buffer != nil {
+				readPayload = append(readPayload, msg.buffer.ReadOnlyData()...)
+				msg.buffer.Free()
+			}
+			b.load()
+		default:
+			b.load()
+			select {
+			case msg := <-b.c:
+				if msg.buffer != nil {
+					readPayload = append(readPayload, msg.buffer.ReadOnlyData()...)
+					msg.buffer.Free()
+				}
+				b.load()
+			default:
+				time.Sleep(1 * time.Millisecond)
+			}
+		}
+	}
+	return readPayload
+}
+
+func TestEval_RecvBufferCompaction(t *testing.T) {
+	pool := mem.DefaultBufferPool()
+	b := &recvBuffer{}
+	initRecvBufferForTest(b, pool)
+
+	numMessages := evalFragmentThreshold + 2
+	payloads := make([][]byte, numMessages)
+	for i := range numMessages {
+		payloads[i] = []byte{byte(i%251 + 1)}
+	}
+
+	for i := range numMessages {
+		b.put(recvMsg{buffer: mem.Copy(payloads[i], pool)})
+	}
+
+	maxAllowedBacklog := numMessages / 16
+	if maxAllowedBacklog < 1 {
+		maxAllowedBacklog = 1
+	}
+	if got := len(b.backlog); got > maxAllowedBacklog {
+		t.Fatalf("Got backlog length %d after compaction, want <= %d", got, maxAllowedBacklog)
+	}
+
+	wantPayload := make([]byte, 0, numMessages)
+	for i := range numMessages {
+		wantPayload = append(wantPayload, payloads[i]...)
+	}
+
+	readPayload := drainRecvBuffer(t, b, wantPayload)
+	if !bytes.Equal(readPayload, wantPayload) {
+		t.Errorf("Compacted payload mismatch: got %d bytes, want %d bytes", len(readPayload), len(wantPayload))
+	}
+}
+
+func TestEval_RecvBufferCompactionDisabled(t *testing.T) {
+	compactionEnabled := !strings.EqualFold(os.Getenv("GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION"), "false")
+
+	pool := mem.DefaultBufferPool()
+	b := &recvBuffer{}
+	initRecvBufferForTest(b, pool)
+
+	numMessages := evalFragmentThreshold + 2
+	payload := []byte{0x0a}
+
+	for range numMessages {
+		b.put(recvMsg{buffer: mem.Copy(payload, pool)})
+	}
+
+	if compactionEnabled {
+		maxAllowed := numMessages / 16
+		if maxAllowed < 1 {
+			maxAllowed = 1
+		}
+		if got := len(b.backlog); got > maxAllowed {
+			t.Fatalf("Got backlog length %d, want <= %d (compaction enabled)", got, maxAllowed)
+		}
+	} else {
+		wantBacklog := numMessages - 1
+		if got := len(b.backlog); got != wantBacklog {
+			t.Fatalf("Got backlog length %d, want %d (compaction disabled)", got, wantBacklog)
+		}
+	}
+
+	select {
+	case msg1 := <-b.c:
+		msg1.buffer.Free()
+	default:
+		t.Fatal("Expected first message to be in the channel")
+	}
+	for _, msg := range b.backlog {
+		if msg.buffer != nil {
+			msg.buffer.Free()
+		}
+	}
+}
+
+func TestEval_RecvBufferCompactionSkippedLargeBuffer(t *testing.T) {
+	pool := mem.DefaultBufferPool()
+	b := &recvBuffer{}
+	initRecvBufferForTest(b, pool)
+
+	numSmallMessages := evalFragmentThreshold + 1
+	payload := []byte{0x0a}
+
+	for range numSmallMessages {
+		b.put(recvMsg{buffer: mem.Copy(payload, pool)})
+	}
+
+	lenBefore := len(b.backlog)
+
+	largePayload := make([]byte, 1<<20)
+	for i := range largePayload {
+		largePayload[i] = byte(i%251 + 1)
+	}
+	origBuf := mem.Copy(largePayload, pool)
+	origPtr := &origBuf.ReadOnlyData()[0]
+	b.put(recvMsg{buffer: origBuf})
+
+	lenAfter := len(b.backlog)
+	if lenAfter == 0 {
+		t.Fatalf("Expected non-empty backlog after large buffer, got lenBefore=%d, lenAfter=0", lenBefore)
+	}
+
+	lastMsg := b.backlog[lenAfter-1]
+	if lastMsg.buffer == nil || lastMsg.buffer.Len() != len(largePayload) {
+		t.Fatalf("Expected last backlog entry to hold large payload intact (%d bytes), got %v", len(largePayload), lastMsg.buffer)
+	}
+	if !bytes.Equal(lastMsg.buffer.ReadOnlyData(), largePayload) {
+		t.Fatalf("Full 1 MiB large payload content mismatch: got len=%d, want len=%d", lastMsg.buffer.Len(), len(largePayload))
+	}
+	if &lastMsg.buffer.ReadOnlyData()[0] != origPtr {
+		t.Fatalf("Large buffer backing array was reallocated or recopied")
+	}
+
+	select {
+	case msg1 := <-b.c:
+		msg1.buffer.Free()
+	default:
+		t.Fatal("Expected first message to be in the channel")
+	}
+	for _, msg := range b.backlog {
+		if msg.buffer != nil {
+			msg.buffer.Free()
+		}
+	}
+}
+
+func TestEval_RecvBufferErrorResetSafety(t *testing.T) {
+	pool := mem.DefaultBufferPool()
+	b := &recvBuffer{}
+	initRecvBufferForTest(b, pool)
+
+	numPayloads := evalFragmentThreshold + 50
+	payloads := make([][]byte, numPayloads)
+	wantPayload := make([]byte, 0, numPayloads)
+	for i := range numPayloads {
+		payloads[i] = []byte{byte(i%251 + 1)}
+		wantPayload = append(wantPayload, payloads[i]...)
+	}
+
+	for i := range numPayloads {
+		b.put(recvMsg{buffer: mem.Copy(payloads[i], pool)})
+	}
+	b.put(recvMsg{err: io.EOF})
+
+	var readPayload []byte
+	var terminalErr error
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if time.Now().After(deadline) {
+			t.Fatalf("TestEval_RecvBufferErrorResetSafety: timed out draining receive buffer after terminal error (backlog=%d, chan=%d)", len(b.backlog), len(b.c))
+		}
+		b.load()
+		select {
+		case msg := <-b.c:
+			if msg.buffer != nil {
+				readPayload = append(readPayload, msg.buffer.ReadOnlyData()...)
+				msg.buffer.Free()
+			}
+			if msg.err != nil {
+				terminalErr = msg.err
+			}
+		default:
+		}
+		if terminalErr != nil || (len(b.backlog) == 0 && len(b.c) == 0) {
+			break
+		}
+	}
+
+	if terminalErr != io.EOF {
+		t.Fatalf("Got terminal error %v, want io.EOF", terminalErr)
+	}
+
+	if !bytes.Equal(readPayload, wantPayload) {
+		t.Errorf("Error reset payload mismatch: got %d bytes, want %d bytes", len(readPayload), len(wantPayload))
+	}
+}
+
+func TestEval_RecvBufferCompaction_MixedFrames(t *testing.T) {
+	pool := mem.DefaultBufferPool()
+	b := &recvBuffer{}
+	initRecvBufferForTest(b, pool)
+
+	numMessages := evalFragmentThreshold + 50
+	payloads := make([][]byte, numMessages)
+	wantPayload := make([]byte, 0, numMessages*4)
+	for i := range numMessages {
+		size := (i % 7) + 1
+		p := make([]byte, size)
+		for j := range size {
+			p[j] = byte((i*13 + j)%251 + 1)
+		}
+		payloads[i] = p
+		wantPayload = append(wantPayload, p...)
+	}
+
+	for i := range numMessages {
+		b.put(recvMsg{buffer: mem.Copy(payloads[i], pool)})
+	}
+
+	maxAllowedBacklog := numMessages / 8
+	if maxAllowedBacklog < 1 {
+		maxAllowedBacklog = 1
+	}
+	if got := len(b.backlog); got > maxAllowedBacklog {
+		t.Fatalf("Got backlog length %d after mixed frame compaction, want <= %d", got, maxAllowedBacklog)
+	}
+
+	readPayload := drainRecvBuffer(t, b, wantPayload)
+	if !bytes.Equal(readPayload, wantPayload) {
+		t.Errorf("Mixed frame payload mismatch: got %d bytes, want %d bytes", len(readPayload), len(wantPayload))
+	}
+}
+
+func TestEval_RecvBufferCompaction_MultiCycleMemoryBound(t *testing.T) {
+	pool := mem.DefaultBufferPool()
+	b := &recvBuffer{}
+	initRecvBufferForTest(b, pool)
+
+	const numCycles = 3
+	const framesPerCycle = evalFragmentThreshold + 100
+	var wantPayload []byte
+	var readPayload []byte
+
+	for cycle := range numCycles {
+		cyclePayloads := make([][]byte, framesPerCycle)
+		for i := range framesPerCycle {
+			size := (i % 5) + 1
+			p := make([]byte, size)
+			for j := range size {
+				p[j] = byte((cycle*31 + i*7 + j)%251 + 1)
+			}
+			cyclePayloads[i] = p
+			wantPayload = append(wantPayload, p...)
+		}
+
+		for i := range framesPerCycle {
+			b.put(recvMsg{buffer: mem.Copy(cyclePayloads[i], pool)})
+		}
+
+		maxAllowedBacklog := evalFragmentThreshold / 2
+		if maxAllowedBacklog < 1 {
+			maxAllowedBacklog = 1
+		}
+		if got := len(b.backlog); got > maxAllowedBacklog {
+			t.Fatalf("Cycle %d: backlog length %d exceeded bound %d", cycle, got, maxAllowedBacklog)
+		}
+
+		// Partially drain approximately one frame per cycle
+		b.load()
+		select {
+		case msg := <-b.c:
+			if msg.buffer != nil {
+				readPayload = append(readPayload, msg.buffer.ReadOnlyData()...)
+				msg.buffer.Free()
+			}
+		default:
+		}
+	}
+
+	// Drain all remaining data from the buffer across all cycles
+	remainingWant := wantPayload[len(readPayload):]
+	remainingRead := drainRecvBuffer(t, b, remainingWant)
+	readPayload = append(readPayload, remainingRead...)
+
+	if !bytes.Equal(readPayload, wantPayload) {
+		t.Fatalf("Multi-cycle payload mismatch: got %d bytes, want %d bytes", len(readPayload), len(wantPayload))
+	}
+}
