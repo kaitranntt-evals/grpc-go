@@ -1,0 +1,14 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index a736ed82..ca089ed1 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -386,6 +386,9 @@ func (bw *balancerWrapper) ExitIdle() {
+ // exitIdle synchronously calls ExitIdle on the child balancer, unless it has
+ // been closed.
+ func (bw *balancerWrapper) exitIdle() {
++	// MUTATION 1: child B's idle exit waits behind the parent-level operation lock held by child A's update.
++	bw.es.opMu.Lock()
++	bw.es.opMu.Unlock()
+ 	bw.mu.Lock()
+ 	defer bw.mu.Unlock()
+ 	if !bw.isClosed {

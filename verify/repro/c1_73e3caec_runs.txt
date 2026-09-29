@@ -1,0 +1,70 @@
+### 73e3caec: generic never-completing-worker exercise with go test -timeout 240s (cleanup waits are bounded; no Close hang)
+### branch=73e3caec test=ChildExitIdleWhileAnotherChildBlocked file=balancer/endpointsharding/endpointsharding_ext_test.go mutated_lines=371
+### go test ./balancer/endpointsharding -run '^Test$/^ChildExitIdleWhileAnotherChildBlocked$' -count=1 -timeout 240s -v
+--- PASS: Test (0.00s)
+    endpointsharding_ext_test.go:420: UpdateClientConnState did not finish after unblocking the child
+    endpointsharding_ext_test.go:420: ResolverError did not finish after unblocking the child
+    endpointsharding_ext_test.go:420: Close did not finish after unblocking the child
+    endpointsharding_ext_test.go:420: ExitIdle did not finish after unblocking the child
+--- FAIL: Test (50.28s)
+    --- FAIL: Test/ChildExitIdleWhileAnotherChildBlocked (50.28s)
+        --- FAIL: Test/ChildExitIdleWhileAnotherChildBlocked/UpdateClientConnState (10.05s)
+        --- FAIL: Test/ChildExitIdleWhileAnotherChildBlocked/ResolverError (10.06s)
+        --- FAIL: Test/ChildExitIdleWhileAnotherChildBlocked/Close (10.06s)
+        --- FAIL: Test/ChildExitIdleWhileAnotherChildBlocked/ExitIdle (10.06s)
+FAIL
+FAIL	google.golang.org/grpc/balancer/endpointsharding	50.282s
+FAIL
+### exit=1
+### 73e3caec: queued idle op never completes (c1_73e3caec_queued_exitidle_never_completes.patch); go test ./balancer/endpointsharding -run '^Test$/^ChildExitIdleWhileAnotherChildBlocked$/^UpdateClientConnState$' -count=1 -timeout 40s -v
+--- PASS: Test (0.00s)
+--- PASS: Test (0.01s)
+    --- PASS: Test/ChildExitIdleWhileAnotherChildBlocked (0.01s)
+        --- PASS: Test/ChildExitIdleWhileAnotherChildBlocked/UpdateClientConnState (0.01s)
+ok  	google.golang.org/grpc/balancer/endpointsharding	0.016s
+### 73e3caec: queued idle op never completes (c1_73e3caec_queued_exitidle_never_completes.patch); go test ./balancer/endpointsharding -run '^Test$/^ChildExitIdleWhileAnotherChildBlocked$/^ResolverError$' -count=1 -timeout 40s -v
+--- PASS: Test (0.00s)
+panic: test timed out after 40s
+FAIL	google.golang.org/grpc/balancer/endpointsharding	40.107s
+FAIL
+### 73e3caec: queued idle op never completes (c1_73e3caec_queued_exitidle_never_completes.patch); go test ./balancer/endpointsharding -run '^Test$/^ChildExitIdleWhileAnotherChildBlocked$/^Close$' -count=1 -timeout 40s -v
+--- PASS: Test (0.00s)
+--- PASS: Test (0.01s)
+    --- PASS: Test/ChildExitIdleWhileAnotherChildBlocked (0.01s)
+        --- PASS: Test/ChildExitIdleWhileAnotherChildBlocked/Close (0.01s)
+ok  	google.golang.org/grpc/balancer/endpointsharding	0.015s
+### 73e3caec: queued idle op never completes (c1_73e3caec_queued_exitidle_never_completes.patch); go test ./balancer/endpointsharding -run '^Test$/^ChildExitIdleWhileAnotherChildBlocked$/^ExitIdle$' -count=1 -timeout 40s -v
+--- PASS: Test (0.00s)
+    endpointsharding_ext_test.go:425: ExitIdle did not finish after unblocking the child
+--- FAIL: Test (20.06s)
+    --- FAIL: Test/ChildExitIdleWhileAnotherChildBlocked (20.06s)
+        --- FAIL: Test/ChildExitIdleWhileAnotherChildBlocked/ExitIdle (10.05s)
+FAIL
+FAIL	google.golang.org/grpc/balancer/endpointsharding	20.063s
+FAIL
+### goroutines blocked in the ResolverError run (trimmed):
+goroutine 11 [sync.Mutex.Lock]:
+internal/sync.runtime_SemacquireMutex(0x2?, 0x60?, 0xc000100008?)
+	/usr/local/go/src/runtime/sema.go:95 +0x25
+internal/sync.(*Mutex).lockSlow(0xc000188c28)
+	/usr/local/go/src/internal/sync/mutex.go:149 +0x15d
+internal/sync.(*Mutex).Lock(...)
+	/usr/local/go/src/internal/sync/mutex.go:70
+sync.(*Mutex).Lock(...)
+	/usr/local/go/src/sync/mutex.go:46
+google.golang.org/grpc/balancer/endpointsharding.(*balancerWrapper).close(0xc000188c00)
+	balancer/endpointsharding/endpointsharding.go:368 +0x45
+google.golang.org/grpc/balancer/endpointsharding.(*endpointSharding).Close-range1(...)
+	balancer/endpointsharding/endpointsharding.go:215
+--
+goroutine 15 [select (no cases)]:
+google.golang.org/grpc/balancer/endpointsharding_test.s.TestChildExitIdleWhileAnotherChildBlocked.func1.5(0xc0000f70e0)
+	balancer/endpointsharding/endpointsharding_ext_test.go:395 +0x87
+google.golang.org/grpc/internal/balancer/stub.(*bal).ExitIdle(0xc000188c28?)
+	internal/balancer/stub/stub.go:86 +0x22
+google.golang.org/grpc/balancer/endpointsharding.(*balancerWrapper).ExitIdle(0x0?)
+	balancer/endpointsharding/endpointsharding.go:355 +0x82
+created by google.golang.org/grpc/balancer/endpointsharding.(*endpointSharding).UpdateClientConnState.func2 in goroutine 14
+	balancer/endpointsharding/endpointsharding.go:158 +0x56
+FAIL	google.golang.org/grpc/balancer/endpointsharding	40.107s
+FAIL

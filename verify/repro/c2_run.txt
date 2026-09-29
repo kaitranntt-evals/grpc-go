@@ -1,0 +1,5 @@
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({CONNECTING 0xc000135840})
+    verify_c2_internal_test.go:59: inside synchronous child UpdateClientConnState callback: child bw.mu held=true; bd.ClientConn.UpdateState blocked 301ms waiting for es.mu (held elsewhere for 300ms)
+--- PASS: TestVerifyC2_SyncCallbackAcquiresParentMuWhileChildMuHeld (0.30s)
+PASS
+ok  	google.golang.org/grpc/balancer/endpointsharding	1.315s

@@ -1,0 +1,42 @@
+### run 1: VERIFY_C4_ITERS=200 go test ./balancer/endpointsharding -run '^TestVerifyC4_' -race -count=1 -v
+    verify_c4_ext_test.go:80: buildDelay=0s: ExitIdle reached the child BEFORE its initial UpdateClientConnState in 3/200 runs
+    verify_c4_ext_test.go:82: automatic reconnect invoked an unconfigured child in 3/200 runs
+    verify_c4_ext_test.go:80: buildDelay=5ms: ExitIdle reached the child BEFORE its initial UpdateClientConnState in 1/200 runs
+    verify_c4_ext_test.go:82: automatic reconnect invoked an unconfigured child in 1/200 runs
+--- FAIL: TestVerifyC4_AutoReconnectBeforeInitialConfig (1.08s)
+    --- FAIL: TestVerifyC4_AutoReconnectBeforeInitialConfig/buildDelay=0s (0.01s)
+    --- FAIL: TestVerifyC4_AutoReconnectBeforeInitialConfig/buildDelay=5ms (1.07s)
+FAIL
+FAIL	google.golang.org/grpc/balancer/endpointsharding	1.106s
+FAIL
+### run 2: VERIFY_C4_ITERS=200 go test ./balancer/endpointsharding -run '^TestVerifyC4_' -race -count=1 -v
+    verify_c4_ext_test.go:80: buildDelay=0s: ExitIdle reached the child BEFORE its initial UpdateClientConnState in 1/200 runs
+    verify_c4_ext_test.go:82: automatic reconnect invoked an unconfigured child in 1/200 runs
+    verify_c4_ext_test.go:80: buildDelay=5ms: ExitIdle reached the child BEFORE its initial UpdateClientConnState in 3/200 runs
+    verify_c4_ext_test.go:82: automatic reconnect invoked an unconfigured child in 3/200 runs
+--- FAIL: TestVerifyC4_AutoReconnectBeforeInitialConfig (1.09s)
+    --- FAIL: TestVerifyC4_AutoReconnectBeforeInitialConfig/buildDelay=0s (0.01s)
+    --- FAIL: TestVerifyC4_AutoReconnectBeforeInitialConfig/buildDelay=5ms (1.08s)
+FAIL
+FAIL	google.golang.org/grpc/balancer/endpointsharding	1.104s
+FAIL
+### run 3: VERIFY_C4_ITERS=200 go test ./balancer/endpointsharding -run '^TestVerifyC4_' -race -count=1 -v
+    verify_c4_ext_test.go:80: buildDelay=0s: ExitIdle reached the child BEFORE its initial UpdateClientConnState in 3/200 runs
+    verify_c4_ext_test.go:82: automatic reconnect invoked an unconfigured child in 3/200 runs
+    verify_c4_ext_test.go:80: buildDelay=5ms: ExitIdle reached the child BEFORE its initial UpdateClientConnState in 0/200 runs
+--- FAIL: TestVerifyC4_AutoReconnectBeforeInitialConfig (1.07s)
+    --- FAIL: TestVerifyC4_AutoReconnectBeforeInitialConfig/buildDelay=0s (0.01s)
+    --- PASS: TestVerifyC4_AutoReconnectBeforeInitialConfig/buildDelay=5ms (1.06s)
+FAIL
+FAIL	google.golang.org/grpc/balancer/endpointsharding	1.085s
+FAIL
+### no -race: VERIFY_C4_ITERS=200 go test ./balancer/endpointsharding -run '^TestVerifyC4_' -count=1 -v
+    verify_c4_ext_test.go:80: buildDelay=0s: ExitIdle reached the child BEFORE its initial UpdateClientConnState in 0/200 runs
+    verify_c4_ext_test.go:80: buildDelay=5ms: ExitIdle reached the child BEFORE its initial UpdateClientConnState in 2/200 runs
+    verify_c4_ext_test.go:82: automatic reconnect invoked an unconfigured child in 2/200 runs
+--- FAIL: TestVerifyC4_AutoReconnectBeforeInitialConfig (1.05s)
+    --- PASS: TestVerifyC4_AutoReconnectBeforeInitialConfig/buildDelay=0s (0.00s)
+    --- FAIL: TestVerifyC4_AutoReconnectBeforeInitialConfig/buildDelay=5ms (1.05s)
+FAIL
+FAIL	google.golang.org/grpc/balancer/endpointsharding	1.056s
+FAIL

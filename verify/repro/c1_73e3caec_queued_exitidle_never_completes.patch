@@ -1,0 +1,16 @@
+diff --git a/balancer/endpointsharding/endpointsharding_ext_test.go b/balancer/endpointsharding/endpointsharding_ext_test.go
+index 621ec573..dd042385 100644
+--- a/balancer/endpointsharding/endpointsharding_ext_test.go
++++ b/balancer/endpointsharding/endpointsharding_ext_test.go
+@@ -390,6 +390,11 @@ func (s) TestChildExitIdleWhileAnotherChildBlocked(t *testing.T) {
+ 				},
+ 				ExitIdle: func(bd *stub.BalancerData) {
+ 					block(bd, "ExitIdle")
++					select {
++					case <-unblock:
++						select {} // VERIFY: an idle exit queued behind the blocked child never completes
++					default:
++					}
+ 					// Report state synchronously to also exercise lock ordering
+ 					// between child calls and updates to the parent's state.
+ 					bd.ClientConn.UpdateState(balancer.State{ConnectivityState: connectivity.Connecting})

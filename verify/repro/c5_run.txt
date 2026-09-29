@@ -1,0 +1,13 @@
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc0001bd980})
+    verify_c5_internal_test.go:71: pre-batch picker: b=IDLE,a=IDLE
+    verify_c5_internal_test.go:102: child callback for "a" passed the inhibitChildUpdates check (inhibit=false) and is paused before es.mu.Lock()
+    verify_c5_internal_test.go:117: batch active: first child reported CONNECTING, child "a" held inside UpdateClientConnState, inhibitChildUpdates=true
+    verify_c5_internal_test.go:122: no publication while the batch is held and the callback is paused (inhibition working so far)
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({CONNECTING 0xc0001bda00})
+    verify_c5_internal_test.go:141: INTERMEDIATE PUBLICATION DURING ACTIVE BATCH: aggregate=CONNECTING children=[b=CONNECTING,a=IDLE] (batch still held on child "a", inhibitChildUpdates=true)
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({READY 0xc0001bda40})
+    verify_c5_internal_test.go:159: final (end-of-batch) picker: b=CONNECTING,a=READY
+--- FAIL: TestVerifyC5_PreBatchDecisionPublishesDuringBatch (0.20s)
+FAIL
+FAIL	google.golang.org/grpc/balancer/endpointsharding	0.215s
+FAIL

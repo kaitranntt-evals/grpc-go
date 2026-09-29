@@ -1,0 +1,44 @@
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000118fc0})
+    verify_c4_gap_internal_test.go:84: iteration 0: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000050d80})
+    verify_c4_gap_internal_test.go:84: iteration 1: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc0001a6100})
+    verify_c4_gap_internal_test.go:84: iteration 2: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000050ec0})
+    verify_c4_gap_internal_test.go:84: iteration 3: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc0001a6240})
+    verify_c4_gap_internal_test.go:84: iteration 4: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000051000})
+    verify_c4_gap_internal_test.go:84: iteration 5: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc0001a6380})
+    verify_c4_gap_internal_test.go:84: iteration 6: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000051140})
+    verify_c4_gap_internal_test.go:84: iteration 7: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc0001a64c0})
+    verify_c4_gap_internal_test.go:84: iteration 8: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000119100})
+    verify_c4_gap_internal_test.go:84: iteration 9: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc0001a6600})
+    verify_c4_gap_internal_test.go:84: iteration 10: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000119240})
+    verify_c4_gap_internal_test.go:84: iteration 11: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000051280})
+    verify_c4_gap_internal_test.go:84: iteration 12: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc0001193c0})
+    verify_c4_gap_internal_test.go:84: iteration 13: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc0000513c0})
+    verify_c4_gap_internal_test.go:84: iteration 14: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000119500})
+    verify_c4_gap_internal_test.go:84: iteration 15: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc0001a6740})
+    verify_c4_gap_internal_test.go:84: iteration 16: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000051500})
+    verify_c4_gap_internal_test.go:84: iteration 17: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000119640})
+    verify_c4_gap_internal_test.go:84: iteration 18: probe acquired childMu only after initial configuration
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc0001a6880})
+    verify_c4_gap_internal_test.go:84: iteration 19: probe acquired childMu only after initial configuration
+    verify_c4_gap_internal_test.go:88: childMu was acquirable between construction and initial configuration in 0/20 iterations
+--- PASS: TestVerifyC4Gap_ChildMuReleasedBetweenBuildAndInitialConfig (1.01s)
+PASS
+ok  	google.golang.org/grpc/balancer/endpointsharding	2.041s

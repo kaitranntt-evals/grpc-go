@@ -1,0 +1,229 @@
+===== 06ef8655-EndpointShardingChildExitIdleNotBlockedByOtherChild.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.109s
+  LOG endpointsharding_ext_test.go:479: Timeout waiting for blocked UpdateClientConnState to complete
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:67
+  GOROUTINE 10 [sync.Mutex.Lock]: | endpointsharding.go:430 <- endpointsharding.go:244 <- endpointsharding.go:243 <- endpointsharding_ext_test.go:479
+  GOROUTINE 11 [select (no cases)]: | endpointsharding_ext_test.go:384 <- endpointsharding.go:425 <- endpointsharding.go:196 <- endpointsharding_ext_test.go:452 <- endpointsharding_ext_test.go:452
+===== 16469eb7-EndpointSharding_ExitIdleNotBlockedByOtherChildExitIdle.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.107s
+  GOROUTINE 22 [chan receive]: | endpointsharding_ext_test.go:65
+  GOROUTINE 23 [sync.Mutex.Lock]: | endpointsharding.go:406 <- endpointsharding.go:243 <- endpointsharding.go:242 <- endpointsharding_concurrency_ext_test.go:162
+  GOROUTINE 24 [select (no cases)]: | endpointsharding_concurrency_ext_test.go:103 <- endpointsharding.go:394 <- endpointsharding.go:383
+===== 16469eb7-EndpointSharding_ExitIdleNotBlockedByOtherChildUpdate.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.107s
+  LOG endpointsharding_concurrency_ext_test.go:236: Timed out waiting for UpdateClientConnState() to return after unblocking the child
+  GOROUTINE 22 [chan receive]: | endpointsharding_ext_test.go:65
+  GOROUTINE 23 [sync.Mutex.Lock]: | endpointsharding.go:406 <- endpointsharding.go:243 <- endpointsharding.go:242 <- endpointsharding_concurrency_ext_test.go:162 <- endpointsharding_concurrency_ext_test.go:236
+  GOROUTINE 24 [select (no cases)]: | endpointsharding_concurrency_ext_test.go:91 <- endpointsharding.go:401 <- endpointsharding.go:194 <- endpointsharding_concurrency_ext_test.go:211 <- endpointsharding_concurrency_ext_test.go:210
+===== 182fc00e-ChildExitIdleDoesNotBlockBehindAnotherChild.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.061s
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:66
+  GOROUTINE 10 [chan receive]: | endpointsharding_ext_test.go:77
+  GOROUTINE 11 [chan receive]: | endpointsharding_ext_test.go:129 <- endpointsharding_ext_test.go:188
+  GOROUTINE 12 [select (no cases)]: | endpointsharding_ext_test.go:90 <- endpointsharding_ext_test.go:104 <- endpointsharding.go:360 <- endpointsharding.go:166 <- endpointsharding_ext_test.go:151 <- endpointsharding_ext_test.go:147
+===== 38c57664-EndpointShardingAutoReconnectNotBlockedByOtherChild.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.012s
+  LOG endpointsharding_ext_test.go:479: Timed out waiting for UpdateClientConnState to return
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:66
+  GOROUTINE 10 [sync.Mutex.Lock]: | endpointsharding.go:248
+  GOROUTINE 13 [select (no cases)]: | endpointsharding_ext_test.go:375 <- endpointsharding.go:407 <- endpointsharding.go:199 <- endpointsharding_ext_test.go:462 <- endpointsharding_ext_test.go:462
+===== 38c57664-EndpointShardingChildExitIdleNotBlockedByOtherChild.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.013s
+  LOG endpointsharding_ext_test.go:479: Timed out waiting for UpdateClientConnState to return
+  LOG endpointsharding_ext_test.go:525: Timed out waiting for ExitIdle on the slow child after it was unblocked
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:66
+  GOROUTINE 10 [sync.Mutex.Lock]: | endpointsharding.go:248 <- endpointsharding_ext_test.go:525
+  GOROUTINE 11 [select (no cases)]: | endpointsharding_ext_test.go:375 <- endpointsharding.go:407 <- endpointsharding.go:199 <- endpointsharding_ext_test.go:462 <- endpointsharding_ext_test.go:462
+  GOROUTINE 13 [sync.Mutex.Lock]: | endpointsharding.go:396 <- endpointsharding.go:390
+===== 3ef33691-EndpointShardingChildOperationsIndependent.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.106s
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:67
+  GOROUTINE 10 [chan receive]: | endpointsharding_ext_test.go:391
+  GOROUTINE 11 [chan receive]: | endpointsharding_ext_test.go:457 <- endpointsharding_ext_test.go:486
+  GOROUTINE 12 [select (no cases)]: | endpointsharding_ext_test.go:403 <- endpointsharding_ext_test.go:368 <- endpointsharding.go:362 <- endpointsharding.go:166 <- endpointsharding_ext_test.go:440 <- endpointsharding_ext_test.go:436
+===== 4af83566-EndpointShardingExitIdleNotBlockedByOtherChildExitIdle.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.064s
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:67
+  GOROUTINE 10 [sync.Mutex.Lock]: | endpointsharding.go:409 <- endpointsharding.go:249 <- endpointsharding.go:248
+  GOROUTINE 11 [select (no cases)]: | endpointsharding_ext_test.go:419 <- endpointsharding.go:396 <- endpointsharding.go:388
+===== 4af83566-EndpointShardingExitIdleNotBlockedByOtherChildUpdate.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.115s
+  LOG endpointsharding_ext_test.go:529: Timeout waiting for UpdateClientConnState to complete
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:67
+  GOROUTINE 10 [sync.Mutex.Lock]: | endpointsharding.go:245 <- endpointsharding_ext_test.go:529
+  GOROUTINE 11 [select (no cases)]: | endpointsharding_ext_test.go:404 <- endpointsharding.go:404 <- endpointsharding.go:196 <- endpointsharding_ext_test.go:509 <- endpointsharding_ext_test.go:508
+  GOROUTINE 13 [sync.Mutex.Lock]: | endpointsharding.go:393 <- endpointsharding.go:388
+===== 4e7ec0bb-ChildExitIdleWhileAnotherChildBlocked.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.107s
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:67
+  GOROUTINE 10 [chan receive]: | endpointsharding_ext_test.go:362
+  GOROUTINE 11 [chan receive]: | endpointsharding_ext_test.go:461 <- endpointsharding_ext_test.go:494
+  GOROUTINE 12 [select (no cases)]: | endpointsharding_ext_test.go:370 <- endpointsharding_ext_test.go:395 <- endpointsharding.go:362 <- endpointsharding.go:161 <- endpointsharding_ext_test.go:446 <- endpointsharding_ext_test.go:442
+===== 507dbc51-EndpointShardingChildOperationsAreIndependent.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.006s
+  LOG endpointsharding_ext_test.go:528: Timed out waiting for child A's blocked operation to complete
+  GOROUTINE 22 [chan receive]: | endpointsharding_ext_test.go:67
+  GOROUTINE 23 [chan receive]: | endpointsharding_ext_test.go:454
+  GOROUTINE 24 [sync.Mutex.Lock]: | endpointsharding.go:406 <- endpointsharding.go:244 <- endpointsharding.go:243 <- endpointsharding_ext_test.go:528
+  GOROUTINE 25 [select (no cases)]: | endpointsharding_ext_test.go:387 <- endpointsharding.go:400 <- endpointsharding.go:195 <- endpointsharding_ext_test.go:437 <- endpointsharding_ext_test.go:500 <- endpointsharding_ext_test.go:498
+===== 5491d39c-AutoReconnect_NotBlockedByOtherChildUpdate.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.112s
+  LOG endpointsharding_ext_test.go:646: Timeout waiting for UpdateClientConnState to complete
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:68
+  GOROUTINE 10 [sync.Mutex.Lock]: | endpointsharding.go:236 <- endpointsharding_ext_test.go:646
+  GOROUTINE 13 [select (no cases)]: | endpointsharding_ext_test.go:599 <- endpointsharding_ext_test.go:426 <- endpointsharding.go:414 <- endpointsharding.go:187 <- endpointsharding_ext_test.go:623 <- endpointsharding_ext_test.go:622
+===== 5491d39c-ChildStateExitIdle_NotBlockedByOtherChildExitIdle.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.110s
+  LOG endpointsharding_ext_test.go:581: timeout waiting for ExitIdle on child "addr-a"
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:68
+  GOROUTINE 10 [sync.Mutex.Lock]: | endpointsharding.go:419 <- endpointsharding.go:240 <- endpointsharding.go:239 <- endpointsharding_ext_test.go:581
+  GOROUTINE 11 [select (no cases)]: | endpointsharding_ext_test.go:542 <- endpointsharding_ext_test.go:439 <- endpointsharding.go:406 <- endpointsharding.go:398
+===== 5491d39c-ChildStateExitIdle_NotBlockedByOtherChildUpdate.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.108s
+  LOG endpointsharding_ext_test.go:525: Timeout waiting for UpdateClientConnState to complete
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:68
+  GOROUTINE 10 [sync.Mutex.Lock]: | endpointsharding.go:236 <- endpointsharding_ext_test.go:525
+  GOROUTINE 11 [select (no cases)]: | endpointsharding_ext_test.go:487 <- endpointsharding_ext_test.go:426 <- endpointsharding.go:414 <- endpointsharding.go:187 <- endpointsharding_ext_test.go:507 <- endpointsharding_ext_test.go:506
+===== 5a85e94a-EndpointShardingExitIdleNotBlockedByOtherChild.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.108s
+  LOG endpointsharding_ext_test.go:505: Timeout waiting for UpdateClientConnState() to return after unblocking child "blocked-child"
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:67
+  GOROUTINE 10 [sync.Mutex.Lock]: | endpointsharding.go:401 <- endpointsharding.go:233 <- endpointsharding.go:232 <- endpointsharding_ext_test.go:505
+  GOROUTINE 11 [select (no cases)]: | endpointsharding_ext_test.go:394 <- endpointsharding.go:396 <- endpointsharding.go:184 <- endpointsharding_ext_test.go:478 <- endpointsharding_ext_test.go:478
+===== 726fefa0-EndpointShardingChildOperationsIndependent.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.049s
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:67
+  GOROUTINE 10 [chan receive]: | endpointsharding_ext_test.go:402
+  GOROUTINE 11 [chan receive]: | endpointsharding_ext_test.go:429 <- endpointsharding_ext_test.go:491
+  GOROUTINE 12 [select (no cases)]: | endpointsharding_ext_test.go:417 <- endpointsharding_ext_test.go:376 <- endpointsharding.go:363 <- endpointsharding.go:162 <- endpointsharding_ext_test.go:452 <- endpointsharding_ext_test.go:448
+===== 73e3caec-ChildExitIdleWhileAnotherChildBlocked.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.013s
+  LOG endpointsharding_ext_test.go:420: UpdateClientConnState did not finish after unblocking the child
+  LOG endpointsharding_ext_test.go:420: ResolverError did not finish after unblocking the child
+  LOG endpointsharding_ext_test.go:420: Close did not finish after unblocking the child
+  LOG endpointsharding_ext_test.go:420: ExitIdle did not finish after unblocking the child
+  GOROUTINE 22 [chan receive]: | endpointsharding_ext_test.go:66
+  GOROUTINE 25 [select (no cases)]: | endpointsharding_ext_test.go:371 <- endpointsharding_ext_test.go:381 <- endpointsharding.go:363 <- endpointsharding.go:166 <- endpointsharding_ext_test.go:431 <- endpointsharding_ext_test.go:427
+  GOROUTINE 30 [select (no cases)]: | endpointsharding_ext_test.go:371 <- endpointsharding_ext_test.go:386 <- endpointsharding.go:377 <- endpointsharding.go:204 <- endpointsharding.go:203 <- endpointsharding_ext_test.go:433
+  GOROUTINE 28 [sync.Mutex.Lock]: | endpointsharding.go:352 <- endpointsharding.go:158
+  GOROUTINE 35 [select (no cases)]: | endpointsharding_ext_test.go:371 <- endpointsharding_ext_test.go:389 <- endpointsharding.go:370 <- endpointsharding.go:215 <- endpointsharding.go:214 <- endpointsharding_ext_test.go:435
+  GOROUTINE 33 [sync.Mutex.Lock]: | endpointsharding.go:352 <- endpointsharding.go:158
+  GOROUTINE 40 [select (no cases)]: | endpointsharding_ext_test.go:371 <- endpointsharding_ext_test.go:392 <- endpointsharding.go:355 <- endpointsharding.go:221 <- endpointsharding.go:220 <- endpointsharding_ext_test.go:437
+  GOROUTINE 38 [sync.Mutex.Lock]: | endpointsharding.go:352 <- endpointsharding.go:158
+  GOROUTINE 43 [sync.Mutex.Lock]: | endpointsharding.go:352 <- endpointsharding.go:158
+===== 80522cf2-ChildExitIdleNotBlockedByOtherChildExitIdle.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.113s
+  LOG endpointsharding_concurrency_test.go:276: Timed out waiting for the parent's ExitIdle to return after releasing the blocked child
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:65
+  GOROUTINE 10 [sync.Mutex.Lock]: | endpointsharding.go:398 <- endpointsharding.go:235 <- endpointsharding.go:234 <- endpointsharding_concurrency_test.go:276
+  GOROUTINE 11 [select (no cases)]: | endpointsharding_concurrency_test.go:93 <- endpointsharding_concurrency_test.go:119 <- endpointsharding.go:385 <- endpointsharding.go:241 <- endpointsharding.go:240 <- endpointsharding_concurrency_test.go:244
+===== 80522cf2-ChildExitIdleNotBlockedByOtherChildUpdate.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.108s
+  LOG endpointsharding_concurrency_test.go:228: Timed out waiting for UpdateClientConnState to return after releasing the blocked child
+  GOROUTINE 22 [chan receive]: | endpointsharding_ext_test.go:65
+  GOROUTINE 23 [sync.Mutex.Lock]: | endpointsharding.go:398 <- endpointsharding.go:235 <- endpointsharding.go:234 <- endpointsharding_concurrency_test.go:228
+  GOROUTINE 24 [select (no cases)]: | endpointsharding_concurrency_test.go:93 <- endpointsharding_concurrency_test.go:105 <- endpointsharding.go:393 <- endpointsharding.go:186 <- endpointsharding_concurrency_test.go:193 <- endpointsharding_concurrency_test.go:192
+===== 8442e70e-ChildOperationsIndependent.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.112s
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:67
+  GOROUTINE 10 [chan receive]: | endpointsharding_ext_test.go:397
+  GOROUTINE 11 [chan receive]: | endpointsharding_ext_test.go:464 <- endpointsharding_ext_test.go:492
+  GOROUTINE 12 [select (no cases)]: | endpointsharding_ext_test.go:411 <- endpointsharding_ext_test.go:368 <- endpointsharding.go:363 <- endpointsharding.go:161 <- endpointsharding_ext_test.go:448 <- endpointsharding_ext_test.go:444
+===== 90f0333c-ChildExitIdleWhileAnotherChildIsBlocked.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.009s
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:67
+  GOROUTINE 10 [chan receive]: | endpointsharding_ext_test.go:78
+  GOROUTINE 11 [chan receive]: | endpointsharding_ext_test.go:174 <- endpointsharding_ext_test.go:210
+  GOROUTINE 12 [select (no cases)]: | endpointsharding_ext_test.go:96 <- endpointsharding_ext_test.go:94 <- endpointsharding_ext_test.go:106 <- endpointsharding.go:361 <- endpointsharding.go:166 <- endpointsharding_ext_test.go:156
+===== 93bc5f0b-ChildExitIdleWhileOtherChildBlocked.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.107s
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:67
+  GOROUTINE 10 [chan receive]: | endpointsharding_ext_test.go:361
+  GOROUTINE 11 [chan receive]: | endpointsharding_ext_test.go:432 <- endpointsharding_ext_test.go:464
+  GOROUTINE 12 [select (no cases)]: | endpointsharding_ext_test.go:374 <- endpointsharding_ext_test.go:382 <- endpointsharding.go:358 <- endpointsharding.go:168 <- endpointsharding_ext_test.go:438 <- endpointsharding_ext_test.go:434
+===== a17565eb-EndpointShardingExitIdleNotBlockedByOtherChildExitIdle.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.108s
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:67
+  GOROUTINE 10 [sync.Mutex.Lock]: | endpointsharding.go:405 <- endpointsharding.go:242 <- endpointsharding.go:241
+  GOROUTINE 11 [select (no cases)]: | endpointsharding_ext_test.go:408 <- endpointsharding_ext_test.go:495 <- endpointsharding.go:393 <- endpointsharding.go:382
+===== a17565eb-EndpointShardingExitIdleNotBlockedByOtherChildUpdate.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.114s
+  LOG endpointsharding_ext_test.go:556: Timeout waiting for UpdateClientConnState to return after releasing the blocked child
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:67
+  GOROUTINE 10 [sync.Mutex.Lock]: | endpointsharding.go:405 <- endpointsharding.go:242 <- endpointsharding.go:241 <- endpointsharding_ext_test.go:556
+  GOROUTINE 11 [select (no cases)]: | endpointsharding_ext_test.go:396 <- endpointsharding_ext_test.go:490 <- endpointsharding.go:400 <- endpointsharding.go:193 <- endpointsharding_ext_test.go:523 <- endpointsharding_ext_test.go:522
+===== cbc87f53-EndpointSharding_ChildExitIdleNotBlockedByOtherChildExitIdle.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.113s
+  LOG endpointsharding_ext_test.go:549: Timed out waiting for ExitIdle for child "b"
+  GOROUTINE 22 [chan receive]: | endpointsharding_ext_test.go:67
+  GOROUTINE 23 [sync.Mutex.Lock]: | endpointsharding.go:419 <- endpointsharding.go:258 <- endpointsharding.go:257 <- endpointsharding_ext_test.go:484 <- endpointsharding_ext_test.go:549
+  GOROUTINE 24 [select (no cases)]: | endpointsharding_ext_test.go:403 <- endpointsharding_ext_test.go:432 <- endpointsharding.go:405 <- endpointsharding.go:396
+===== cbc87f53-EndpointSharding_ChildExitIdleNotBlockedByOtherChildUpdate.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.111s
+  LOG endpointsharding_ext_test.go:524: Timed out waiting for UpdateClientConnState() to return
+  GOROUTINE 22 [chan receive]: | endpointsharding_ext_test.go:67
+  GOROUTINE 23 [sync.Mutex.Lock]: | endpointsharding.go:254 <- endpointsharding_ext_test.go:524
+  GOROUTINE 24 [select (no cases)]: | endpointsharding_ext_test.go:403 <- endpointsharding_ext_test.go:423 <- endpointsharding.go:413 <- endpointsharding.go:205 <- endpointsharding_ext_test.go:501 <- endpointsharding_ext_test.go:501
+===== d4096381-EndpointShardingChildOperationsDoNotBlockEachOther.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.111s
+  LOG endpointsharding_ext_test.go:445: Timeout waiting for blocked UpdateClientConnState to return
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:66
+  GOROUTINE 10 [sync.Mutex.Lock]: | endpointsharding.go:234 <- endpointsharding_ext_test.go:466
+  GOROUTINE 11 [select (no cases)]: | endpointsharding_ext_test.go:378 <- endpointsharding.go:402 <- endpointsharding.go:189 <- endpointsharding_ext_test.go:436 <- endpointsharding_ext_test.go:436
+===== db20107b-EndpointSharding_ChildOperationsDoNotBlockOtherChildren.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.083s
+  LOG endpointsharding_child_ext_test.go:258: Timeout waiting for UpdateClientConnState to complete
+  GOROUTINE 22 [chan receive]: | endpointsharding_ext_test.go:65
+  GOROUTINE 23 [chan receive]: | endpointsharding_child_ext_test.go:168
+  GOROUTINE 24 [sync.Mutex.Lock]: | endpointsharding.go:250 <- endpointsharding_child_ext_test.go:258
+  GOROUTINE 25 [select (no cases)]: | endpointsharding_child_ext_test.go:97 <- endpointsharding.go:418 <- endpointsharding.go:201 <- endpointsharding_child_ext_test.go:225 <- endpointsharding_child_ext_test.go:225
+  GOROUTINE 27 [sync.Mutex.Lock]: | endpointsharding.go:400 <- endpointsharding.go:394
+===== db4d0728-EndpointShardingExitIdleNotBlockedByOtherChildExitIdle.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.105s
+  LOG endpointsharding_ext_test.go:530: Timeout waiting for ExitIdle for "addr-b"
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:66
+  GOROUTINE 10 [sync.Mutex.Lock]: | endpointsharding.go:410 <- endpointsharding.go:246 <- endpointsharding.go:245 <- endpointsharding_ext_test.go:472 <- endpointsharding_ext_test.go:530
+  GOROUTINE 11 [select (no cases)]: | endpointsharding_ext_test.go:393 <- endpointsharding.go:393 <- endpointsharding.go:384
+===== db4d0728-EndpointShardingExitIdleNotBlockedByOtherChildUpdate.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.105s
+  LOG endpointsharding_ext_test.go:505: Timeout waiting for UpdateClientConnState to complete
+  GOROUTINE 9 [chan receive]: | endpointsharding_ext_test.go:66
+  GOROUTINE 10 [sync.Mutex.Lock]: | endpointsharding.go:242 <- endpointsharding_ext_test.go:505
+  GOROUTINE 11 [select (no cases)]: | endpointsharding_ext_test.go:371 <- endpointsharding.go:405 <- endpointsharding.go:193 <- endpointsharding_ext_test.go:492 <- endpointsharding_ext_test.go:492
+===== e4ee1715-EndpointShardingExitIdleWhileOtherChildBlocked.txt
+ timed_out=True build_failed=False exit=### exit=1
+   FAIL	google.golang.org/grpc/balancer/endpointsharding	45.090s
+  LOG endpointsharding_ext_test.go:475: Timed out waiting for UpdateClientConnState() to return after unblocking the child
+  GOROUTINE 22 [chan receive]: | endpointsharding_ext_test.go:65
+  GOROUTINE 23 [sync.Mutex.Lock]: | endpointsharding.go:245 <- endpointsharding_ext_test.go:501
+  GOROUTINE 24 [select (no cases)]: | endpointsharding_ext_test.go:387 <- endpointsharding.go:410 <- endpointsharding.go:196 <- endpointsharding_ext_test.go:462 <- endpointsharding_ext_test.go:462

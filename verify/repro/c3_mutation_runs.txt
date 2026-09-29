@@ -1,0 +1,29 @@
+### baseline (branch evalon/grpc-go-en-d4096381): go test ./balancer/endpointsharding -run '^Test$/^EndpointShardingChildOperationsDoNotBlockEachOther$' -race -count=3 -v
+--- PASS: Test (0.00s)
+--- PASS: Test (0.00s)
+    --- PASS: Test/EndpointShardingChildOperationsDoNotBlockEachOther (0.00s)
+--- PASS: Test (0.00s)
+--- PASS: Test (0.00s)
+    --- PASS: Test/EndpointShardingChildOperationsDoNotBlockEachOther (0.00s)
+--- PASS: Test (0.00s)
+--- PASS: Test (0.00s)
+    --- PASS: Test/EndpointShardingChildOperationsDoNotBlockEachOther (0.00s)
+ok  	google.golang.org/grpc/balancer/endpointsharding	1.036s
+### mutation 1 applied (c3_mutation_1_exitidle_blocked_behind_other_child.patch), same command with -count=1:
+--- PASS: Test (0.00s)
+    endpointsharding_ext_test.go:458: Timeout waiting for ExitIdle on a child while a different child's update is blocked
+    endpointsharding_ext_test.go:445: Timeout waiting for blocked UpdateClientConnState to return
+--- FAIL: Test (10.05s)
+    --- FAIL: Test/EndpointShardingChildOperationsDoNotBlockEachOther (10.05s)
+FAIL
+FAIL	google.golang.org/grpc/balancer/endpointsharding	10.080s
+FAIL
+### mutation 2 applied (c3_mutation_2_ready_callback_blocked_behind_other_child.patch), same command with -count=1 -timeout 90s:
+--- PASS: Test (0.00s)
+    endpointsharding_ext_test.go:470: Timeout waiting for Ready state update from a child while a different child's update is blocked
+    endpointsharding_ext_test.go:445: Timeout waiting for blocked UpdateClientConnState to return
+--- FAIL: Test (15.03s)
+    --- FAIL: Test/EndpointShardingChildOperationsDoNotBlockEachOther (15.03s)
+FAIL
+FAIL	google.golang.org/grpc/balancer/endpointsharding	15.041s
+FAIL

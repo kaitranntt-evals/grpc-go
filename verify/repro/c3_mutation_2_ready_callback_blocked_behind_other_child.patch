@@ -1,0 +1,24 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index a736ed82..716873e0 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -30,6 +30,7 @@ import (
+ 	rand "math/rand/v2"
+ 	"sync"
+ 	"sync/atomic"
++	"time"
+ 
+ 	"google.golang.org/grpc/balancer"
+ 	"google.golang.org/grpc/balancer/base"
+@@ -365,6 +366,11 @@ type balancerWrapper struct {
+ }
+ 
+ func (bw *balancerWrapper) UpdateState(state balancer.State) {
++	// MUTATION 2: child B's synchronous READY callback (which carries its picker publication) does not
++	// complete within the test deadline while child A is still held in UpdateClientConnState.
++	if state.ConnectivityState == connectivity.Ready {
++		time.Sleep(15 * time.Second)
++	}
+ 	bw.es.mu.Lock()
+ 	bw.childState.State = state
+ 	bw.es.mu.Unlock()

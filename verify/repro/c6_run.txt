@@ -1,0 +1,10 @@
+### cd /home/ubuntu/wt/5a85e94a && staticcheck -version
+staticcheck 2026.1 (v0.7.0)
+### staticcheck -checks 'all' ./... > /home/ubuntu/repro/c6_staticcheck.out; grep -n ExitIdler ...
+staticcheck exit=1
+balancer/ringhash/ringhash.go:271:20: balancer.ExitIdler is deprecated: All balancers must implement this interface. This interface will be removed in a future release.  (SA1019)
+balancer/ringhash/ringhash.go:405:12: balancer.ExitIdler is deprecated: All balancers must implement this interface. This interface will be removed in a future release.  (SA1019)
+### SC_OUT=/home/ubuntu/repro/c6_staticcheck.out bash verify/repro/c6_vet_sa1019_filter.sh (exact vet.sh SA1019 exemption filter)
+balancer/ringhash/ringhash.go:271:20: balancer.ExitIdler is deprecated: All balancers must implement this interface. This interface will be removed in a future release.  (SA1019)
+balancer/ringhash/ringhash.go:405:12: balancer.ExitIdler is deprecated: All balancers must implement this interface. This interface will be removed in a future release.  (SA1019)
+filter exit=1
