@@ -1,0 +1,14 @@
+diff --git a/internal/xds/balancer/clusterimpl/clusterimpl.go b/internal/xds/balancer/clusterimpl/clusterimpl.go
+index 666e3fad..dba0e202 100644
+--- a/internal/xds/balancer/clusterimpl/clusterimpl.go
++++ b/internal/xds/balancer/clusterimpl/clusterimpl.go
+@@ -368,6 +368,9 @@ func (b *clusterImplBalancer) handleSecurityConfig(config *xdsresource.SecurityC
+ 		}
+ 	}
+ 
++	// MUTATION M1: delay applying the replacement HandshakeInfo by 500ms.
++	time.Sleep(500 * time.Millisecond)
++	b.logger.Infof("MUTATION M1: applying replacement security config now (after 500ms delay)")
+ 	b.updateHandshakeInfo(xds.NewHandshakeInfo(rootProvider, identityProvider, config.SubjectAltNameMatchers, false, config.SNI, config.AutoSNISANValidation, config.UseAutoHostSNI))
+ 	return nil
+ }

@@ -1,0 +1,34 @@
+diff --git a/credentials/xds/xds.go b/credentials/xds/xds.go
+index 213ab308..f5942f5b 100644
+--- a/credentials/xds/xds.go
++++ b/credentials/xds/xds.go
+@@ -25,6 +25,7 @@ import (
+ 	"crypto/tls"
+ 	"errors"
+ 	"net"
++	"sync/atomic"
+ 	"time"
+ 
+ 	"google.golang.org/grpc/credentials"
+@@ -33,6 +34,8 @@ import (
+ 	"google.golang.org/grpc/internal/grpcsync"
+ )
+ 
++var mutationStickyHI atomic.Pointer[xdsinternal.HandshakeInfo] // MUTATION M2
++
+ // ClientOptions contains parameters to configure a new client-side xDS
+ // credentials implementation.
+ type ClientOptions struct {
+@@ -148,6 +151,12 @@ func (c *credsImpl) ClientHandshake(ctx context.Context, authority string, rawCo
+ 	// 4. Key usage to match whether client/server usage.
+ 	// 5. A `VerifyPeerCertificate` function which performs normal peer
+ 	// 	  cert verification using configured roots, and the custom SAN checks.
++	// MUTATION M2: sticky HandshakeInfo - every handshake reuses the first HandshakeInfo ever seen.
++	if s := mutationStickyHI.Load(); s != nil {
++		hi = s
++	} else {
++		mutationStickyHI.Store(hi)
++	}
+ 	hostname := xdsinternal.Hostname(chi.Attributes)
+ 	cfg, err := hi.ClientSideTLSConfig(ctx, hostname)
+ 	if err != nil {

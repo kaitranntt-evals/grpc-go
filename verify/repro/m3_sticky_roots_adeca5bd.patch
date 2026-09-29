@@ -1,0 +1,40 @@
+diff --git a/internal/credentials/xds/handshake_info.go b/internal/credentials/xds/handshake_info.go
+index 404b9cc9..5fdd01c2 100644
+--- a/internal/credentials/xds/handshake_info.go
++++ b/internal/credentials/xds/handshake_info.go
+@@ -26,6 +26,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"strings"
++	"sync"
+ 	"sync/atomic"
+ 
+ 	"google.golang.org/grpc/attributes"
+@@ -120,6 +121,12 @@ type HandshakeInfo struct {
+ 	useAutoHostSNI      bool                    // Only on client side, indicates whether to use endpoint hostname as SNI.
+ }
+ 
++// MUTATION M3
++var (
++	mutationStickyRootsMu sync.Mutex
++	mutationStickyRoots   *x509.CertPool
++)
++
+ // NewHandshakeInfo returns a new handshake info configured with the provided
+ // options.
+ func NewHandshakeInfo(rootProvider certprovider.Provider, identityProvider certprovider.Provider, sanMatchers []matcher.StringMatcher, requireClientCert bool, sni string, validateSANUsingSNI bool, useAutoHostSNI bool) *HandshakeInfo {
+@@ -182,6 +189,14 @@ func (hi *HandshakeInfo) ClientSideTLSConfig(ctx context.Context, hostname strin
+ 		return nil, fmt.Errorf("xds: fetching trusted roots from CertificateProvider failed: %v", err)
+ 	}
+ 	cfg.RootCAs = km.Roots
++	// MUTATION M3: sticky roots - the first root pool ever fetched governs every later handshake.
++	mutationStickyRootsMu.Lock()
++	if mutationStickyRoots == nil {
++		mutationStickyRoots = km.Roots
++	}
++	km = &certprovider.KeyMaterial{Certs: km.Certs, Roots: mutationStickyRoots}
++	cfg.RootCAs = km.Roots
++	mutationStickyRootsMu.Unlock()
+ 
+ 	// If AutoHostSNI is true, and the endpoint hostname is present, we use the
+ 	// endpoint hostname as the SNI value and also for SAN validation.
