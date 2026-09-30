@@ -1,4 +1,4 @@
-# Evidence for audit run v-2c42f975
+## Setup and conventions (audit run v-2c42f975)
 
 Observations only. Conclusions live in the report delivered with the session.
 
@@ -249,7 +249,7 @@ So on the 27 branches together, 47 validation-root loads either overlapped a bal
 
 ```console
 $ verify/probe_attempts.sh ~/wt/95f90b92 credentials/xds '^Test$/^ClientCredsProviderReplacedDuringHandshake$'
-ClientHandshake#1 START conn=127.0.0.1:48880->127.0.0.1:41253
+ClientHandshake#1 START conn=127.0.0.1:52414->127.0.0.1:33721
 load#1 client root KeyMaterial START provider=*xds.closeableProvider
 load#1 client root KeyMaterial END   err=provider instance is closed
 load#2 client root KeyMaterial START provider=*xds.fakeProvider
@@ -258,7 +258,7 @@ ClientHandshake#1 END   err=<nil>
 --- PASS: Test (0.01s)
     --- PASS: Test/ClientCredsProviderReplacedDuringHandshake (0.01s)
 PASS
-ok  	google.golang.org/grpc/credentials/xds	0.012s
+ok  	google.golang.org/grpc/credentials/xds	0.013s
 ```
 
 The load the handshake selected (load#1) returns the closure error; the test passes because a second load on the replacement provider succeeds inside the same `ClientHandshake` call.
@@ -911,6 +911,42 @@ ok  	google.golang.org/grpc/credentials/xds	0.077s
 - 7089d1aa: only `TestClientCredsProviderSwitchDuringHandshake` is added (four subtests, one attempt each: `ClientHandshake#1`..`#4`). In each subtest the attempt starts, the first load blocks on `*xds.blockingProvider`, the test swaps the `HandshakeInfo` and the blocked load ends `provider instance is closed`; the attempt then finishes on the replacement (`root`, `identity`), on fallback credentials (`fallback`, no second root load), or with the replacement's error (`replacement_error`). No subtest starts a connection attempt after the swap.
 
 On none of the four branches does a changed test start a connection attempt after the replacement and tie its outcome to replacement roots, either by a distinguishable trust outcome or by replacement `KeyMaterial` supplied for that attempt. The pre-existing follow-up-connection tests (`TestSecurityConfigUpdate_BadToGood`, `_GoodToBad`, `_GoodToFallback`) are unmodified.
+
+### Pre-existing follow-up-connection tests still pass on the four branches
+
+```console
+$ for i in 0ae111d1 d553852a b7a066a6 7089d1aa; do echo "=== $i"; (cd ~/wt/$i && GOENV=off GOWORK=off go test ./internal/xds/balancer/clusterimpl/tests -run '^Test$/^SecurityConfigUpdate_(BadToGood|GoodToBad|GoodToFallback)$' -count=1 -v 2>&1 | grep -E '^(---|    ---|ok|FAIL|PASS)'); done
+=== 0ae111d1
+--- PASS: Test (0.10s)
+    --- PASS: Test/SecurityConfigUpdate_BadToGood (0.02s)
+    --- PASS: Test/SecurityConfigUpdate_GoodToBad (0.06s)
+    --- PASS: Test/SecurityConfigUpdate_GoodToFallback (0.02s)
+PASS
+ok  	google.golang.org/grpc/internal/xds/balancer/clusterimpl/tests	0.107s
+=== d553852a
+--- PASS: Test (0.04s)
+    --- PASS: Test/SecurityConfigUpdate_BadToGood (0.02s)
+    --- PASS: Test/SecurityConfigUpdate_GoodToBad (0.01s)
+    --- PASS: Test/SecurityConfigUpdate_GoodToFallback (0.01s)
+PASS
+ok  	google.golang.org/grpc/internal/xds/balancer/clusterimpl/tests	0.049s
+=== b7a066a6
+--- PASS: Test (0.11s)
+    --- PASS: Test/SecurityConfigUpdate_BadToGood (0.07s)
+    --- PASS: Test/SecurityConfigUpdate_GoodToBad (0.02s)
+    --- PASS: Test/SecurityConfigUpdate_GoodToFallback (0.02s)
+PASS
+ok  	google.golang.org/grpc/internal/xds/balancer/clusterimpl/tests	0.121s
+=== 7089d1aa
+--- PASS: Test (0.04s)
+    --- PASS: Test/SecurityConfigUpdate_BadToGood (0.02s)
+    --- PASS: Test/SecurityConfigUpdate_GoodToBad (0.01s)
+    --- PASS: Test/SecurityConfigUpdate_GoodToFallback (0.01s)
+PASS
+ok  	google.golang.org/grpc/internal/xds/balancer/clusterimpl/tests	0.050s
+```
+
+These tests pre-date the branches and are not changed by them; they pass, so the audit observed a gap in added proof and no failure of follow-up connections.
 
 ### Impact reasoning
 
