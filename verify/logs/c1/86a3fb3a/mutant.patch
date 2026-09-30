@@ -1,0 +1,123 @@
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index a283c723..2db5edea 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -27,6 +27,8 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"net"
++	"os"
++	"strconv"
+ 	"sync"
+ 	"sync/atomic"
+ 	"time"
+@@ -90,10 +92,13 @@ const (
+ // proportional to the number of queued bytes rather than the number of
+ // received frames.
+ type recvBuffer struct {
+-	c       chan recvMsg
+-	mu      sync.Mutex
+-	backlog []recvMsg
+-	err     error
++	mutConsumed bool    // C1 mutant
++	mutEverPut  bool    // C1 mutant
++	mutReported [2]bool // C1 mutant
++	c           chan recvMsg
++	mu          sync.Mutex
++	backlog     []recvMsg
++	err         error
+ 	// pool is used to allocate compaction chunks. If nil, the default buffer
+ 	// pool is used.
+ 	pool mem.BufferPool
+@@ -112,6 +117,25 @@ func (b *recvBuffer) init() {
+ 
+ func (b *recvBuffer) put(r recvMsg) {
+ 	b.mu.Lock()
++	if b.mutEverPut && len(b.c) == 0 { // C1 mutant: a reader has taken a message off b.c
++		b.mutConsumed = true
++	}
++	if b.mutConsumed { // C1 mutant
++		if r.err != nil {
++			c1MutantHit(&b.mutReported[1], "terminal")
++			r.err = errC1Mutant
++		} else if r.buffer != nil {
++			c1MutantHit(&b.mutReported[0], "data")
++			n := r.buffer.Len()
++			r.buffer.Free()
++			bad := make([]byte, n)
++			for i := range bad {
++				bad[i] = 0xEE
++			}
++			r.buffer = mem.SliceBuffer(bad)
++		}
++	}
++	b.mutEverPut = true // C1 mutant
+ 	if b.err != nil {
+ 		// drop the buffer on the floor. Since b.err is not nil, any subsequent reads
+ 		// will always return an error, making this buffer inaccessible.
+@@ -197,6 +221,9 @@ func (b *recvBuffer) bufferPool() mem.BufferPool {
+ 
+ func (b *recvBuffer) load() {
+ 	b.mu.Lock()
++	if b.mutEverPut && len(b.c) == 0 { // C1 mutant: a reader has taken a message off b.c
++		b.mutConsumed = true
++	}
+ 	if len(b.backlog) > 0 {
+ 		if len(b.backlog) == 1 {
+ 			// The chunk being filled, if any, is the only backlog entry. It
+@@ -224,6 +251,7 @@ func (b *recvBuffer) get() <-chan recvMsg {
+ // recvBufferReader implements io.Reader interface to read the data from
+ // recvBuffer.
+ type recvBufferReader struct {
++	mutDelayed   bool // C1 mutant
+ 	_            noCopy
+ 	clientStream *ClientStream // The client transport stream is closed with a status representing ctx.Err() and nil trailer metadata.
+ 	ctx          context.Context
+@@ -234,6 +262,7 @@ type recvBufferReader struct {
+ }
+ 
+ func (r *recvBufferReader) ReadMessageHeader(header []byte) (n int, err error) {
++	c1ReaderDelay(r) // C1 mutant
+ 	if r.err != nil {
+ 		return 0, r.err
+ 	}
+@@ -254,6 +283,7 @@ func (r *recvBufferReader) ReadMessageHeader(header []byte) (n int, err error) {
+ // recv. If Read returns any non-nil error, it will continue to return that
+ // error.
+ func (r *recvBufferReader) Read(n int) (buf mem.Buffer, err error) {
++	c1ReaderDelay(r) // C1 mutant
+ 	if r.err != nil {
+ 		return nil, r.err
+ 	}
+@@ -867,3 +897,31 @@ func ContextErr(err error) error {
+ 	}
+ 	return status.Errorf(codes.Internal, "Unexpected error from context packet: %v", err)
+ }
++
++// C1 mutant support.
++var errC1Mutant = c1MutantErr{}
++
++type c1MutantErr struct{}
++
++func (c1MutantErr) Error() string { return "C1 mutant: terminal put after consumption" }
++
++// c1MutantHit reports the first post-consumption put of each kind per recvBuffer.
++func c1MutantHit(reported *bool, kind string) {
++	if !*reported {
++		*reported = true
++		println("C1-MUTANT-HIT post-consumption put on this buffer, kind=" + kind)
++	}
++}
++
++// c1ReaderDelay models a legal schedule in which the reader goroutine is
++// descheduled before its first read: with C1_READER_DELAY_MS set, the first
++// Read/ReadMessageHeader on each recvBufferReader sleeps that long.
++func c1ReaderDelay(r *recvBufferReader) {
++	if r.mutDelayed {
++		return
++	}
++	r.mutDelayed = true
++	if ms, _ := strconv.Atoi(os.Getenv("C1_READER_DELAY_MS")); ms > 0 {
++		time.Sleep(time.Duration(ms) * time.Millisecond)
++	}
++}

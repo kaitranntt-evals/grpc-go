@@ -1,0 +1,97 @@
+=== RUN   Test
+=== RUN   Test/ClientReceivesManySmallDataFrames
+=== RUN   Test/ClientReceivesManySmallDataFrames/compaction=true
+    transport_test.go:3797: readTo() after all data = connection error: desc = "error reading from server: read tcp 127.0.0.1:38410->127.0.0.1:40153: use of closed network connection", want io.EOF
+panic: test timed out after 45s
+	running tests:
+		Test (45s)
+		Test/ClientReceivesManySmallDataFrames (45s)
+		Test/ClientReceivesManySmallDataFrames/compaction=true (45s)
+
+goroutine 66 [running]:
+testing.(*M).startAlarm.func1()
+	/usr/local/go/src/testing/testing.go:2682 +0x345
+created by time.goFunc
+	/usr/local/go/src/time/sleep.go:215 +0x2d
+
+goroutine 1 [chan receive]:
+testing.(*T).Run(0xc0000be540, {0xbe47cc?, 0xc00016db30?}, 0xc25728)
+	/usr/local/go/src/testing/testing.go:2005 +0x485
+testing.runTests.func1(0xc0000be540)
+	/usr/local/go/src/testing/testing.go:2477 +0x37
+testing.tRunner(0xc0000be540, 0xc00016dc70)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+testing.runTests(0xc000012918, {0x11eb2e0, 0x3, 0x3}, {0x7?, 0xc0000517c0?, 0x11fc0e0?})
+	/usr/local/go/src/testing/testing.go:2475 +0x4b4
+testing.(*M).Run(0xc0000b1ea0)
+	/usr/local/go/src/testing/testing.go:2337 +0x63a
+main.main()
+	_testmain.go:59 +0x9b
+
+goroutine 8 [chan receive]:
+testing.(*T).Run(0xc0000be700, {0xa90179?, 0x121d7c0?}, 0xc000091b80)
+	/usr/local/go/src/testing/testing.go:2005 +0x485
+google.golang.org/grpc/internal/grpctest.RunSubTests(0xc0000be700, {0xced6c8, 0x121d7c0?})
+	/tmp/claims/80a05d05/internal/grpctest/grpctest.go:124 +0x28a
+google.golang.org/grpc/internal/transport.Test(0xc0000be700?)
+	/tmp/claims/80a05d05/internal/transport/transport_test.go:63 +0x25
+testing.tRunner(0xc0000be700, 0xc25728)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+created by testing.(*T).Run in goroutine 1
+	/usr/local/go/src/testing/testing.go:1997 +0x465
+
+goroutine 9 [chan receive]:
+testing.(*T).Run(0xc0000bea80, {0xc00022c760?, 0xc000111870?}, 0xc00022c770)
+	/usr/local/go/src/testing/testing.go:2005 +0x485
+google.golang.org/grpc/internal/transport.s.TestClientReceivesManySmallDataFrames({{}}, 0xc0000bea80)
+	/tmp/claims/80a05d05/internal/transport/transport_test.go:3747 +0xb1
+google.golang.org/grpc/internal/grpctest.RunSubTests.func1(0xc0000bea80)
+	/tmp/claims/80a05d05/internal/grpctest/grpctest.go:132 +0xb5
+testing.tRunner(0xc0000bea80, 0xc000091b80)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+created by testing.(*T).Run in goroutine 8
+	/usr/local/go/src/testing/testing.go:1997 +0x465
+
+goroutine 10 [chan receive]:
+google.golang.org/grpc/internal/transport.(*server).stop(0xc000036900)
+	/tmp/claims/80a05d05/internal/transport/transport_test.go:607 +0x16b
+runtime.Goexit()
+	/usr/local/go/src/runtime/panic.go:615 +0x5e
+testing.(*common).FailNow(0xc0000bee00)
+	/usr/local/go/src/testing/testing.go:1013 +0x4a
+testing.(*common).Fatalf(0xc0000bee00, {0xc047a6?, 0x1?}, {0xc00027ff28?, 0x0?, 0x1?})
+	/usr/local/go/src/testing/testing.go:1219 +0x59
+google.golang.org/grpc/internal/transport.s.TestClientReceivesManySmallDataFrames.func1(0xc0000bee00)
+	/tmp/claims/80a05d05/internal/transport/transport_test.go:3797 +0x78f
+testing.tRunner(0xc0000bee00, 0xc00022c770)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+created by testing.(*T).Run in goroutine 9
+	/usr/local/go/src/testing/testing.go:1997 +0x465
+
+goroutine 11 [sync.WaitGroup.Wait]:
+sync.runtime_SemacquireWaitGroup(0x4e3aef?, 0x0?)
+	/usr/local/go/src/runtime/sema.go:114 +0x2e
+sync.(*WaitGroup).Wait(0xc00022cc20)
+	/usr/local/go/src/sync/waitgroup.go:206 +0x85
+google.golang.org/grpc/internal/transport.(*server).start.func1()
+	/tmp/claims/80a05d05/internal/transport/transport_test.go:432 +0x25
+google.golang.org/grpc/internal/transport.(*server).start(0xc000036900, 0xc0000bee00, 0x559e05?, 0xc0000e1140, 0xa)
+	/tmp/claims/80a05d05/internal/transport/transport_test.go:586 +0xe73
+created by google.golang.org/grpc/internal/transport.setUpServerOnlyWithTimeout in goroutine 10
+	/tmp/claims/80a05d05/internal/transport/transport_test.go:625 +0x18e
+
+goroutine 22 [select (no cases)]:
+google.golang.org/grpc/internal/transport.(*ServerStream).WriteStatus(0xc0003261a0, 0xc000316008)
+	/tmp/claims/80a05d05/internal/transport/server_stream.go:79 +0x57
+google.golang.org/grpc/internal/transport.(*testStreamHandler).handleStreamManySmallDataFrames(0xc000322048, 0xc0003261a0)
+	/tmp/claims/80a05d05/internal/transport/transport_test.go:283 +0x199
+google.golang.org/grpc/internal/transport.(*server).start.func8.1.1()
+	/tmp/claims/80a05d05/internal/transport/transport_test.go:529 +0x25
+created by google.golang.org/grpc/internal/transport.(*server).start.func8.1 in goroutine 20
+	/tmp/claims/80a05d05/internal/transport/transport_test.go:528 +0x93
+FAIL	google.golang.org/grpc/internal/transport	45.007s
+FAIL
+
+real	0m46.584s
+user	0m3.423s
+sys	0m0.505s

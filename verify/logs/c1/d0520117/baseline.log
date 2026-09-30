@@ -1,0 +1,26 @@
+=== RUN   Test
+=== RUN   Test/ReadGivesSameErrorAfterAnyErrorOccurs
+=== RUN   Test/ReadMessageHeaderMultipleBuffers
+=== RUN   Test/RecvBuffer_ConcurrentSmallFrames
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeFramesBypassCompaction
+=== RUN   Test/RecvBuffer_ManySmallFrames
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction-enabled
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction-disabled
+=== RUN   Test/RecvBuffer_SmallFramesMemoryBounded
+=== RUN   Test/ServerReceivesManyTinyDataFrames
+--- PASS: Test (0.05s)
+    --- PASS: Test/ReadGivesSameErrorAfterAnyErrorOccurs (0.00s)
+    --- PASS: Test/ReadMessageHeaderMultipleBuffers (0.00s)
+    --- PASS: Test/RecvBuffer_ConcurrentSmallFrames (0.00s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeFramesBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_ManySmallFrames (0.02s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction-enabled (0.00s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction-disabled (0.01s)
+    --- PASS: Test/RecvBuffer_SmallFramesMemoryBounded (0.01s)
+    --- PASS: Test/ServerReceivesManyTinyDataFrames (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	0.054s

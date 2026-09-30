@@ -1,0 +1,28 @@
+=== RUN   TestVerifyC5_Uncaught
+--- FAIL: TestVerifyC5_Uncaught (0.00s)
+panic: Cannot read freed buffer [recovered, repanicked]
+
+goroutine 8 [running]:
+testing.tRunner.func1.2({0xabcb40, 0xce8350})
+	/usr/local/go/src/testing/testing.go:1872 +0x237
+testing.tRunner.func1()
+	/usr/local/go/src/testing/testing.go:1875 +0x35b
+panic({0xabcb40?, 0xce8350?})
+	/usr/local/go/src/runtime/panic.go:783 +0x132
+google.golang.org/grpc/mem.(*buffer).ReadOnlyData(...)
+	/tmp/claims/97f9441e/mem/buffers.go:144
+google.golang.org/grpc/mem.(*buffer).Len(0xc000051900?)
+	/tmp/claims/97f9441e/mem/buffers.go:184 +0x32
+google.golang.org/grpc/mem.BufferSlice.Len(...)
+	/tmp/claims/97f9441e/mem/buffer_slice.go:56
+google.golang.org/grpc/internal/transport.readAll(0xc0000e2900, 0x7cf, 0x3e8)
+	/tmp/claims/97f9441e/internal/transport/recv_buffer_test.go:99 +0x1d3
+google.golang.org/grpc/internal/transport.TestVerifyC5_Uncaught(0xc0000be700)
+	/tmp/claims/97f9441e/internal/transport/c5_readall_freed_len_test.go:96 +0x11c
+testing.tRunner(0xc0000be700, 0xc26928)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+created by testing.(*T).Run in goroutine 1
+	/usr/local/go/src/testing/testing.go:1997 +0x465
+FAIL	google.golang.org/grpc/internal/transport	0.006s
+FAIL
+exit=1

@@ -1,0 +1,28 @@
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/enabled
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/disabled
+=== RUN   Test/RecvBuffer_ConcurrentWritesAndReads
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersHeapUsageBounded
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/enabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/disabled
+--- PASS: Test (0.13s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.00s)
+    --- PASS: Test/RecvBuffer_CompactsSmallBuffers (0.02s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/enabled (0.00s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/disabled (0.02s)
+    --- PASS: Test/RecvBuffer_ConcurrentWritesAndReads (0.01s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersHeapUsageBounded (0.01s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.08s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/enabled (0.01s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/disabled (0.02s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	0.132s

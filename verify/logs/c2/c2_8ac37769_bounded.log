@@ -1,0 +1,14 @@
+=== RUN   Test
+=== RUN   Test/ReceiveBufferCompactionReadWhileWriting
+    recv_buffer_test.go:301: Read() = rpc error: code = DeadlineExceeded desc = context deadline exceeded, want EOF
+--- FAIL: Test (10.05s)
+    --- FAIL: Test/ReceiveBufferCompactionReadWhileWriting (10.05s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	10.055s
+FAIL
+
+real	0m10.410s
+user	0m0.662s
+sys	0m0.163s

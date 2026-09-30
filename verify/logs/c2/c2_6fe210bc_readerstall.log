@@ -1,0 +1,69 @@
+=== RUN   Test
+=== RUN   Test/ClientReceivesManySmallDataFrames
+C2-STALL: recvBuffer.put #100 stalls forever
+    transport_test.go:3717: Test timed out when waiting for a RST_STREAM frame from client
+    transport_test.go:3693: Server reader goroutine failed to read frame: read tcp 127.0.0.1:43317->127.0.0.1:57118: read: connection reset by peer
+panic: test timed out after 40s
+	running tests:
+		Test (40s)
+		Test/ClientReceivesManySmallDataFrames (40s)
+
+goroutine 20 [running]:
+testing.(*M).startAlarm.func1()
+	/usr/local/go/src/testing/testing.go:2682 +0x345
+created by time.goFunc
+	/usr/local/go/src/time/sleep.go:215 +0x2d
+
+goroutine 1 [chan receive]:
+testing.(*T).Run(0xc0000be540, {0xbe4ab6?, 0xc0001edb30?}, 0xc25a90)
+	/usr/local/go/src/testing/testing.go:2005 +0x485
+testing.runTests.func1(0xc0000be540)
+	/usr/local/go/src/testing/testing.go:2477 +0x37
+testing.tRunner(0xc0000be540, 0xc0001edc70)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+testing.runTests(0xc000012918, {0x11ec2e0, 0x3, 0x3}, {0x7?, 0xc0000517c0?, 0x11fd100?})
+	/usr/local/go/src/testing/testing.go:2475 +0x4b4
+testing.(*M).Run(0xc0000b1cc0)
+	/usr/local/go/src/testing/testing.go:2337 +0x63a
+main.main()
+	_testmain.go:61 +0x9b
+
+goroutine 8 [chan receive]:
+testing.(*T).Run(0xc0000be700, {0xa90184?, 0x121e7e0?}, 0xc000091b80)
+	/usr/local/go/src/testing/testing.go:2005 +0x485
+google.golang.org/grpc/internal/grpctest.RunSubTests(0xc0000be700, {0xcedca8, 0x121e7e0?})
+	/tmp/claims/6fe210bc/internal/grpctest/grpctest.go:124 +0x28a
+google.golang.org/grpc/internal/transport.Test(0xc0000be700?)
+	/tmp/claims/6fe210bc/internal/transport/transport_test.go:62 +0x25
+testing.tRunner(0xc0000be700, 0xc25a90)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+created by testing.(*T).Run in goroutine 1
+	/usr/local/go/src/testing/testing.go:1997 +0x465
+
+goroutine 9 [chan receive]:
+google.golang.org/grpc/internal/transport.s.TestClientReceivesManySmallDataFrames({{}}, 0x494ed8?)
+	/tmp/claims/6fe210bc/internal/transport/recv_buffer_test.go:376 +0x19c
+google.golang.org/grpc/internal/grpctest.RunSubTests.func1(0xc0000bea80)
+	/tmp/claims/6fe210bc/internal/grpctest/grpctest.go:132 +0xb5
+testing.tRunner(0xc0000bea80, 0xc000091b80)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+created by testing.(*T).Run in goroutine 8
+	/usr/local/go/src/testing/testing.go:1997 +0x465
+
+goroutine 19 [select (no cases)]:
+google.golang.org/grpc/internal/transport.(*recvBuffer).put(0xc000320070, {{0xcf55e0?, 0xc000013458?}, {0x0?, 0x0?}})
+	/tmp/claims/6fe210bc/internal/transport/transport.go:129 +0x372
+google.golang.org/grpc/internal/transport.(*Stream).write(...)
+	/tmp/claims/6fe210bc/internal/transport/transport.go:482
+google.golang.org/grpc/internal/transport.(*http2Client).handleData(0xc000128008, 0xc000124038)
+	/tmp/claims/6fe210bc/internal/transport/http2_client.go:1282 +0x305
+google.golang.org/grpc/internal/transport.(*http2Client).reader(0xc000128008, 0xc000136000)
+	/tmp/claims/6fe210bc/internal/transport/http2_client.go:1766 +0x35f
+created by google.golang.org/grpc/internal/transport.NewHTTP2Client in goroutine 9
+	/tmp/claims/6fe210bc/internal/transport/http2_client.go:420 +0x1e73
+FAIL	google.golang.org/grpc/internal/transport	40.105s
+FAIL
+
+real	0m42.255s
+user	0m5.204s
+sys	0m0.999s

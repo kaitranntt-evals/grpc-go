@@ -1,0 +1,17 @@
+=== RUN   TestEval_RecvBufferCompaction
+--- PASS: TestEval_RecvBufferCompaction (0.00s)
+=== RUN   TestEval_RecvBufferCompactionDisabled
+--- PASS: TestEval_RecvBufferCompactionDisabled (0.00s)
+=== RUN   TestEval_RecvBufferCompactionSkippedLargeBuffer
+--- PASS: TestEval_RecvBufferCompactionSkippedLargeBuffer (0.00s)
+=== RUN   TestEval_RecvBufferErrorResetSafety
+--- PASS: TestEval_RecvBufferErrorResetSafety (0.00s)
+=== RUN   TestEval_RecvBufferCompaction_MixedFrames
+--- PASS: TestEval_RecvBufferCompaction_MixedFrames (0.00s)
+=== RUN   TestEval_RecvBufferCompaction_MultiCycleMemoryBound
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+    eval_recv_buffer_compaction_test.go:360: Multi-cycle payload mismatch: got 10110 bytes, want 10110 bytes
+--- FAIL: TestEval_RecvBufferCompaction_MultiCycleMemoryBound (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	0.007s
+FAIL

@@ -1,0 +1,25 @@
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionConcurrentReader
+=== RUN   Test/RecvBuffer_CompactionWithError
+=== RUN   Test/RecvBuffer_LargeMessagesBypassCompaction
+=== RUN   Test/RecvBuffer_SmallMessagesAmortizedAllocations
+=== RUN   Test/RecvBuffer_SmallMessagesBoundedMemory
+    recv_buffer_test.go:185: Heap held for 65536 1-byte messages: 3996624 bytes without compaction, 76080 bytes with compaction
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction/enabled
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction/disabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+--- PASS: Test (0.24s)
+    --- PASS: Test/RecvBuffer_CompactionConcurrentReader (0.00s)
+    --- PASS: Test/RecvBuffer_CompactionWithError (0.00s)
+    --- PASS: Test/RecvBuffer_LargeMessagesBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallMessagesAmortizedAllocations (0.01s)
+    --- PASS: Test/RecvBuffer_SmallMessagesBoundedMemory (0.02s)
+    --- PASS: Test/RecvBuffer_SmallMessagesCompaction (0.02s)
+        --- PASS: Test/RecvBuffer_SmallMessagesCompaction/enabled (0.00s)
+        --- PASS: Test/RecvBuffer_SmallMessagesCompaction/disabled (0.01s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.18s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	0.245s

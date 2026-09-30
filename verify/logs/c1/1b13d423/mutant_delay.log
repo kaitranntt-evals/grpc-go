@@ -1,0 +1,102 @@
+=== RUN   Test
+=== RUN   Test/ClientStream_ManySmallDataFramesCompacted
+=== RUN   Test/RecvBuffer_ConcurrentReadWrite
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersMemoryBounded
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled
+--- PASS: Test (1.87s)
+    --- PASS: Test/ClientStream_ManySmallDataFramesCompacted (0.32s)
+    --- PASS: Test/RecvBuffer_ConcurrentReadWrite (0.31s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.30s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersMemoryBounded (0.31s)
+    --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream (0.62s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled (0.31s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled (0.31s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientStream_ManySmallDataFramesCompacted
+=== RUN   Test/RecvBuffer_ConcurrentReadWrite
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersMemoryBounded
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled
+--- PASS: Test (1.90s)
+    --- PASS: Test/ClientStream_ManySmallDataFramesCompacted (0.35s)
+    --- PASS: Test/RecvBuffer_ConcurrentReadWrite (0.31s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.30s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersMemoryBounded (0.31s)
+    --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream (0.63s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled (0.31s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled (0.32s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientStream_ManySmallDataFramesCompacted
+=== RUN   Test/RecvBuffer_ConcurrentReadWrite
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersMemoryBounded
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled
+--- PASS: Test (1.87s)
+    --- PASS: Test/ClientStream_ManySmallDataFramesCompacted (0.32s)
+    --- PASS: Test/RecvBuffer_ConcurrentReadWrite (0.31s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.30s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersMemoryBounded (0.31s)
+    --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream (0.63s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled (0.31s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled (0.32s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientStream_ManySmallDataFramesCompacted
+=== RUN   Test/RecvBuffer_ConcurrentReadWrite
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersMemoryBounded
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled
+--- PASS: Test (1.87s)
+    --- PASS: Test/ClientStream_ManySmallDataFramesCompacted (0.32s)
+    --- PASS: Test/RecvBuffer_ConcurrentReadWrite (0.31s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.30s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersMemoryBounded (0.31s)
+    --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream (0.63s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled (0.31s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled (0.31s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientStream_ManySmallDataFramesCompacted
+=== RUN   Test/RecvBuffer_ConcurrentReadWrite
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersMemoryBounded
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled
+--- PASS: Test (1.87s)
+    --- PASS: Test/ClientStream_ManySmallDataFramesCompacted (0.33s)
+    --- PASS: Test/RecvBuffer_ConcurrentReadWrite (0.31s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.30s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersMemoryBounded (0.31s)
+    --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream (0.62s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled (0.31s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled (0.31s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	9.378s

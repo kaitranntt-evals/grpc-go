@@ -1,0 +1,123 @@
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index 150ddc5a..164862f8 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -27,6 +27,8 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"net"
++	"os"
++	"strconv"
+ 	"sync"
+ 	"sync/atomic"
+ 	"time"
+@@ -74,10 +76,13 @@ type recvMsg struct {
+ // backlog stays proportional to the buffered payload instead of the number of
+ // received frames.
+ type recvBuffer struct {
+-	c       chan recvMsg
+-	mu      sync.Mutex
+-	backlog []recvMsg
+-	err     error
++	mutConsumed bool    // C1 mutant
++	mutEverPut  bool    // C1 mutant
++	mutReported [2]bool // C1 mutant
++	c           chan recvMsg
++	mu          sync.Mutex
++	backlog     []recvMsg
++	err         error
+ 
+ 	// pool, if non-nil, is used to allocate compaction chunks that are large
+ 	// enough to be pooled.
+@@ -115,6 +120,25 @@ func (b *recvBuffer) init() {
+ 
+ func (b *recvBuffer) put(r recvMsg) {
+ 	b.mu.Lock()
++	if b.mutEverPut && len(b.c) == 0 { // C1 mutant: a reader has taken a message off b.c
++		b.mutConsumed = true
++	}
++	if b.mutConsumed { // C1 mutant
++		if r.err != nil {
++			c1MutantHit(&b.mutReported[1], "terminal")
++			r.err = errC1Mutant
++		} else if r.buffer != nil {
++			c1MutantHit(&b.mutReported[0], "data")
++			n := r.buffer.Len()
++			r.buffer.Free()
++			bad := make([]byte, n)
++			for i := range bad {
++				bad[i] = 0xEE
++			}
++			r.buffer = mem.SliceBuffer(bad)
++		}
++	}
++	b.mutEverPut = true // C1 mutant
+ 	if b.err != nil {
+ 		// drop the buffer on the floor. Since b.err is not nil, any subsequent reads
+ 		// will always return an error, making this buffer inaccessible.
+@@ -234,6 +258,9 @@ func (b *recvBuffer) sealChunkLocked() {
+ 
+ func (b *recvBuffer) load() {
+ 	b.mu.Lock()
++	if b.mutEverPut && len(b.c) == 0 { // C1 mutant: a reader has taken a message off b.c
++		b.mutConsumed = true
++	}
+ 	if len(b.backlog) > 0 {
+ 		if len(b.backlog) == 1 {
+ 			// The entry being loaded may be the placeholder for the chunk
+@@ -261,6 +288,7 @@ func (b *recvBuffer) get() <-chan recvMsg {
+ // recvBufferReader implements io.Reader interface to read the data from
+ // recvBuffer.
+ type recvBufferReader struct {
++	mutDelayed   bool // C1 mutant
+ 	_            noCopy
+ 	clientStream *ClientStream // The client transport stream is closed with a status representing ctx.Err() and nil trailer metadata.
+ 	ctx          context.Context
+@@ -271,6 +299,7 @@ type recvBufferReader struct {
+ }
+ 
+ func (r *recvBufferReader) ReadMessageHeader(header []byte) (n int, err error) {
++	c1ReaderDelay(r) // C1 mutant
+ 	if r.err != nil {
+ 		return 0, r.err
+ 	}
+@@ -291,6 +320,7 @@ func (r *recvBufferReader) ReadMessageHeader(header []byte) (n int, err error) {
+ // recv. If Read returns any non-nil error, it will continue to return that
+ // error.
+ func (r *recvBufferReader) Read(n int) (buf mem.Buffer, err error) {
++	c1ReaderDelay(r) // C1 mutant
+ 	if r.err != nil {
+ 		return nil, r.err
+ 	}
+@@ -904,3 +934,31 @@ func ContextErr(err error) error {
+ 	}
+ 	return status.Errorf(codes.Internal, "Unexpected error from context packet: %v", err)
+ }
++
++// C1 mutant support.
++var errC1Mutant = c1MutantErr{}
++
++type c1MutantErr struct{}
++
++func (c1MutantErr) Error() string { return "C1 mutant: terminal put after consumption" }
++
++// c1MutantHit reports the first post-consumption put of each kind per recvBuffer.
++func c1MutantHit(reported *bool, kind string) {
++	if !*reported {
++		*reported = true
++		println("C1-MUTANT-HIT post-consumption put on this buffer, kind=" + kind)
++	}
++}
++
++// c1ReaderDelay models a legal schedule in which the reader goroutine is
++// descheduled before its first read: with C1_READER_DELAY_MS set, the first
++// Read/ReadMessageHeader on each recvBufferReader sleeps that long.
++func c1ReaderDelay(r *recvBufferReader) {
++	if r.mutDelayed {
++		return
++	}
++	r.mutDelayed = true
++	if ms, _ := strconv.Atoi(os.Getenv("C1_READER_DELAY_MS")); ms > 0 {
++		time.Sleep(time.Duration(ms) * time.Millisecond)
++	}
++}

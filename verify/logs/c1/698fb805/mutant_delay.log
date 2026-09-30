@@ -1,0 +1,82 @@
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionConcurrentReadWrite
+=== RUN   Test/RecvBuffer_CompactionDisabled
+=== RUN   Test/RecvBuffer_CompactionPreservesErrorOrdering
+=== RUN   Test/RecvBuffer_CompactsSmallMessages
+=== RUN   Test/RecvBuffer_LargeMessagesBypassCompaction
+=== RUN   Test/ServerCompactsTinyDataFramesOnSlowStream
+--- PASS: Test (1.85s)
+    --- PASS: Test/RecvBuffer_CompactionConcurrentReadWrite (0.30s)
+    --- PASS: Test/RecvBuffer_CompactionDisabled (0.30s)
+    --- PASS: Test/RecvBuffer_CompactionPreservesErrorOrdering (0.30s)
+    --- PASS: Test/RecvBuffer_CompactsSmallMessages (0.30s)
+    --- PASS: Test/RecvBuffer_LargeMessagesBypassCompaction (0.30s)
+    --- PASS: Test/ServerCompactsTinyDataFramesOnSlowStream (0.33s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionConcurrentReadWrite
+=== RUN   Test/RecvBuffer_CompactionDisabled
+=== RUN   Test/RecvBuffer_CompactionPreservesErrorOrdering
+=== RUN   Test/RecvBuffer_CompactsSmallMessages
+=== RUN   Test/RecvBuffer_LargeMessagesBypassCompaction
+=== RUN   Test/ServerCompactsTinyDataFramesOnSlowStream
+--- PASS: Test (1.93s)
+    --- PASS: Test/RecvBuffer_CompactionConcurrentReadWrite (0.31s)
+    --- PASS: Test/RecvBuffer_CompactionDisabled (0.30s)
+    --- PASS: Test/RecvBuffer_CompactionPreservesErrorOrdering (0.30s)
+    --- PASS: Test/RecvBuffer_CompactsSmallMessages (0.31s)
+    --- PASS: Test/RecvBuffer_LargeMessagesBypassCompaction (0.30s)
+    --- PASS: Test/ServerCompactsTinyDataFramesOnSlowStream (0.41s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionConcurrentReadWrite
+=== RUN   Test/RecvBuffer_CompactionDisabled
+=== RUN   Test/RecvBuffer_CompactionPreservesErrorOrdering
+=== RUN   Test/RecvBuffer_CompactsSmallMessages
+=== RUN   Test/RecvBuffer_LargeMessagesBypassCompaction
+=== RUN   Test/ServerCompactsTinyDataFramesOnSlowStream
+--- PASS: Test (1.86s)
+    --- PASS: Test/RecvBuffer_CompactionConcurrentReadWrite (0.30s)
+    --- PASS: Test/RecvBuffer_CompactionDisabled (0.30s)
+    --- PASS: Test/RecvBuffer_CompactionPreservesErrorOrdering (0.30s)
+    --- PASS: Test/RecvBuffer_CompactsSmallMessages (0.31s)
+    --- PASS: Test/RecvBuffer_LargeMessagesBypassCompaction (0.30s)
+    --- PASS: Test/ServerCompactsTinyDataFramesOnSlowStream (0.34s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionConcurrentReadWrite
+=== RUN   Test/RecvBuffer_CompactionDisabled
+=== RUN   Test/RecvBuffer_CompactionPreservesErrorOrdering
+=== RUN   Test/RecvBuffer_CompactsSmallMessages
+=== RUN   Test/RecvBuffer_LargeMessagesBypassCompaction
+=== RUN   Test/ServerCompactsTinyDataFramesOnSlowStream
+--- PASS: Test (1.91s)
+    --- PASS: Test/RecvBuffer_CompactionConcurrentReadWrite (0.30s)
+    --- PASS: Test/RecvBuffer_CompactionDisabled (0.30s)
+    --- PASS: Test/RecvBuffer_CompactionPreservesErrorOrdering (0.30s)
+    --- PASS: Test/RecvBuffer_CompactsSmallMessages (0.31s)
+    --- PASS: Test/RecvBuffer_LargeMessagesBypassCompaction (0.30s)
+    --- PASS: Test/ServerCompactsTinyDataFramesOnSlowStream (0.39s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionConcurrentReadWrite
+=== RUN   Test/RecvBuffer_CompactionDisabled
+=== RUN   Test/RecvBuffer_CompactionPreservesErrorOrdering
+=== RUN   Test/RecvBuffer_CompactsSmallMessages
+=== RUN   Test/RecvBuffer_LargeMessagesBypassCompaction
+=== RUN   Test/ServerCompactsTinyDataFramesOnSlowStream
+--- PASS: Test (1.92s)
+    --- PASS: Test/RecvBuffer_CompactionConcurrentReadWrite (0.30s)
+    --- PASS: Test/RecvBuffer_CompactionDisabled (0.30s)
+    --- PASS: Test/RecvBuffer_CompactionPreservesErrorOrdering (0.30s)
+    --- PASS: Test/RecvBuffer_CompactsSmallMessages (0.31s)
+    --- PASS: Test/RecvBuffer_LargeMessagesBypassCompaction (0.30s)
+    --- PASS: Test/ServerCompactsTinyDataFramesOnSlowStream (0.40s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	9.469s

@@ -1,0 +1,28 @@
+=== RUN   TestVerifyC7_BurstRetainedStorage
+    c7_two_frame_burst_test.go:46: frames=2 compaction=true: len(b.c)=1 len(b.backlog)=1
+    c7_two_frame_burst_test.go:57:   backlog[0]: type=*mem.SliceBuffer len=1 cap=1024 sameStorageAsOriginalFrame=-1
+    c7_two_frame_burst_test.go:67:   total backing capacity retained by backlog = 1024 bytes for 1 queued payload byte(s)
+    c7_two_frame_burst_test.go:46: frames=2 compaction=false: len(b.c)=1 len(b.backlog)=1
+    c7_two_frame_burst_test.go:57:   backlog[0]: type=mem.SliceBuffer len=1 cap=1 sameStorageAsOriginalFrame=1
+    c7_two_frame_burst_test.go:67:   total backing capacity retained by backlog = 1 bytes for 1 queued payload byte(s)
+    c7_two_frame_burst_test.go:46: frames=4 compaction=true: len(b.c)=1 len(b.backlog)=1
+    c7_two_frame_burst_test.go:57:   backlog[0]: type=*mem.SliceBuffer len=3 cap=1024 sameStorageAsOriginalFrame=-1
+    c7_two_frame_burst_test.go:67:   total backing capacity retained by backlog = 1024 bytes for 3 queued payload byte(s)
+    c7_two_frame_burst_test.go:46: frames=4 compaction=false: len(b.c)=1 len(b.backlog)=3
+    c7_two_frame_burst_test.go:57:   backlog[0]: type=mem.SliceBuffer len=1 cap=1 sameStorageAsOriginalFrame=1
+    c7_two_frame_burst_test.go:57:   backlog[1]: type=mem.SliceBuffer len=1 cap=1 sameStorageAsOriginalFrame=2
+    c7_two_frame_burst_test.go:57:   backlog[2]: type=mem.SliceBuffer len=1 cap=1 sameStorageAsOriginalFrame=3
+    c7_two_frame_burst_test.go:67:   total backing capacity retained by backlog = 3 bytes for 3 queued payload byte(s)
+--- PASS: TestVerifyC7_BurstRetainedStorage (0.00s)
+=== RUN   TestVerifyC7_HeapRetained
+    c7_two_frame_burst_test.go:100: burst of 1 one-byte frames, unread: heap retained per stream: compaction enabled=25 B, disabled=25 B
+    c7_two_frame_burst_test.go:100: burst of 2 one-byte frames, unread: heap retained per stream: compaction enabled=1105 B, disabled=82 B
+    c7_two_frame_burst_test.go:100: burst of 4 one-byte frames, unread: heap retained per stream: compaction enabled=1107 B, disabled=228 B
+    c7_two_frame_burst_test.go:100: burst of 8 one-byte frames, unread: heap retained per stream: compaction enabled=1111 B, disabled=456 B
+    c7_two_frame_burst_test.go:100: burst of 16 one-byte frames, unread: heap retained per stream: compaction enabled=1119 B, disabled=912 B
+    c7_two_frame_burst_test.go:100: burst of 32 one-byte frames, unread: heap retained per stream: compaction enabled=1119 B, disabled=1952 B
+    c7_two_frame_burst_test.go:100: burst of 64 one-byte frames, unread: heap retained per stream: compaction enabled=1119 B, disabled=3904 B
+--- PASS: TestVerifyC7_HeapRetained (0.48s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	0.492s
+exit=0

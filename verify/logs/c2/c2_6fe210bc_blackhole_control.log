@@ -1,0 +1,13 @@
+=== RUN   Test
+=== RUN   Test/ClientReceivesManySmallDataFrames
+    transport_test.go:3731: NewHTTP2Client failed: connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:42253: i/o timeout"
+    transport_test.go:3636: Server failed to accept connection: accept tcp 127.0.0.1:42253: use of closed network connection
+--- FAIL: Test (10.05s)
+    --- FAIL: Test/ClientReceivesManySmallDataFrames (10.05s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+
+real	0m10.081s
+user	0m0.009s
+sys	0m0.021s

@@ -1,0 +1,16 @@
+=== RUN   Test
+=== RUN   Test/ClientReceivesManySmallDataFrames
+=== RUN   Test/ClientReceivesManySmallDataFrames/compaction=true
+=== RUN   Test/ClientReceivesManySmallDataFrames/compaction=false
+--- PASS: Test (0.12s)
+    --- PASS: Test/ClientReceivesManySmallDataFrames (0.12s)
+        --- PASS: Test/ClientReceivesManySmallDataFrames/compaction=true (0.05s)
+        --- PASS: Test/ClientReceivesManySmallDataFrames/compaction=false (0.07s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	0.127s
+
+real	0m2.062s
+user	0m5.433s
+sys	0m1.160s

@@ -1,0 +1,293 @@
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/enabled
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/disabled
+=== RUN   Test/RecvBuffer_ConcurrentWritesAndReads
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:350: Data read from stream does not match data written
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersHeapUsageBounded
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/enabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/disabled
+--- FAIL: Test (0.08s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.00s)
+    --- PASS: Test/RecvBuffer_CompactsSmallBuffers (0.02s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/enabled (0.00s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/disabled (0.02s)
+    --- FAIL: Test/RecvBuffer_ConcurrentWritesAndReads (0.00s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersHeapUsageBounded (0.01s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.03s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/enabled (0.01s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/enabled
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/disabled
+=== RUN   Test/RecvBuffer_ConcurrentWritesAndReads
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:350: Data read from stream does not match data written
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersHeapUsageBounded
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/enabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/disabled
+--- FAIL: Test (0.07s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.00s)
+    --- PASS: Test/RecvBuffer_CompactsSmallBuffers (0.02s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/enabled (0.00s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/disabled (0.02s)
+    --- FAIL: Test/RecvBuffer_ConcurrentWritesAndReads (0.00s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersHeapUsageBounded (0.01s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.03s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/enabled (0.01s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/enabled
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/disabled
+=== RUN   Test/RecvBuffer_ConcurrentWritesAndReads
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:350: Data read from stream does not match data written
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersHeapUsageBounded
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/enabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/disabled
+--- FAIL: Test (0.08s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.00s)
+    --- PASS: Test/RecvBuffer_CompactsSmallBuffers (0.02s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/enabled (0.00s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/disabled (0.02s)
+    --- FAIL: Test/RecvBuffer_ConcurrentWritesAndReads (0.00s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersHeapUsageBounded (0.01s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.03s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/enabled (0.01s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/enabled
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/disabled
+=== RUN   Test/RecvBuffer_ConcurrentWritesAndReads
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:350: Data read from stream does not match data written
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersHeapUsageBounded
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/enabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/disabled
+--- FAIL: Test (0.07s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.00s)
+    --- PASS: Test/RecvBuffer_CompactsSmallBuffers (0.02s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/enabled (0.00s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/disabled (0.02s)
+    --- FAIL: Test/RecvBuffer_ConcurrentWritesAndReads (0.00s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersHeapUsageBounded (0.01s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.03s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/enabled (0.01s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/enabled
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/disabled
+=== RUN   Test/RecvBuffer_ConcurrentWritesAndReads
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:350: Data read from stream does not match data written
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersHeapUsageBounded
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/enabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/disabled
+--- FAIL: Test (0.08s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.00s)
+    --- PASS: Test/RecvBuffer_CompactsSmallBuffers (0.02s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/enabled (0.00s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/disabled (0.02s)
+    --- FAIL: Test/RecvBuffer_ConcurrentWritesAndReads (0.00s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersHeapUsageBounded (0.02s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.03s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/enabled (0.01s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/enabled
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/disabled
+=== RUN   Test/RecvBuffer_ConcurrentWritesAndReads
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:350: Data read from stream does not match data written
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersHeapUsageBounded
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/enabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/disabled
+--- FAIL: Test (0.07s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.00s)
+    --- PASS: Test/RecvBuffer_CompactsSmallBuffers (0.02s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/enabled (0.00s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/disabled (0.02s)
+    --- FAIL: Test/RecvBuffer_ConcurrentWritesAndReads (0.00s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersHeapUsageBounded (0.01s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.03s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/enabled (0.01s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/enabled
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/disabled
+=== RUN   Test/RecvBuffer_ConcurrentWritesAndReads
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:350: Data read from stream does not match data written
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersHeapUsageBounded
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/enabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/disabled
+--- FAIL: Test (0.07s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.00s)
+    --- PASS: Test/RecvBuffer_CompactsSmallBuffers (0.02s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/enabled (0.00s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/disabled (0.02s)
+    --- FAIL: Test/RecvBuffer_ConcurrentWritesAndReads (0.00s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersHeapUsageBounded (0.01s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.03s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/enabled (0.01s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/enabled
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/disabled
+=== RUN   Test/RecvBuffer_ConcurrentWritesAndReads
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:350: Data read from stream does not match data written
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersHeapUsageBounded
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/enabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/disabled
+--- FAIL: Test (0.07s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.00s)
+    --- PASS: Test/RecvBuffer_CompactsSmallBuffers (0.02s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/enabled (0.00s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/disabled (0.02s)
+    --- FAIL: Test/RecvBuffer_ConcurrentWritesAndReads (0.00s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersHeapUsageBounded (0.01s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.03s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/enabled (0.01s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/enabled
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/disabled
+=== RUN   Test/RecvBuffer_ConcurrentWritesAndReads
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:350: Data read from stream does not match data written
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersHeapUsageBounded
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/enabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/disabled
+--- FAIL: Test (0.07s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.00s)
+    --- PASS: Test/RecvBuffer_CompactsSmallBuffers (0.02s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/enabled (0.00s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/disabled (0.02s)
+    --- FAIL: Test/RecvBuffer_ConcurrentWritesAndReads (0.00s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersHeapUsageBounded (0.01s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.03s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/enabled (0.01s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/enabled
+=== RUN   Test/RecvBuffer_CompactsSmallBuffers/disabled
+=== RUN   Test/RecvBuffer_ConcurrentWritesAndReads
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:350: Data read from stream does not match data written
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersHeapUsageBounded
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/enabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted/disabled
+--- FAIL: Test (0.08s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.00s)
+    --- PASS: Test/RecvBuffer_CompactsSmallBuffers (0.02s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/enabled (0.00s)
+        --- PASS: Test/RecvBuffer_CompactsSmallBuffers/disabled (0.02s)
+    --- FAIL: Test/RecvBuffer_ConcurrentWritesAndReads (0.00s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersHeapUsageBounded (0.01s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.03s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/enabled (0.01s)
+        --- PASS: Test/ServerStream_TinyDataFramesCompacted/disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	0.752s
+FAIL

@@ -1,0 +1,18 @@
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionConcurrentReadWrite
+=== RUN   Test/RecvBuffer_CompactionDisabled
+=== RUN   Test/RecvBuffer_CompactionPreservesErrorOrdering
+=== RUN   Test/RecvBuffer_CompactsSmallMessages
+=== RUN   Test/RecvBuffer_LargeMessagesBypassCompaction
+=== RUN   Test/ServerCompactsTinyDataFramesOnSlowStream
+--- PASS: Test (0.05s)
+    --- PASS: Test/RecvBuffer_CompactionConcurrentReadWrite (0.00s)
+    --- PASS: Test/RecvBuffer_CompactionDisabled (0.00s)
+    --- PASS: Test/RecvBuffer_CompactionPreservesErrorOrdering (0.00s)
+    --- PASS: Test/RecvBuffer_CompactsSmallMessages (0.00s)
+    --- PASS: Test/RecvBuffer_LargeMessagesBypassCompaction (0.00s)
+    --- PASS: Test/ServerCompactsTinyDataFramesOnSlowStream (0.04s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	0.059s

@@ -1,0 +1,23 @@
+# Run: cd /tmp/claims/80a05d05 && git apply <repo>/verify/repro/c2_80a05d05_handler_stall.patch && VERIFY_C2_STALL_HANDLER=1 go test ./internal/transport -run '^Test$/^ClientReceivesManySmallDataFrames$' -count=1 -v -timeout 45s; git checkout -- .
+diff --git a/internal/transport/server_stream.go b/internal/transport/server_stream.go
+index ed6a13b7..5bd93ea0 100644
+--- a/internal/transport/server_stream.go
++++ b/internal/transport/server_stream.go
+@@ -19,6 +19,7 @@
+ package transport
+ 
+ import (
++	"os"
+ 	"context"
+ 	"errors"
+ 	"strings"
+@@ -74,6 +75,9 @@ func (s *ServerStream) Write(hdr []byte, data mem.BufferSlice, opts *WriteOption
+ // WriteStatus sends the status of a stream to the client.  WriteStatus is
+ // the final call made on a stream and always occurs.
+ func (s *ServerStream) WriteStatus(st *status.Status) error {
++	if os.Getenv("VERIFY_C2_STALL_HANDLER") != "" { // C2 induced stall: the stream handler goroutine never finishes
++		select {}
++	}
+ 	return s.st.writeStatus(s, st)
+ }
+ 

@@ -1,0 +1,32 @@
+# Run: cd /tmp/claims/6fe210bc && git apply <repo>/verify/repro/c2_6fe210bc_reader_stall.patch && VERIFY_C2_STALL_PUT=1 go test ./internal/transport -run '^Test$/^ClientReceivesManySmallDataFrames$' -count=1 -v -timeout 40s; git checkout -- .
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index d6831cb8..c72c2d66 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -27,6 +27,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"net"
++	"os"
+ 	"sync"
+ 	"sync/atomic"
+ 	"time"
+@@ -93,6 +94,7 @@ const (
+ // frames received. Payloads larger than recvBufferCompactionThreshold bypass
+ // compaction and are queued without being copied.
+ type recvBuffer struct {
++	mutPuts atomic.Int32 // C2 stall instrumentation
+ 	c       chan recvMsg
+ 	mu      sync.Mutex
+ 	backlog []recvMsg
+@@ -122,6 +124,10 @@ func (b *recvBuffer) init(pool mem.BufferPool) {
+ }
+ 
+ func (b *recvBuffer) put(r recvMsg) {
++	if os.Getenv("VERIFY_C2_STALL_PUT") != "" && b.mutPuts.Add(1) == 100 { // C2 stall instrumentation: the 100th put on a buffer never returns
++		println("C2-STALL: recvBuffer.put #100 stalls forever")
++		select {}
++	}
+ 	b.mu.Lock()
+ 	defer b.mu.Unlock()
+ 	if b.err != nil {

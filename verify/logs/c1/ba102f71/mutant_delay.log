@@ -1,0 +1,122 @@
+=== RUN   Test
+=== RUN   Test/ClientTransport_ManySmallDataFrames
+=== RUN   Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true
+=== RUN   Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_ConcurrentReadAndCompaction
+=== RUN   Test/RecvBuffer_ErrorAfterCompaction
+=== RUN   Test/RecvBuffer_LargeAndLoneFramesBypassCompaction
+=== RUN   Test/RecvBuffer_ManySmallFrames
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction_enabled=true
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction_enabled=false
+--- PASS: Test (2.44s)
+    --- PASS: Test/ClientTransport_ManySmallDataFrames (0.61s)
+        --- PASS: Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true (0.31s)
+        --- PASS: Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false (0.31s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.30s)
+    --- PASS: Test/RecvBuffer_ConcurrentReadAndCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_LargeAndLoneFramesBypassCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_ManySmallFrames (0.62s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction_enabled=true (0.30s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction_enabled=false (0.31s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientTransport_ManySmallDataFrames
+=== RUN   Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true
+=== RUN   Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_ConcurrentReadAndCompaction
+=== RUN   Test/RecvBuffer_ErrorAfterCompaction
+=== RUN   Test/RecvBuffer_LargeAndLoneFramesBypassCompaction
+=== RUN   Test/RecvBuffer_ManySmallFrames
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction_enabled=true
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction_enabled=false
+--- PASS: Test (2.44s)
+    --- PASS: Test/ClientTransport_ManySmallDataFrames (0.61s)
+        --- PASS: Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true (0.31s)
+        --- PASS: Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false (0.31s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.30s)
+    --- PASS: Test/RecvBuffer_ConcurrentReadAndCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_LargeAndLoneFramesBypassCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_ManySmallFrames (0.62s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction_enabled=true (0.30s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction_enabled=false (0.31s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientTransport_ManySmallDataFrames
+=== RUN   Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true
+=== RUN   Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_ConcurrentReadAndCompaction
+=== RUN   Test/RecvBuffer_ErrorAfterCompaction
+=== RUN   Test/RecvBuffer_LargeAndLoneFramesBypassCompaction
+=== RUN   Test/RecvBuffer_ManySmallFrames
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction_enabled=true
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction_enabled=false
+--- PASS: Test (2.44s)
+    --- PASS: Test/ClientTransport_ManySmallDataFrames (0.61s)
+        --- PASS: Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true (0.31s)
+        --- PASS: Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false (0.31s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.30s)
+    --- PASS: Test/RecvBuffer_ConcurrentReadAndCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_LargeAndLoneFramesBypassCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_ManySmallFrames (0.61s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction_enabled=true (0.30s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction_enabled=false (0.31s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientTransport_ManySmallDataFrames
+=== RUN   Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true
+=== RUN   Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_ConcurrentReadAndCompaction
+=== RUN   Test/RecvBuffer_ErrorAfterCompaction
+=== RUN   Test/RecvBuffer_LargeAndLoneFramesBypassCompaction
+=== RUN   Test/RecvBuffer_ManySmallFrames
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction_enabled=true
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction_enabled=false
+--- PASS: Test (2.45s)
+    --- PASS: Test/ClientTransport_ManySmallDataFrames (0.61s)
+        --- PASS: Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true (0.31s)
+        --- PASS: Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false (0.31s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.30s)
+    --- PASS: Test/RecvBuffer_ConcurrentReadAndCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_LargeAndLoneFramesBypassCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_ManySmallFrames (0.61s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction_enabled=true (0.30s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction_enabled=false (0.31s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientTransport_ManySmallDataFrames
+=== RUN   Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true
+=== RUN   Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_ConcurrentReadAndCompaction
+=== RUN   Test/RecvBuffer_ErrorAfterCompaction
+=== RUN   Test/RecvBuffer_LargeAndLoneFramesBypassCompaction
+=== RUN   Test/RecvBuffer_ManySmallFrames
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction_enabled=true
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction_enabled=false
+--- PASS: Test (2.44s)
+    --- PASS: Test/ClientTransport_ManySmallDataFrames (0.61s)
+        --- PASS: Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true (0.31s)
+        --- PASS: Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false (0.31s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.30s)
+    --- PASS: Test/RecvBuffer_ConcurrentReadAndCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_LargeAndLoneFramesBypassCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_ManySmallFrames (0.61s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction_enabled=true (0.30s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction_enabled=false (0.31s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	12.210s

@@ -1,0 +1,132 @@
+=== RUN   Test
+=== RUN   Test/ReadGivesSameErrorAfterAnyErrorOccurs
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+=== RUN   Test/ReadMessageHeaderMultipleBuffers
+=== RUN   Test/RecvBuffer_ConcurrentSmallFrames
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeFramesBypassCompaction
+=== RUN   Test/RecvBuffer_ManySmallFrames
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction-enabled
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction-disabled
+=== RUN   Test/RecvBuffer_SmallFramesMemoryBounded
+=== RUN   Test/ServerReceivesManyTinyDataFrames
+--- PASS: Test (2.75s)
+    --- PASS: Test/ReadGivesSameErrorAfterAnyErrorOccurs (0.30s)
+    --- PASS: Test/ReadMessageHeaderMultipleBuffers (0.30s)
+    --- PASS: Test/RecvBuffer_ConcurrentSmallFrames (0.30s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.30s)
+    --- PASS: Test/RecvBuffer_LargeFramesBypassCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_ManySmallFrames (0.62s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction-enabled (0.30s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction-disabled (0.31s)
+    --- PASS: Test/RecvBuffer_SmallFramesMemoryBounded (0.31s)
+    --- PASS: Test/ServerReceivesManyTinyDataFrames (0.31s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ReadGivesSameErrorAfterAnyErrorOccurs
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+=== RUN   Test/ReadMessageHeaderMultipleBuffers
+=== RUN   Test/RecvBuffer_ConcurrentSmallFrames
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeFramesBypassCompaction
+=== RUN   Test/RecvBuffer_ManySmallFrames
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction-enabled
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction-disabled
+=== RUN   Test/RecvBuffer_SmallFramesMemoryBounded
+=== RUN   Test/ServerReceivesManyTinyDataFrames
+--- PASS: Test (2.75s)
+    --- PASS: Test/ReadGivesSameErrorAfterAnyErrorOccurs (0.30s)
+    --- PASS: Test/ReadMessageHeaderMultipleBuffers (0.30s)
+    --- PASS: Test/RecvBuffer_ConcurrentSmallFrames (0.30s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.30s)
+    --- PASS: Test/RecvBuffer_LargeFramesBypassCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_ManySmallFrames (0.62s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction-enabled (0.30s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction-disabled (0.31s)
+    --- PASS: Test/RecvBuffer_SmallFramesMemoryBounded (0.31s)
+    --- PASS: Test/ServerReceivesManyTinyDataFrames (0.31s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ReadGivesSameErrorAfterAnyErrorOccurs
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+=== RUN   Test/ReadMessageHeaderMultipleBuffers
+=== RUN   Test/RecvBuffer_ConcurrentSmallFrames
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeFramesBypassCompaction
+=== RUN   Test/RecvBuffer_ManySmallFrames
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction-enabled
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction-disabled
+=== RUN   Test/RecvBuffer_SmallFramesMemoryBounded
+=== RUN   Test/ServerReceivesManyTinyDataFrames
+--- PASS: Test (2.75s)
+    --- PASS: Test/ReadGivesSameErrorAfterAnyErrorOccurs (0.30s)
+    --- PASS: Test/ReadMessageHeaderMultipleBuffers (0.30s)
+    --- PASS: Test/RecvBuffer_ConcurrentSmallFrames (0.30s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.30s)
+    --- PASS: Test/RecvBuffer_LargeFramesBypassCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_ManySmallFrames (0.62s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction-enabled (0.30s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction-disabled (0.31s)
+    --- PASS: Test/RecvBuffer_SmallFramesMemoryBounded (0.31s)
+    --- PASS: Test/ServerReceivesManyTinyDataFrames (0.32s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ReadGivesSameErrorAfterAnyErrorOccurs
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+=== RUN   Test/ReadMessageHeaderMultipleBuffers
+=== RUN   Test/RecvBuffer_ConcurrentSmallFrames
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeFramesBypassCompaction
+=== RUN   Test/RecvBuffer_ManySmallFrames
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction-enabled
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction-disabled
+=== RUN   Test/RecvBuffer_SmallFramesMemoryBounded
+=== RUN   Test/ServerReceivesManyTinyDataFrames
+--- PASS: Test (2.76s)
+    --- PASS: Test/ReadGivesSameErrorAfterAnyErrorOccurs (0.30s)
+    --- PASS: Test/ReadMessageHeaderMultipleBuffers (0.30s)
+    --- PASS: Test/RecvBuffer_ConcurrentSmallFrames (0.30s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.30s)
+    --- PASS: Test/RecvBuffer_LargeFramesBypassCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_ManySmallFrames (0.62s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction-enabled (0.30s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction-disabled (0.31s)
+    --- PASS: Test/RecvBuffer_SmallFramesMemoryBounded (0.31s)
+    --- PASS: Test/ServerReceivesManyTinyDataFrames (0.31s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ReadGivesSameErrorAfterAnyErrorOccurs
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+=== RUN   Test/ReadMessageHeaderMultipleBuffers
+=== RUN   Test/RecvBuffer_ConcurrentSmallFrames
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeFramesBypassCompaction
+=== RUN   Test/RecvBuffer_ManySmallFrames
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction-enabled
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction-disabled
+=== RUN   Test/RecvBuffer_SmallFramesMemoryBounded
+=== RUN   Test/ServerReceivesManyTinyDataFrames
+--- PASS: Test (2.76s)
+    --- PASS: Test/ReadGivesSameErrorAfterAnyErrorOccurs (0.30s)
+    --- PASS: Test/ReadMessageHeaderMultipleBuffers (0.30s)
+    --- PASS: Test/RecvBuffer_ConcurrentSmallFrames (0.30s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.30s)
+    --- PASS: Test/RecvBuffer_LargeFramesBypassCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_ManySmallFrames (0.62s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction-enabled (0.30s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction-disabled (0.32s)
+    --- PASS: Test/RecvBuffer_SmallFramesMemoryBounded (0.31s)
+    --- PASS: Test/ServerReceivesManyTinyDataFrames (0.31s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	13.781s

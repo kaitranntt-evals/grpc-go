@@ -1,0 +1,49 @@
+BRANCH evalon/grpc-go-tr-fec69d29 @ aeff3cad
+TESTS: RecvBuffer_SmallMessagesCompaction|RecvBuffer_SmallMessagesBoundedMemory|RecvBuffer_SmallMessagesAmortizedAllocations|RecvBuffer_LargeMessagesBypassCompaction|RecvBuffer_CompactionWithError|RecvBuffer_CompactionConcurrentReader|ServerStream_TinyDataFramesCompacted
+### baseline (unmutated), -count=1: exit=0
+  Test/RecvBuffer_CompactionConcurrentReader: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_CompactionWithError: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_LargeMessagesBypassCompaction: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesAmortizedAllocations: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesBoundedMemory: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesCompaction: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesCompaction/disabled: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesCompaction/enabled: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/ServerStream_TinyDataFramesCompacted: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+### mutant, default GOMAXPROCS, -count=10: exit=1
+  Test/RecvBuffer_CompactionConcurrentReader: PASS=0 FAIL=10 post-consumption-put buffers: data=10 terminal=10
+  Test/RecvBuffer_CompactionWithError: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_LargeMessagesBypassCompaction: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesAmortizedAllocations: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesBoundedMemory: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesCompaction: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesCompaction/disabled: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesCompaction/enabled: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/ServerStream_TinyDataFramesCompacted: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+### mutant, -cpu 1, -count=10: exit=1
+  Test/RecvBuffer_CompactionConcurrentReader: PASS=0 FAIL=10 post-consumption-put buffers: data=10 terminal=10
+  Test/RecvBuffer_CompactionWithError: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_LargeMessagesBypassCompaction: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesAmortizedAllocations: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesBoundedMemory: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesCompaction: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesCompaction/disabled: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesCompaction/enabled: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/ServerStream_TinyDataFramesCompacted: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+### mutant, C1_READER_DELAY_MS=300 (reader's first read delayed), -count=5: exit=0
+  Test/RecvBuffer_CompactionConcurrentReader: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_CompactionWithError: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_LargeMessagesBypassCompaction: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesAmortizedAllocations: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesBoundedMemory: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesCompaction: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesCompaction/disabled: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_SmallMessagesCompaction/enabled: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/ServerStream_TinyDataFramesCompacted: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+### mutant, eval fixture (archive copy), -count=1: exit=1
+  TestEval_RecvBufferCompaction: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  TestEval_RecvBufferCompactionDisabled: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  TestEval_RecvBufferCompactionSkippedLargeBuffer: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  TestEval_RecvBufferCompaction_MixedFrames: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  TestEval_RecvBufferCompaction_MultiCycleMemoryBound: PASS=0 FAIL=1 post-consumption-put buffers: data=1 terminal=0
+  TestEval_RecvBufferErrorResetSafety: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0

@@ -1,0 +1,37 @@
+=== RUN   TestVerifyC6_QueueEntryGrowth
+    c6_queue_entry_growth_test.go:26: pool=<nil> recvBufferMaxChunkSize=16384 (http2MaxFrameLen=16384)
+    c6_queue_entry_growth_test.go:27:    queuedB  entries    log2(B)   B/maxChunk  delta-entries
+    c6_queue_entry_growth_test.go:36:       1024        3         10            0              3
+    c6_queue_entry_growth_test.go:36:       2048        4         11            0              1
+    c6_queue_entry_growth_test.go:36:       4096        5         12            0              1
+    c6_queue_entry_growth_test.go:36:       8192        6         13            0              1
+    c6_queue_entry_growth_test.go:36:      16384        7         14            1              1
+    c6_queue_entry_growth_test.go:36:      32768        8         15            2              1
+    c6_queue_entry_growth_test.go:36:      65536       10         16            4              2
+    c6_queue_entry_growth_test.go:36:     131072       14         17            8              4
+    c6_queue_entry_growth_test.go:36:     262144       22         18           16              8
+    c6_queue_entry_growth_test.go:36:     524288       38         19           32             16
+    c6_queue_entry_growth_test.go:36:    1048576       70         20           64             32
+    c6_queue_entry_growth_test.go:36:    2097152      134         21          128             64
+    c6_queue_entry_growth_test.go:36:    4194304      262         22          256            128
+    c6_queue_entry_growth_test.go:36:    8388608      518         23          512            256
+    c6_queue_entry_growth_test.go:26: pool=*leakcheck.swappableBufferPool recvBufferMaxChunkSize=16384 (http2MaxFrameLen=16384)
+    c6_queue_entry_growth_test.go:27:    queuedB  entries    log2(B)   B/maxChunk  delta-entries
+    c6_queue_entry_growth_test.go:36:       1024        3         10            0              3
+    c6_queue_entry_growth_test.go:36:       2048        4         11            0              1
+    c6_queue_entry_growth_test.go:36:       4096        5         12            0              1
+    c6_queue_entry_growth_test.go:36:       8192        6         13            0              1
+    c6_queue_entry_growth_test.go:36:      16384        6         14            1              0
+    c6_queue_entry_growth_test.go:36:      32768        7         15            2              1
+    c6_queue_entry_growth_test.go:36:      65536        9         16            4              2
+    c6_queue_entry_growth_test.go:36:     131072       13         17            8              4
+    c6_queue_entry_growth_test.go:36:     262144       21         18           16              8
+    c6_queue_entry_growth_test.go:36:     524288       37         19           32             16
+    c6_queue_entry_growth_test.go:36:    1048576       69         20           64             32
+    c6_queue_entry_growth_test.go:36:    2097152      133         21          128             64
+    c6_queue_entry_growth_test.go:36:    4194304      261         22          256            128
+    c6_queue_entry_growth_test.go:36:    8388608      517         23          512            256
+--- PASS: TestVerifyC6_QueueEntryGrowth (0.67s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	0.675s
+exit=0

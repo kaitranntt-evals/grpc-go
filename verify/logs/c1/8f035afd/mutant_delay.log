@@ -1,0 +1,202 @@
+=== RUN   Test
+=== RUN   Test/ReceiveBufferCompaction
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=1
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=7
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=255
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=256
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=4096
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=1
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=7
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=255
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=256
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=4096
+=== RUN   Test/RecvBufferCompactionConcurrent
+=== RUN   Test/RecvBufferCompactionCopies
+=== RUN   Test/RecvBufferCompactionCopies/true
+=== RUN   Test/RecvBufferCompactionCopies/false
+=== RUN   Test/RecvBufferCompactionReleaseAndErrors
+=== RUN   Test/RecvBufferCompactionReleaseAndErrors/EOF
+=== RUN   Test/RecvBufferCompactionReleaseAndErrors/stream_failed
+--- PASS: Test (4.54s)
+    --- PASS: Test/ReceiveBufferCompaction (3.02s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=1 (0.31s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=7 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=255 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=256 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=4096 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=1 (0.31s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=7 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=255 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=256 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=4096 (0.30s)
+    --- PASS: Test/RecvBufferCompactionConcurrent (0.30s)
+    --- PASS: Test/RecvBufferCompactionCopies (0.60s)
+        --- PASS: Test/RecvBufferCompactionCopies/true (0.30s)
+        --- PASS: Test/RecvBufferCompactionCopies/false (0.30s)
+    --- PASS: Test/RecvBufferCompactionReleaseAndErrors (0.61s)
+        --- PASS: Test/RecvBufferCompactionReleaseAndErrors/EOF (0.30s)
+        --- PASS: Test/RecvBufferCompactionReleaseAndErrors/stream_failed (0.30s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ReceiveBufferCompaction
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=1
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=7
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=255
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=256
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=4096
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=1
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=7
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=255
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=256
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=4096
+=== RUN   Test/RecvBufferCompactionConcurrent
+=== RUN   Test/RecvBufferCompactionCopies
+=== RUN   Test/RecvBufferCompactionCopies/true
+=== RUN   Test/RecvBufferCompactionCopies/false
+=== RUN   Test/RecvBufferCompactionReleaseAndErrors
+=== RUN   Test/RecvBufferCompactionReleaseAndErrors/EOF
+=== RUN   Test/RecvBufferCompactionReleaseAndErrors/stream_failed
+--- PASS: Test (4.53s)
+    --- PASS: Test/ReceiveBufferCompaction (3.02s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=1 (0.31s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=7 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=255 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=256 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=4096 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=1 (0.31s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=7 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=255 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=256 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=4096 (0.30s)
+    --- PASS: Test/RecvBufferCompactionConcurrent (0.30s)
+    --- PASS: Test/RecvBufferCompactionCopies (0.60s)
+        --- PASS: Test/RecvBufferCompactionCopies/true (0.30s)
+        --- PASS: Test/RecvBufferCompactionCopies/false (0.30s)
+    --- PASS: Test/RecvBufferCompactionReleaseAndErrors (0.60s)
+        --- PASS: Test/RecvBufferCompactionReleaseAndErrors/EOF (0.30s)
+        --- PASS: Test/RecvBufferCompactionReleaseAndErrors/stream_failed (0.30s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ReceiveBufferCompaction
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=1
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=7
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=255
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=256
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=4096
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=1
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=7
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=255
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=256
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=4096
+=== RUN   Test/RecvBufferCompactionConcurrent
+=== RUN   Test/RecvBufferCompactionCopies
+=== RUN   Test/RecvBufferCompactionCopies/true
+=== RUN   Test/RecvBufferCompactionCopies/false
+=== RUN   Test/RecvBufferCompactionReleaseAndErrors
+=== RUN   Test/RecvBufferCompactionReleaseAndErrors/EOF
+=== RUN   Test/RecvBufferCompactionReleaseAndErrors/stream_failed
+--- PASS: Test (4.54s)
+    --- PASS: Test/ReceiveBufferCompaction (3.03s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=1 (0.31s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=7 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=255 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=256 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=4096 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=1 (0.31s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=7 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=255 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=256 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=4096 (0.30s)
+    --- PASS: Test/RecvBufferCompactionConcurrent (0.30s)
+    --- PASS: Test/RecvBufferCompactionCopies (0.60s)
+        --- PASS: Test/RecvBufferCompactionCopies/true (0.30s)
+        --- PASS: Test/RecvBufferCompactionCopies/false (0.30s)
+    --- PASS: Test/RecvBufferCompactionReleaseAndErrors (0.60s)
+        --- PASS: Test/RecvBufferCompactionReleaseAndErrors/EOF (0.30s)
+        --- PASS: Test/RecvBufferCompactionReleaseAndErrors/stream_failed (0.30s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ReceiveBufferCompaction
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=1
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=7
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=255
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=256
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=4096
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=1
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=7
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=255
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=256
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=4096
+=== RUN   Test/RecvBufferCompactionConcurrent
+=== RUN   Test/RecvBufferCompactionCopies
+=== RUN   Test/RecvBufferCompactionCopies/true
+=== RUN   Test/RecvBufferCompactionCopies/false
+=== RUN   Test/RecvBufferCompactionReleaseAndErrors
+=== RUN   Test/RecvBufferCompactionReleaseAndErrors/EOF
+=== RUN   Test/RecvBufferCompactionReleaseAndErrors/stream_failed
+--- PASS: Test (4.54s)
+    --- PASS: Test/ReceiveBufferCompaction (3.02s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=1 (0.31s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=7 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=255 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=256 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=4096 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=1 (0.31s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=7 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=255 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=256 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=4096 (0.30s)
+    --- PASS: Test/RecvBufferCompactionConcurrent (0.30s)
+    --- PASS: Test/RecvBufferCompactionCopies (0.60s)
+        --- PASS: Test/RecvBufferCompactionCopies/true (0.30s)
+        --- PASS: Test/RecvBufferCompactionCopies/false (0.30s)
+    --- PASS: Test/RecvBufferCompactionReleaseAndErrors (0.60s)
+        --- PASS: Test/RecvBufferCompactionReleaseAndErrors/EOF (0.30s)
+        --- PASS: Test/RecvBufferCompactionReleaseAndErrors/stream_failed (0.30s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ReceiveBufferCompaction
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=1
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=7
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=255
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=256
+=== RUN   Test/ReceiveBufferCompaction/server=false/frameSize=4096
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=1
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=7
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=255
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=256
+=== RUN   Test/ReceiveBufferCompaction/server=true/frameSize=4096
+=== RUN   Test/RecvBufferCompactionConcurrent
+=== RUN   Test/RecvBufferCompactionCopies
+=== RUN   Test/RecvBufferCompactionCopies/true
+=== RUN   Test/RecvBufferCompactionCopies/false
+=== RUN   Test/RecvBufferCompactionReleaseAndErrors
+=== RUN   Test/RecvBufferCompactionReleaseAndErrors/EOF
+=== RUN   Test/RecvBufferCompactionReleaseAndErrors/stream_failed
+--- PASS: Test (4.54s)
+    --- PASS: Test/ReceiveBufferCompaction (3.02s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=1 (0.31s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=7 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=255 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=256 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=false/frameSize=4096 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=1 (0.31s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=7 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=255 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=256 (0.30s)
+        --- PASS: Test/ReceiveBufferCompaction/server=true/frameSize=4096 (0.30s)
+    --- PASS: Test/RecvBufferCompactionConcurrent (0.30s)
+    --- PASS: Test/RecvBufferCompactionCopies (0.60s)
+        --- PASS: Test/RecvBufferCompactionCopies/true (0.30s)
+        --- PASS: Test/RecvBufferCompactionCopies/false (0.30s)
+    --- PASS: Test/RecvBufferCompactionReleaseAndErrors (0.60s)
+        --- PASS: Test/RecvBufferCompactionReleaseAndErrors/EOF (0.30s)
+        --- PASS: Test/RecvBufferCompactionReleaseAndErrors/stream_failed (0.30s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	22.689s

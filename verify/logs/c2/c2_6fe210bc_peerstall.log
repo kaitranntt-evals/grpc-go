@@ -1,0 +1,18 @@
+=== RUN   Test
+=== RUN   Test/VerifyC2_PeerWithholdsEndStream
+    c2_6fe210bc_peer_stall_test.go:35: <-stream.Done() returned after 10.05s; ctx.Err()=context deadline exceeded status=rpc error: code = Unavailable desc = connection error: desc = "error reading from server: read tcp 127.0.0.1:60580->127.0.0.1:44741: use of closed network connection"
+    transport_test.go:3751: Test timed out when waiting for server to be done
+    transport_test.go:3693: Server reader goroutine failed to read frame: EOF
+    transport_test.go:3717: Test timed out when waiting for a RST_STREAM frame from client
+    transport_test.go:3722: Test timed out when waiting for server to send frames
+--- FAIL: Test (10.10s)
+    --- FAIL: Test/VerifyC2_PeerWithholdsEndStream (10.10s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	10.107s
+FAIL
+
+real	0m11.710s
+user	0m3.308s
+sys	0m0.407s

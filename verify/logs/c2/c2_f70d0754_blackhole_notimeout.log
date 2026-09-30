@@ -1,0 +1,12 @@
+=== RUN   Test
+=== RUN   Test/ServerCompactsSmallDataFrames
+    recv_buffer_test.go:374: Client failed to dial: dial tcp 127.0.0.1:45585: connect: connection timed out
+--- FAIL: Test (134.27s)
+    --- FAIL: Test/ServerCompactsSmallDataFrames (134.27s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+
+real	2m14.289s
+user	0m0.009s
+sys	0m0.016s

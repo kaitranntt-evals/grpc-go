@@ -1,0 +1,23 @@
+=== RUN   TestVerifyC5_ReadAllUnexpectedData
+=== RUN   TestVerifyC5_ReadAllUnexpectedData/surplus_byte_in_own_pooled_buffer
+    c5_readall_freed_len_test.go:74: readAll returned len(got)=0 err=<nil> panic=Cannot read freed buffer
+=== RUN   TestVerifyC5_ReadAllUnexpectedData/surplus_byte_is_tail_of_pooled_frame
+    c5_readall_freed_len_test.go:74: readAll returned len(got)=0 err=<nil> panic=Cannot read freed buffer
+=== RUN   TestVerifyC5_ReadAllUnexpectedData/control_surplus_byte_in_slice_buffer
+    c5_readall_freed_len_test.go:74: readAll returned len(got)=0 err=read 1 unexpected bytes after 0 bytes panic=<nil>
+=== RUN   TestVerifyC5_ReadAllUnexpectedData/control_no_surplus
+    c5_readall_freed_len_test.go:74: readAll returned len(got)=2000 err=EOF panic=<nil>
+--- PASS: TestVerifyC5_ReadAllUnexpectedData (0.00s)
+    --- PASS: TestVerifyC5_ReadAllUnexpectedData/surplus_byte_in_own_pooled_buffer (0.00s)
+    --- PASS: TestVerifyC5_ReadAllUnexpectedData/surplus_byte_is_tail_of_pooled_frame (0.00s)
+    --- PASS: TestVerifyC5_ReadAllUnexpectedData/control_surplus_byte_in_slice_buffer (0.00s)
+    --- PASS: TestVerifyC5_ReadAllUnexpectedData/control_no_surplus (0.00s)
+=== RUN   TestVerifyC5_Uncaught
+    c5_readall_freed_len_test.go:90: set VERIFY_C5_UNCAUGHT=1 to run
+--- SKIP: TestVerifyC5_Uncaught (0.00s)
+=== RUN   TestVerifyC5_After
+    c5_readall_freed_len_test.go:103: ran
+--- PASS: TestVerifyC5_After (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	0.004s
+exit=0

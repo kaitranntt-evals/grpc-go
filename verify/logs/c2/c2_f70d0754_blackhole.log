@@ -1,0 +1,106 @@
+=== RUN   Test
+=== RUN   Test/ServerCompactsSmallDataFrames
+panic: test timed out after 45s
+	running tests:
+		Test (45s)
+		Test/ServerCompactsSmallDataFrames (45s)
+
+goroutine 12 [running]:
+testing.(*M).startAlarm.func1()
+	/usr/local/go/src/testing/testing.go:2682 +0x345
+created by time.goFunc
+	/usr/local/go/src/time/sleep.go:215 +0x2d
+
+goroutine 1 [chan receive]:
+testing.(*T).Run(0xc0000b6540, {0xbe6dea?, 0xc0001ebb30?}, 0xc27df8)
+	/usr/local/go/src/testing/testing.go:2005 +0x485
+testing.runTests.func1(0xc0000b6540)
+	/usr/local/go/src/testing/testing.go:2477 +0x37
+testing.tRunner(0xc0000b6540, 0xc0001ebc70)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+testing.runTests(0xc000012918, {0x11ef340, 0x3, 0x3}, {0x7?, 0xc00004b7c0?, 0x1200140?})
+	/usr/local/go/src/testing/testing.go:2475 +0x4b4
+testing.(*M).Run(0xc000240140)
+	/usr/local/go/src/testing/testing.go:2337 +0x63a
+main.main()
+	_testmain.go:59 +0x9b
+
+goroutine 8 [chan receive]:
+testing.(*T).Run(0xc0000b6700, {0xa8ed26?, 0x1221820?}, 0xc000325280)
+	/usr/local/go/src/testing/testing.go:2005 +0x485
+google.golang.org/grpc/internal/grpctest.RunSubTests(0xc0000b6700, {0xcf0428, 0x1221820?})
+	/tmp/claims/f70d0754/internal/grpctest/grpctest.go:124 +0x28a
+google.golang.org/grpc/internal/transport.Test(0xc0000b6700?)
+	/tmp/claims/f70d0754/internal/transport/transport_test.go:62 +0x25
+testing.tRunner(0xc0000b6700, 0xc27df8)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+created by testing.(*T).Run in goroutine 1
+	/usr/local/go/src/testing/testing.go:1997 +0x465
+
+goroutine 9 [IO wait]:
+internal/poll.runtime_pollWait(0x70470a8b9e00, 0x77)
+	/usr/local/go/src/runtime/netpoll.go:351 +0x85
+internal/poll.(*pollDesc).wait(0xc000368380?, 0xbe6ad2?, 0x0)
+	/usr/local/go/src/internal/poll/fd_poll_runtime.go:84 +0x27
+internal/poll.(*pollDesc).waitWrite(...)
+	/usr/local/go/src/internal/poll/fd_poll_runtime.go:93
+internal/poll.(*FD).WaitWrite(...)
+	/usr/local/go/src/internal/poll/fd_unix.go:685
+net.(*netFD).connect(0xc000368380, {0xcf4738, 0x1221820}, {0x41e9d4?, 0x0?}, {0xced2e0?, 0xc0002f3820?})
+	/usr/local/go/src/net/fd_unix.go:130 +0x6b6
+net.(*netFD).dial(0xc000368380, {0xcf4738, 0x1221820}, {0xcf6a68?, 0x0?}, {0xcf6a68, 0xc000345b60}, 0x0?)
+	/usr/local/go/src/net/sock_posix.go:124 +0x3bc
+net.socket({0xcf4738, 0x1221820}, {0xbe6ad2, 0x3}, 0x2, 0x1, 0xc0000e91f0?, 0x0, {0xcf6a68, 0x0}, ...)
+	/usr/local/go/src/net/sock_posix.go:70 +0x29b
+net.internetSocket({0xcf4738, 0x1221820}, {0xbe6ad2, 0x3}, {0xcf6a68, 0x0}, {0xcf6a68, 0xc000345b60}, 0x1, 0x0, ...)
+	/usr/local/go/src/net/ipsock_posix.go:167 +0xf8
+net.(*sysDialer).doDialTCPProto(0xc000358840, {0xcf4738, 0x1221820}, 0x0, 0xc000345b60, 0x0)
+	/usr/local/go/src/net/tcpsock_posix.go:85 +0xe7
+net.(*sysDialer).doDialTCP(...)
+	/usr/local/go/src/net/tcpsock_posix.go:75
+net.(*sysDialer).dialTCP(0x28?, {0xcf4738?, 0x1221820?}, 0xc000043118?, 0x642ba6?)
+	/usr/local/go/src/net/tcpsock_posix.go:71 +0x69
+net.(*sysDialer).dialSingle(0xc000358840, {0xcf4738, 0x1221820}, {0xcf13d0, 0xc000345b60})
+	/usr/local/go/src/net/dial.go:721 +0x3ce
+net.(*sysDialer).dialSerial(0xc000358840, {0xcf4738, 0x1221820}, {0xc0002ef340?, 0x1, 0x64045e?})
+	/usr/local/go/src/net/dial.go:686 +0x248
+net.(*sysDialer).dialParallel(0x0?, {0xcf4738?, 0x1221820?}, {0xc0002ef340?, 0xb10f20?, 0xbe6fea?}, {0x0?, 0xbe6ad2?, 0x704751576108?})
+	/usr/local/go/src/net/dial.go:587 +0x30a
+net.(*Dialer).DialContext(0xc0000434b8, {0xcf4738, 0x1221820}, {0xbe6ad2, 0x3}, {0xc00036e4b0, 0xf})
+	/usr/local/go/src/net/dial.go:578 +0x6a9
+net.(*Dialer).Dial(...)
+	/usr/local/go/src/net/dial.go:504
+net.Dial({0xbe6ad2?, 0x0?}, {0xc00036e4b0?, 0x1?})
+	/usr/local/go/src/net/dial.go:471 +0x77
+google.golang.org/grpc/internal/transport.s.TestServerCompactsSmallDataFrames({{}}, 0xc0000b6a80)
+	/tmp/claims/f70d0754/internal/transport/recv_buffer_test.go:372 +0x129
+google.golang.org/grpc/internal/grpctest.RunSubTests.func1(0xc0000b6a80)
+	/tmp/claims/f70d0754/internal/grpctest/grpctest.go:132 +0xb5
+testing.tRunner(0xc0000b6a80, 0xc000325280)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+created by testing.(*T).Run in goroutine 8
+	/usr/local/go/src/testing/testing.go:1997 +0x465
+
+goroutine 10 [IO wait]:
+internal/poll.runtime_pollWait(0x70470a8ba000, 0x72)
+	/usr/local/go/src/runtime/netpoll.go:351 +0x85
+internal/poll.(*pollDesc).wait(0xc000368300?, 0xc00007dd18?, 0x0)
+	/usr/local/go/src/internal/poll/fd_poll_runtime.go:84 +0x27
+internal/poll.(*pollDesc).waitRead(...)
+	/usr/local/go/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Accept(0xc000368300)
+	/usr/local/go/src/internal/poll/fd_unix.go:613 +0x28c
+net.(*netFD).accept(0xc000368300)
+	/usr/local/go/src/net/fd_unix.go:161 +0x29
+net.(*TCPListener).accept(0xc0002b9140)
+	/usr/local/go/src/net/tcpsock_posix.go:159 +0x1b
+net.(*TCPListener).Accept(0xc0002b9140)
+	/usr/local/go/src/net/tcpsock.go:380 +0x30
+google.golang.org/grpc/internal/transport.(*server).start(0xc0000368a0, 0xc0000b6a80, 0x559dc5?, 0xc000358780, 0x1)
+	/tmp/claims/f70d0754/internal/transport/transport_test.go:413 +0x366
+created by google.golang.org/grpc/internal/transport.setUpServerOnlyWithTimeout in goroutine 9
+	/tmp/claims/f70d0754/internal/transport/transport_test.go:589 +0x18e
+
+real	0m45.051s
+user	0m0.011s
+sys	0m0.015s

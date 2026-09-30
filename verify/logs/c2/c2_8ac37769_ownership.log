@@ -1,0 +1,70 @@
+=== RUN   Test
+=== RUN   Test/ReceiveBufferCompactionOwnership
+=== RUN   Test/ReceiveBufferCompactionOwnership/enabled_true/EOF
+panic: test timed out after 40s
+	running tests:
+		Test (40s)
+		Test/ReceiveBufferCompactionOwnership (40s)
+		Test/ReceiveBufferCompactionOwnership/enabled_true/EOF (40s)
+
+goroutine 24 [running]:
+testing.(*M).startAlarm.func1()
+	/usr/local/go/src/testing/testing.go:2682 +0x345
+created by time.goFunc
+	/usr/local/go/src/time/sleep.go:215 +0x2d
+
+goroutine 1 [chan receive]:
+testing.(*T).Run(0xc000102e00, {0xbe4b6c?, 0xc000271b30?}, 0xc25950)
+	/usr/local/go/src/testing/testing.go:2005 +0x485
+testing.runTests.func1(0xc000102e00)
+	/usr/local/go/src/testing/testing.go:2477 +0x37
+testing.tRunner(0xc000102e00, 0xc000271c70)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+testing.runTests(0xc000130900, {0x11eb2e0, 0x3, 0x3}, {0x7?, 0xc000135740?, 0x11fc100?})
+	/usr/local/go/src/testing/testing.go:2475 +0x4b4
+testing.(*M).Run(0xc00011fd60)
+	/usr/local/go/src/testing/testing.go:2337 +0x63a
+main.main()
+	_testmain.go:61 +0x9b
+
+goroutine 21 [chan receive]:
+testing.(*T).Run(0xc000102fc0, {0xa8f571?, 0x121d7e0?}, 0xc0003e2ee0)
+	/usr/local/go/src/testing/testing.go:2005 +0x485
+google.golang.org/grpc/internal/grpctest.RunSubTests(0xc000102fc0, {0xcedac8, 0x121d7e0?})
+	/tmp/claims/8ac37769/internal/grpctest/grpctest.go:124 +0x28a
+google.golang.org/grpc/internal/transport.Test(0xc000102fc0?)
+	/tmp/claims/8ac37769/internal/transport/transport_test.go:62 +0x25
+testing.tRunner(0xc000102fc0, 0xc25950)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+created by testing.(*T).Run in goroutine 1
+	/usr/local/go/src/testing/testing.go:1997 +0x465
+
+goroutine 22 [chan receive]:
+testing.(*T).Run(0xc000103340, {0xc000426540?, 0xc000213860?}, 0xc0003e3000)
+	/usr/local/go/src/testing/testing.go:2005 +0x485
+google.golang.org/grpc/internal/transport.s.TestReceiveBufferCompactionOwnership({{}}, 0xc000103340)
+	/tmp/claims/8ac37769/internal/transport/recv_buffer_test.go:178 +0x10c
+google.golang.org/grpc/internal/grpctest.RunSubTests.func1(0xc000103340)
+	/tmp/claims/8ac37769/internal/grpctest/grpctest.go:132 +0xb5
+testing.tRunner(0xc000103340, 0xc0003e2ee0)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+created by testing.(*T).Run in goroutine 21
+	/usr/local/go/src/testing/testing.go:1997 +0x465
+
+goroutine 23 [select]:
+google.golang.org/grpc/internal/transport.(*recvBufferReader).read(0xc000080de8, 0x1)
+	/tmp/claims/8ac37769/internal/transport/transport.go:247 +0x85
+google.golang.org/grpc/internal/transport.(*recvBufferReader).Read(0xc000080de8, 0x0?)
+	/tmp/claims/8ac37769/internal/transport/transport.go:232 +0x67
+google.golang.org/grpc/internal/transport.s.TestReceiveBufferCompactionOwnership.func1(0xc0001036c0)
+	/tmp/claims/8ac37769/internal/transport/recv_buffer_test.go:218 +0x885
+testing.tRunner(0xc0001036c0, 0xc0003e3000)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+created by testing.(*T).Run in goroutine 22
+	/usr/local/go/src/testing/testing.go:1997 +0x465
+FAIL	google.golang.org/grpc/internal/transport	40.036s
+FAIL
+
+real	0m42.316s
+user	0m5.346s
+sys	0m0.970s

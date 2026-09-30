@@ -1,0 +1,26 @@
+=== RUN   Test
+=== RUN   Test/ClientTransport_ManySmallDataFrames
+=== RUN   Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true
+=== RUN   Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false
+=== RUN   Test/RecvBuffer_CompactionReleasesPooledBuffers
+=== RUN   Test/RecvBuffer_ConcurrentReadAndCompaction
+=== RUN   Test/RecvBuffer_ErrorAfterCompaction
+=== RUN   Test/RecvBuffer_LargeAndLoneFramesBypassCompaction
+=== RUN   Test/RecvBuffer_ManySmallFrames
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction_enabled=true
+=== RUN   Test/RecvBuffer_ManySmallFrames/compaction_enabled=false
+--- PASS: Test (0.04s)
+    --- PASS: Test/ClientTransport_ManySmallDataFrames (0.01s)
+        --- PASS: Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true (0.01s)
+        --- PASS: Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false (0.01s)
+    --- PASS: Test/RecvBuffer_CompactionReleasesPooledBuffers (0.00s)
+    --- PASS: Test/RecvBuffer_ConcurrentReadAndCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_LargeAndLoneFramesBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_ManySmallFrames (0.01s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction_enabled=true (0.00s)
+        --- PASS: Test/RecvBuffer_ManySmallFrames/compaction_enabled=false (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	0.040s

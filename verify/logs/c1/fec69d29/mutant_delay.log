@@ -1,0 +1,117 @@
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionConcurrentReader
+=== RUN   Test/RecvBuffer_CompactionWithError
+=== RUN   Test/RecvBuffer_LargeMessagesBypassCompaction
+=== RUN   Test/RecvBuffer_SmallMessagesAmortizedAllocations
+=== RUN   Test/RecvBuffer_SmallMessagesBoundedMemory
+    recv_buffer_test.go:185: Heap held for 65536 1-byte messages: 3985600 bytes without compaction, 76080 bytes with compaction
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction/enabled
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction/disabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+--- PASS: Test (2.86s)
+    --- PASS: Test/RecvBuffer_CompactionConcurrentReader (0.30s)
+    --- PASS: Test/RecvBuffer_CompactionWithError (0.30s)
+    --- PASS: Test/RecvBuffer_LargeMessagesBypassCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_SmallMessagesAmortizedAllocations (0.31s)
+    --- PASS: Test/RecvBuffer_SmallMessagesBoundedMemory (0.62s)
+    --- PASS: Test/RecvBuffer_SmallMessagesCompaction (0.62s)
+        --- PASS: Test/RecvBuffer_SmallMessagesCompaction/enabled (0.30s)
+        --- PASS: Test/RecvBuffer_SmallMessagesCompaction/disabled (0.32s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.40s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionConcurrentReader
+=== RUN   Test/RecvBuffer_CompactionWithError
+=== RUN   Test/RecvBuffer_LargeMessagesBypassCompaction
+=== RUN   Test/RecvBuffer_SmallMessagesAmortizedAllocations
+=== RUN   Test/RecvBuffer_SmallMessagesBoundedMemory
+    recv_buffer_test.go:185: Heap held for 65536 1-byte messages: 3911784 bytes without compaction, 76080 bytes with compaction
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction/enabled
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction/disabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+--- PASS: Test (2.87s)
+    --- PASS: Test/RecvBuffer_CompactionConcurrentReader (0.30s)
+    --- PASS: Test/RecvBuffer_CompactionWithError (0.30s)
+    --- PASS: Test/RecvBuffer_LargeMessagesBypassCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_SmallMessagesAmortizedAllocations (0.31s)
+    --- PASS: Test/RecvBuffer_SmallMessagesBoundedMemory (0.64s)
+    --- PASS: Test/RecvBuffer_SmallMessagesCompaction (0.62s)
+        --- PASS: Test/RecvBuffer_SmallMessagesCompaction/enabled (0.30s)
+        --- PASS: Test/RecvBuffer_SmallMessagesCompaction/disabled (0.32s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.40s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionConcurrentReader
+=== RUN   Test/RecvBuffer_CompactionWithError
+=== RUN   Test/RecvBuffer_LargeMessagesBypassCompaction
+=== RUN   Test/RecvBuffer_SmallMessagesAmortizedAllocations
+=== RUN   Test/RecvBuffer_SmallMessagesBoundedMemory
+    recv_buffer_test.go:185: Heap held for 65536 1-byte messages: 3985632 bytes without compaction, 76080 bytes with compaction
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction/enabled
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction/disabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+--- PASS: Test (2.94s)
+    --- PASS: Test/RecvBuffer_CompactionConcurrentReader (0.30s)
+    --- PASS: Test/RecvBuffer_CompactionWithError (0.30s)
+    --- PASS: Test/RecvBuffer_LargeMessagesBypassCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_SmallMessagesAmortizedAllocations (0.31s)
+    --- PASS: Test/RecvBuffer_SmallMessagesBoundedMemory (0.62s)
+    --- PASS: Test/RecvBuffer_SmallMessagesCompaction (0.62s)
+        --- PASS: Test/RecvBuffer_SmallMessagesCompaction/enabled (0.30s)
+        --- PASS: Test/RecvBuffer_SmallMessagesCompaction/disabled (0.31s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.48s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionConcurrentReader
+=== RUN   Test/RecvBuffer_CompactionWithError
+=== RUN   Test/RecvBuffer_LargeMessagesBypassCompaction
+=== RUN   Test/RecvBuffer_SmallMessagesAmortizedAllocations
+=== RUN   Test/RecvBuffer_SmallMessagesBoundedMemory
+    recv_buffer_test.go:185: Heap held for 65536 1-byte messages: 3985456 bytes without compaction, 76080 bytes with compaction
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction/enabled
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction/disabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+--- PASS: Test (2.94s)
+    --- PASS: Test/RecvBuffer_CompactionConcurrentReader (0.30s)
+    --- PASS: Test/RecvBuffer_CompactionWithError (0.30s)
+    --- PASS: Test/RecvBuffer_LargeMessagesBypassCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_SmallMessagesAmortizedAllocations (0.31s)
+    --- PASS: Test/RecvBuffer_SmallMessagesBoundedMemory (0.62s)
+    --- PASS: Test/RecvBuffer_SmallMessagesCompaction (0.62s)
+        --- PASS: Test/RecvBuffer_SmallMessagesCompaction/enabled (0.30s)
+        --- PASS: Test/RecvBuffer_SmallMessagesCompaction/disabled (0.31s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.48s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/RecvBuffer_CompactionConcurrentReader
+=== RUN   Test/RecvBuffer_CompactionWithError
+=== RUN   Test/RecvBuffer_LargeMessagesBypassCompaction
+=== RUN   Test/RecvBuffer_SmallMessagesAmortizedAllocations
+=== RUN   Test/RecvBuffer_SmallMessagesBoundedMemory
+    recv_buffer_test.go:185: Heap held for 65536 1-byte messages: 3985616 bytes without compaction, 76080 bytes with compaction
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction/enabled
+=== RUN   Test/RecvBuffer_SmallMessagesCompaction/disabled
+=== RUN   Test/ServerStream_TinyDataFramesCompacted
+--- PASS: Test (2.97s)
+    --- PASS: Test/RecvBuffer_CompactionConcurrentReader (0.30s)
+    --- PASS: Test/RecvBuffer_CompactionWithError (0.30s)
+    --- PASS: Test/RecvBuffer_LargeMessagesBypassCompaction (0.30s)
+    --- PASS: Test/RecvBuffer_SmallMessagesAmortizedAllocations (0.31s)
+    --- PASS: Test/RecvBuffer_SmallMessagesBoundedMemory (0.63s)
+    --- PASS: Test/RecvBuffer_SmallMessagesCompaction (0.62s)
+        --- PASS: Test/RecvBuffer_SmallMessagesCompaction/enabled (0.30s)
+        --- PASS: Test/RecvBuffer_SmallMessagesCompaction/disabled (0.32s)
+    --- PASS: Test/ServerStream_TinyDataFramesCompacted (0.51s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	14.588s

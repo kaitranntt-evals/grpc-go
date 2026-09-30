@@ -1,0 +1,32 @@
+=== RUN   Test
+=== RUN   Test/ReceiveBufferCompactionAppend
+=== RUN   Test/ReceiveBufferCompactionConcurrentReads
+=== RUN   Test/ReceiveBufferCompactionOwnership
+=== RUN   Test/ReceiveBufferSmallFrames
+=== RUN   Test/ReceiveBufferSmallFrames/environment
+=== RUN   Test/ReceiveBufferSmallFrames/environment/client
+=== RUN   Test/ReceiveBufferSmallFrames/environment/server
+=== RUN   Test/ReceiveBufferSmallFrames/enabled
+=== RUN   Test/ReceiveBufferSmallFrames/enabled/client
+=== RUN   Test/ReceiveBufferSmallFrames/enabled/server
+=== RUN   Test/ReceiveBufferSmallFrames/disabled
+=== RUN   Test/ReceiveBufferSmallFrames/disabled/client
+=== RUN   Test/ReceiveBufferSmallFrames/disabled/server
+--- PASS: Test (0.04s)
+    --- PASS: Test/ReceiveBufferCompactionAppend (0.00s)
+    --- PASS: Test/ReceiveBufferCompactionConcurrentReads (0.00s)
+    --- PASS: Test/ReceiveBufferCompactionOwnership (0.00s)
+    --- PASS: Test/ReceiveBufferSmallFrames (0.03s)
+        --- PASS: Test/ReceiveBufferSmallFrames/environment (0.01s)
+            --- PASS: Test/ReceiveBufferSmallFrames/environment/client (0.00s)
+            --- PASS: Test/ReceiveBufferSmallFrames/environment/server (0.00s)
+        --- PASS: Test/ReceiveBufferSmallFrames/enabled (0.01s)
+            --- PASS: Test/ReceiveBufferSmallFrames/enabled/client (0.00s)
+            --- PASS: Test/ReceiveBufferSmallFrames/enabled/server (0.00s)
+        --- PASS: Test/ReceiveBufferSmallFrames/disabled (0.02s)
+            --- PASS: Test/ReceiveBufferSmallFrames/disabled/client (0.01s)
+            --- PASS: Test/ReceiveBufferSmallFrames/disabled/server (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	0.047s

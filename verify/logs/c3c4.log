@@ -1,0 +1,59 @@
+=== RUN   TestVerifyC3_NewBufferDropsPoolReturnAtCap1024
+    c3_c4_chunk_pool_return_test.go:133: binary tiered pool with 2^10 tier: Get(512) -> cap=1024; mem.NewBuffer -> mem.SliceBuffer; after Free returnedToPool=false
+    c3_c4_chunk_pool_return_test.go:133: binary tiered pool with 2^10 tier: Get(1024) -> cap=1024; mem.NewBuffer -> mem.SliceBuffer; after Free returnedToPool=false
+    c3_c4_chunk_pool_return_test.go:133: binary tiered pool with 2^10 tier: Get(1025) -> cap=4096; mem.NewBuffer -> *mem.buffer; after Free returnedToPool=true
+    c3_c4_chunk_pool_return_test.go:133: binary tiered pool with 2^10 tier: Get(2048) -> cap=4096; mem.NewBuffer -> *mem.buffer; after Free returnedToPool=true
+    c3_c4_chunk_pool_return_test.go:133: mem.NewTieredBufferPool(256,1024,4096): Get(512) -> cap=1024; mem.NewBuffer -> mem.SliceBuffer; after Free returnedToPool=false
+    c3_c4_chunk_pool_return_test.go:133: mem.NewTieredBufferPool(256,1024,4096): Get(1024) -> cap=1024; mem.NewBuffer -> mem.SliceBuffer; after Free returnedToPool=false
+    c3_c4_chunk_pool_return_test.go:133: mem.NewTieredBufferPool(256,1024,4096): Get(1025) -> cap=4096; mem.NewBuffer -> *mem.buffer; after Free returnedToPool=true
+    c3_c4_chunk_pool_return_test.go:133: mem.NewTieredBufferPool(256,1024,4096): Get(2048) -> cap=4096; mem.NewBuffer -> *mem.buffer; after Free returnedToPool=true
+    c3_c4_chunk_pool_return_test.go:133: exact-capacity mem.NopBufferPool: Get(512) -> cap=512; mem.NewBuffer -> mem.SliceBuffer; after Free returnedToPool=false
+    c3_c4_chunk_pool_return_test.go:133: exact-capacity mem.NopBufferPool: Get(1024) -> cap=1024; mem.NewBuffer -> mem.SliceBuffer; after Free returnedToPool=false
+    c3_c4_chunk_pool_return_test.go:133: exact-capacity mem.NopBufferPool: Get(1025) -> cap=1025; mem.NewBuffer -> *mem.buffer; after Free returnedToPool=true
+    c3_c4_chunk_pool_return_test.go:133: exact-capacity mem.NopBufferPool: Get(2048) -> cap=2048; mem.NewBuffer -> *mem.buffer; after Free returnedToPool=true
+--- PASS: TestVerifyC3_NewBufferDropsPoolReturnAtCap1024 (0.00s)
+=== RUN   TestVerifyC3_CompactionChunkFromTieredPoolNeverReturned
+    c3_c4_chunk_pool_return_test.go:187: configured pool with 1 KiB tier (NewBinaryTieredBufferPool(8,10,12,14,15,20))
+    c3_c4_chunk_pool_return_test.go:191:   burst=100: newChunk acquisition #0: Get(1024) -> cap=1024 returnedToPool=false
+    c3_c4_chunk_pool_return_test.go:187: control: mem.DefaultBufferPool()
+    c3_c4_chunk_pool_return_test.go:191:   burst=100: newChunk acquisition #0: Get(1024) -> cap=4096 returnedToPool=true
+--- PASS: TestVerifyC3_CompactionChunkFromTieredPoolNeverReturned (0.00s)
+=== RUN   TestVerifyC4_ExactCapacityPoolBursts
+    c3_c4_chunk_pool_return_test.go:213:   queued=1: newChunk acquisition #0: Get(1024) -> cap=1024 returnedToPool=false
+    c3_c4_chunk_pool_return_test.go:214: queued=1: chunks=1 unreturned(cap<=1024)=1 unreturned(cap>1024)=0 returned(cap>1024)=0
+    c3_c4_chunk_pool_return_test.go:213:   queued=2: newChunk acquisition #0: Get(1024) -> cap=1024 returnedToPool=false
+    c3_c4_chunk_pool_return_test.go:214: queued=2: chunks=1 unreturned(cap<=1024)=1 unreturned(cap>1024)=0 returned(cap>1024)=0
+    c3_c4_chunk_pool_return_test.go:213:   queued=9: newChunk acquisition #0: Get(1024) -> cap=1024 returnedToPool=false
+    c3_c4_chunk_pool_return_test.go:214: queued=9: chunks=1 unreturned(cap<=1024)=1 unreturned(cap>1024)=0 returned(cap>1024)=0
+    c3_c4_chunk_pool_return_test.go:213:   queued=1025: newChunk acquisition #0: Get(1024) -> cap=1024 returnedToPool=false
+    c3_c4_chunk_pool_return_test.go:213:   queued=1025: newChunk acquisition #1: Get(2048) -> cap=2048 returnedToPool=true
+    c3_c4_chunk_pool_return_test.go:214: queued=1025: chunks=2 unreturned(cap<=1024)=1 unreturned(cap>1024)=0 returned(cap>1024)=1
+    c3_c4_chunk_pool_return_test.go:213:   queued=3999: newChunk acquisition #0: Get(1024) -> cap=1024 returnedToPool=false
+    c3_c4_chunk_pool_return_test.go:213:   queued=3999: newChunk acquisition #1: Get(2048) -> cap=2048 returnedToPool=true
+    c3_c4_chunk_pool_return_test.go:213:   queued=3999: newChunk acquisition #2: Get(4096) -> cap=4096 returnedToPool=true
+    c3_c4_chunk_pool_return_test.go:214: queued=3999: chunks=3 unreturned(cap<=1024)=1 unreturned(cap>1024)=0 returned(cap>1024)=2
+--- PASS: TestVerifyC4_ExactCapacityPoolBursts (0.00s)
+=== RUN   TestVerifyC3_EndToEndServerTransport
+=== RUN   TestVerifyC3_EndToEndServerTransport/configured_pool_with_1_KiB_tier
+    c3_c4_chunk_pool_return_test.go:303: server stream backlog entries before reading: 2 (for 600 one-byte DATA frames)
+    c3_c4_chunk_pool_return_test.go:307:   server stream: newChunk acquisition #0: Get(1024) -> cap=1024 returnedToPool=false
+=== RUN   TestVerifyC3_EndToEndServerTransport/control:_mem.DefaultBufferPool()
+    c3_c4_chunk_pool_return_test.go:303: server stream backlog entries before reading: 2 (for 600 one-byte DATA frames)
+    c3_c4_chunk_pool_return_test.go:307:   server stream: newChunk acquisition #0: Get(1024) -> cap=4096 returnedToPool=true
+--- PASS: TestVerifyC3_EndToEndServerTransport (0.00s)
+    --- PASS: TestVerifyC3_EndToEndServerTransport/configured_pool_with_1_KiB_tier (0.00s)
+    --- PASS: TestVerifyC3_EndToEndServerTransport/control:_mem.DefaultBufferPool() (0.00s)
+=== RUN   TestVerifyC3Public_GRPCServerWithConfiguredPool
+=== RUN   TestVerifyC3Public_GRPCServerWithConfiguredPool/mem.NewBinaryTieredBufferPool(8,10,12,14,15,20)
+    c3_public_api_e2e_test.go:210: newChunk acquisition #0: Get(1024) -> cap=1024 returnedToPool=false (after message delivered, RPC finished, server stopped)
+=== RUN   TestVerifyC3Public_GRPCServerWithConfiguredPool/mem.NewTieredBufferPool(256,1024,4096,16384,32768,1048576)
+    c3_public_api_e2e_test.go:210: newChunk acquisition #0: Get(1024) -> cap=1024 returnedToPool=false (after message delivered, RPC finished, server stopped)
+=== RUN   TestVerifyC3Public_GRPCServerWithConfiguredPool/control:_mem.DefaultBufferPool()
+    c3_public_api_e2e_test.go:210: newChunk acquisition #0: Get(1024) -> cap=4096 returnedToPool=true (after message delivered, RPC finished, server stopped)
+--- PASS: TestVerifyC3Public_GRPCServerWithConfiguredPool (0.61s)
+    --- PASS: TestVerifyC3Public_GRPCServerWithConfiguredPool/mem.NewBinaryTieredBufferPool(8,10,12,14,15,20) (0.20s)
+    --- PASS: TestVerifyC3Public_GRPCServerWithConfiguredPool/mem.NewTieredBufferPool(256,1024,4096,16384,32768,1048576) (0.20s)
+    --- PASS: TestVerifyC3Public_GRPCServerWithConfiguredPool/control:_mem.DefaultBufferPool() (0.20s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	0.616s
+exit=0

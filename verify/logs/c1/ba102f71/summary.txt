@@ -1,0 +1,53 @@
+BRANCH evalon/grpc-go-tr-ba102f71 @ 7fb14b10
+TESTS: RecvBuffer_ManySmallFrames|RecvBuffer_CompactionReleasesPooledBuffers|RecvBuffer_LargeAndLoneFramesBypassCompaction|RecvBuffer_ErrorAfterCompaction|RecvBuffer_ConcurrentReadAndCompaction|ClientTransport_ManySmallDataFrames
+### baseline (unmutated), -count=1: exit=0
+  Test/ClientTransport_ManySmallDataFrames: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_CompactionReleasesPooledBuffers: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ConcurrentReadAndCompaction: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ErrorAfterCompaction: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_LargeAndLoneFramesBypassCompaction: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ManySmallFrames: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ManySmallFrames/compaction_enabled=false: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ManySmallFrames/compaction_enabled=true: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+### mutant, default GOMAXPROCS, -count=10: exit=1
+  Test/ClientTransport_ManySmallDataFrames: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_CompactionReleasesPooledBuffers: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ConcurrentReadAndCompaction: PASS=0 FAIL=10 post-consumption-put buffers: data=10 terminal=10
+  Test/RecvBuffer_ErrorAfterCompaction: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_LargeAndLoneFramesBypassCompaction: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ManySmallFrames: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ManySmallFrames/compaction_enabled=false: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ManySmallFrames/compaction_enabled=true: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+### mutant, -cpu 1, -count=10: exit=1
+  Test/ClientTransport_ManySmallDataFrames: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_CompactionReleasesPooledBuffers: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ConcurrentReadAndCompaction: PASS=0 FAIL=10 post-consumption-put buffers: data=10 terminal=10
+  Test/RecvBuffer_ErrorAfterCompaction: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_LargeAndLoneFramesBypassCompaction: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ManySmallFrames: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ManySmallFrames/compaction_enabled=false: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ManySmallFrames/compaction_enabled=true: PASS=10 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+### mutant, C1_READER_DELAY_MS=300 (reader's first read delayed), -count=5: exit=0
+  Test/ClientTransport_ManySmallDataFrames: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/ClientTransport_ManySmallDataFrames/compaction_enabled=false: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/ClientTransport_ManySmallDataFrames/compaction_enabled=true: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_CompactionReleasesPooledBuffers: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ConcurrentReadAndCompaction: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ErrorAfterCompaction: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_LargeAndLoneFramesBypassCompaction: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ManySmallFrames: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ManySmallFrames/compaction_enabled=false: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  Test/RecvBuffer_ManySmallFrames/compaction_enabled=true: PASS=5 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+### mutant, eval fixture (archive copy), -count=1: exit=1
+  TestEval_RecvBufferCompaction: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  TestEval_RecvBufferCompactionDisabled: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  TestEval_RecvBufferCompactionSkippedLargeBuffer: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  TestEval_RecvBufferCompaction_MixedFrames: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0
+  TestEval_RecvBufferCompaction_MultiCycleMemoryBound: PASS=0 FAIL=1 post-consumption-put buffers: data=1 terminal=0
+  TestEval_RecvBufferErrorResetSafety: PASS=1 FAIL=0 post-consumption-put buffers: data=0 terminal=0

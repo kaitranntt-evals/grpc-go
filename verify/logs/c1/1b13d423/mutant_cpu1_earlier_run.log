@@ -1,0 +1,230 @@
+=== RUN   Test
+=== RUN   Test/ClientStream_ManySmallDataFramesCompacted
+=== RUN   Test/RecvBuffer_ConcurrentReadWrite
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:344: Read data does not match written data
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersMemoryBounded
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled
+--- FAIL: Test (0.09s)
+    --- PASS: Test/ClientStream_ManySmallDataFramesCompacted (0.02s)
+    --- FAIL: Test/RecvBuffer_ConcurrentReadWrite (0.02s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersMemoryBounded (0.01s)
+    --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream (0.03s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled (0.01s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled (0.02s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientStream_ManySmallDataFramesCompacted
+=== RUN   Test/RecvBuffer_ConcurrentReadWrite
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:344: Read data does not match written data
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersMemoryBounded
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled
+--- FAIL: Test (0.08s)
+    --- PASS: Test/ClientStream_ManySmallDataFramesCompacted (0.03s)
+    --- FAIL: Test/RecvBuffer_ConcurrentReadWrite (0.02s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersMemoryBounded (0.01s)
+    --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream (0.02s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled (0.01s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientStream_ManySmallDataFramesCompacted
+=== RUN   Test/RecvBuffer_ConcurrentReadWrite
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:344: Read data does not match written data
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersMemoryBounded
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled
+--- FAIL: Test (0.08s)
+    --- PASS: Test/ClientStream_ManySmallDataFramesCompacted (0.02s)
+    --- FAIL: Test/RecvBuffer_ConcurrentReadWrite (0.02s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersMemoryBounded (0.01s)
+    --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream (0.02s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled (0.01s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientStream_ManySmallDataFramesCompacted
+=== RUN   Test/RecvBuffer_ConcurrentReadWrite
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:344: Read data does not match written data
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersMemoryBounded
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled
+--- FAIL: Test (0.09s)
+    --- PASS: Test/ClientStream_ManySmallDataFramesCompacted (0.03s)
+    --- FAIL: Test/RecvBuffer_ConcurrentReadWrite (0.02s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersMemoryBounded (0.01s)
+    --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream (0.02s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled (0.01s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientStream_ManySmallDataFramesCompacted
+=== RUN   Test/RecvBuffer_ConcurrentReadWrite
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:344: Read data does not match written data
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersMemoryBounded
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled
+--- FAIL: Test (0.08s)
+    --- PASS: Test/ClientStream_ManySmallDataFramesCompacted (0.03s)
+    --- FAIL: Test/RecvBuffer_ConcurrentReadWrite (0.02s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersMemoryBounded (0.01s)
+    --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream (0.02s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled (0.01s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientStream_ManySmallDataFramesCompacted
+=== RUN   Test/RecvBuffer_ConcurrentReadWrite
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:344: Read data does not match written data
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersMemoryBounded
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled
+--- FAIL: Test (0.08s)
+    --- PASS: Test/ClientStream_ManySmallDataFramesCompacted (0.03s)
+    --- FAIL: Test/RecvBuffer_ConcurrentReadWrite (0.02s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersMemoryBounded (0.01s)
+    --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream (0.02s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled (0.01s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientStream_ManySmallDataFramesCompacted
+=== RUN   Test/RecvBuffer_ConcurrentReadWrite
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:344: Read data does not match written data
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersMemoryBounded
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled
+--- FAIL: Test (0.09s)
+    --- PASS: Test/ClientStream_ManySmallDataFramesCompacted (0.03s)
+    --- FAIL: Test/RecvBuffer_ConcurrentReadWrite (0.02s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersMemoryBounded (0.01s)
+    --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream (0.02s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled (0.01s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled (0.02s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientStream_ManySmallDataFramesCompacted
+=== RUN   Test/RecvBuffer_ConcurrentReadWrite
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:344: Read data does not match written data
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersMemoryBounded
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled
+--- FAIL: Test (0.08s)
+    --- PASS: Test/ClientStream_ManySmallDataFramesCompacted (0.03s)
+    --- FAIL: Test/RecvBuffer_ConcurrentReadWrite (0.02s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersMemoryBounded (0.01s)
+    --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream (0.02s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled (0.01s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientStream_ManySmallDataFramesCompacted
+=== RUN   Test/RecvBuffer_ConcurrentReadWrite
+C1-MUTANT-HIT post-consumption put on this buffer, kind=data
+C1-MUTANT-HIT post-consumption put on this buffer, kind=terminal
+    recv_buffer_test.go:344: Read data does not match written data
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersMemoryBounded
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled
+--- FAIL: Test (0.08s)
+    --- PASS: Test/ClientStream_ManySmallDataFramesCompacted (0.03s)
+    --- FAIL: Test/RecvBuffer_ConcurrentReadWrite (0.02s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersMemoryBounded (0.01s)
+    --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream (0.02s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled (0.01s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled (0.01s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ClientStream_ManySmallDataFramesCompacted
+=== RUN   Test/RecvBuffer_ConcurrentReadWrite
+=== RUN   Test/RecvBuffer_ErrorAfterCompactedData
+=== RUN   Test/RecvBuffer_LargeBuffersBypassCompaction
+=== RUN   Test/RecvBuffer_SmallBuffersMemoryBounded
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled
+=== RUN   Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled
+--- PASS: Test (0.10s)
+    --- PASS: Test/ClientStream_ManySmallDataFramesCompacted (0.03s)
+    --- PASS: Test/RecvBuffer_ConcurrentReadWrite (0.03s)
+    --- PASS: Test/RecvBuffer_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBuffer_LargeBuffersBypassCompaction (0.00s)
+    --- PASS: Test/RecvBuffer_SmallBuffersMemoryBounded (0.01s)
+    --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream (0.02s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_enabled (0.01s)
+        --- PASS: Test/RecvBuffer_SmallBuffersOnSlowStream/compaction_disabled (0.02s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	0.855s
+FAIL
