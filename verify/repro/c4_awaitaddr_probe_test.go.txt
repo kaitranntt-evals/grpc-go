@@ -1,0 +1,38 @@
+// Run (on a checkout of evalon/grpc-go-en-30a9d20e): cp verify/repro/c4_awaitaddr_probe_test.go.txt balancer/endpointsharding/c4_awaitaddr_probe_test.go && go test ./balancer/endpointsharding -run '^TestVerifyC4_AwaitAddrDiscardsForbiddenEvent$' -count=1 -v
+//
+// Probe for claim C4 (event retention). Calls the branch's own awaitAddr
+// helper, unmodified, with removed child A's event queued ahead of child B's.
+// The test reports what is left on the channel afterwards; it FAILS if A's
+// event was preserved or reported, i.e. a PASS means A's event was silently
+// consumed and is unavailable to the negative receive that follows.
+
+package endpointsharding_test
+
+import (
+	"context"
+	"testing"
+	"time"
+)
+
+func TestVerifyC4_AwaitAddrDiscardsForbiddenEvent(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ch := make(chan string, 10) // same shape as blockingChildController.exitIdleCalled
+	ch <- blockingChildAddrA    // forbidden event: ExitIdle reached removed child A
+	ch <- blockingChildAddrB    // expected event
+	t.Logf("before awaitAddr: len(ch)=%d (A then B)", len(ch))
+
+	awaitAddr(ctx, t, ch, blockingChildAddrB, "ExitIdle")
+	t.Logf("after awaitAddr(B): len(ch)=%d, t.Failed()=%v", len(ch), t.Failed())
+
+	// Same negative receive as TestEndpointSharding_ChildExitIdleAfterRemoval.
+	sCtx, sCancel := context.WithTimeout(ctx, defaultTestShortTimeout)
+	defer sCancel()
+	select {
+	case addr := <-ch:
+		t.Fatalf("negative receive saw %q: awaitAddr preserved the forbidden event", addr)
+	case <-sCtx.Done():
+		t.Logf("negative receive saw nothing: A's ExitIdle event was consumed and discarded by awaitAddr")
+	}
+}

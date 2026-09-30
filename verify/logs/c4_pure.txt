@@ -1,0 +1,4 @@
+unmutated branch (removed child A never receives ExitIdle): runs=100 PASS=100 FAIL=0
+ balancer/endpointsharding/endpointsharding.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+guard-lost mutant (removed child A receives ExitIdle on every run): runs=100 PASS=41 FAIL=59

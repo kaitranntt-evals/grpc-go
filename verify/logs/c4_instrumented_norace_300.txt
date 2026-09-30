@@ -1,0 +1,2 @@
+      1 first=addr-a removedA_got_ExitIdle=1 result=PASS
+    299 first=addr-b removedA_got_ExitIdle=1 result=FAIL

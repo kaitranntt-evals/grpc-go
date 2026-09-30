@@ -1,0 +1,29 @@
+# Run: git apply this file on evalon/grpc-go-en-0fd80b14, then go test ./balancer/endpointsharding -run 'Test/ChildExitIdleIndependent/UpdateClientConnState' -race -count=1 -v -timeout 45s   (control: worker finishes once the barrier is released, test fails cleanly at 10s)
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 7a6ccb3a..e1e9575c 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -344,6 +344,8 @@ func (bw *balancerWrapper) UpdateState(state balancer.State) {
+ // ExitIdle pings an IDLE child balancer to exit idle. Call it in a new goroutine
+ // when handling child state updates to avoid deadlocks from synchronous updates.
+ func (bw *balancerWrapper) ExitIdle() {
++	verifyGlobalMu.Lock() // VERIFY CONTROL MUTANT (C2): one lock shared by all children
++	defer verifyGlobalMu.Unlock()
+ 	bw.childMu.Lock()
+ 	defer bw.childMu.Unlock()
+ 	if !bw.isClosed {
+@@ -353,6 +355,8 @@ func (bw *balancerWrapper) ExitIdle() {
+ 
+ // updateClientConnState delivers the ClientConnState to the child balancer.
+ func (bw *balancerWrapper) updateClientConnState(ccs balancer.ClientConnState) error {
++	verifyGlobalMu.Lock() // VERIFY CONTROL MUTANT (C2): one lock shared by all children
++	defer verifyGlobalMu.Unlock()
+ 	bw.childMu.Lock()
+ 	defer bw.childMu.Unlock()
+ 	return bw.child.UpdateClientConnState(ccs)
+@@ -371,3 +375,5 @@ func (bw *balancerWrapper) resolverError(err error) {
+ 	defer bw.childMu.Unlock()
+ 	bw.child.ResolverError(err)
+ }
++
++var verifyGlobalMu sync.Mutex

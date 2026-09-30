@@ -1,0 +1,64 @@
+=== RUN   TestVerifyC1_UpdateClientConnStateCallbackAcquiresParentMuUnderChildMu
+    c1_lockorder_probe_test.go:128: inside child.UpdateClientConnState: child mutex (balancerWrapper.mu) held by caller = true
+    c1_lockorder_probe_test.go:142: synchronous cc.UpdateState callback blocked while test held es.mu = true
+    c1_lockorder_probe_test.go:143: child mutex still held while callback was waiting for es.mu = true
+    c1_lockorder_probe_test.go:144: stack of the goroutine waiting for es.mu:
+        goroutine 22 [sync.Mutex.Lock]:
+        internal/sync.runtime_SemacquireMutex(0x44de0f?, 0xb0?, 0x9ccc85?)
+        	/usr/local/go/src/runtime/sema.go:95 +0x25
+        internal/sync.(*Mutex).lockSlow(0xc000182e94)
+        	/usr/local/go/src/internal/sync/mutex.go:149 +0x210
+        internal/sync.(*Mutex).Lock(0xc000182e94)
+        	/usr/local/go/src/internal/sync/mutex.go:70 +0x55
+        sync.(*Mutex).Lock(0xc000182e94)
+        	/usr/local/go/src/sync/mutex.go:46 +0x29
+        google.golang.org/grpc/balancer/endpointsharding.(*balancerWrapper).UpdateState(0xc0001e2870, {0xc000085b48?, {0x1354280?, 0xc000046040?}})
+        	/home/ubuntu/wt/dd885fa5/balancer/endpointsharding/endpointsharding.go:394 +0x65
+        google.golang.org/grpc/balancer/endpointsharding.(*c1Child).UpdateClientConnState(0xc0001f8810, {{{0x0, 0x0, 0x0}, {0xc000136cc0, 0x1, 0x1}, 0x0, 0x0}, {0x0, ...}})
+        	/home/ubuntu/wt/dd885fa5/balancer/endpointsharding/c1_lockorder_probe_test.go:47 +0x10e
+        google.golang.org/grpc/balancer/endpointsharding.(*balancerWrapper).updateClientConnState(0xc0001e2870, {{{0x0, 0x0, 0x0}, {0xc000136cc0, 0x1, 0x1}, 0x0, 0x0}, {0x0, ...}})
+        	/home/ubuntu/wt/dd885fa5/balancer/endpointsharding/endpointsharding.go:424 +0x119
+        google.golang.org/grpc/balancer/endpointsharding.(*endpointSharding).UpdateClientConnState(0xc000182d80, {{{0x0, 0x0, 0x0}, {0xc000136c40, 0x1, 0x1}, 0x0, 0x0}, {0x0, ...}})
+        	/home/ubuntu/wt/dd885fa5/balancer/endpointsharding/endpointsharding.go:196 +0x7a6
+        google.golang.org/grpc/balancer/endpointsharding.TestVerifyC1_UpdateClientConnStateCallbackAcquiresParentMuUnderChildMu.func3()
+        	/home/ubuntu/wt/dd885fa5/balancer/endpointsharding/c1_lockorder_probe_test.go:126 +0x9d
+        created by google.golang.org/grpc/balancer/endpointsharding.TestVerifyC1_UpdateClientConnStateCallbackAcquiresParentMuUnderChildMu in goroutine 21
+        	/home/ubuntu/wt/dd885fa5/balancer/endpointsharding/c1_lockorder_probe_test.go:126 +0x4e5
+    c1_lockorder_probe_test.go:157: OBSERVED: callback acquires parent mutex es.mu while its caller retains child mutex balancerWrapper.mu
+--- PASS: TestVerifyC1_UpdateClientConnStateCallbackAcquiresParentMuUnderChildMu (0.50s)
+=== RUN   TestVerifyC1_ExitIdleCallbackReachesParentCCUnderBothMutexes
+    c1_lockorder_probe_test.go:179: child.ExitIdle calls=1, es.cc.UpdateState calls=1
+    c1_lockorder_probe_test.go:180: inside es.cc.UpdateState: parent mutex es.mu held = true, child mutex balancerWrapper.mu held = true
+    c1_lockorder_probe_test.go:181: stack inside es.cc.UpdateState:
+        goroutine 34 [running]:
+        runtime/debug.Stack()
+        	/usr/local/go/src/runtime/debug/stack.go:26 +0x68
+        google.golang.org/grpc/balancer/endpointsharding.TestVerifyC1_ExitIdleCallbackReachesParentCCUnderBothMutexes.func1()
+        	/home/ubuntu/wt/dd885fa5/balancer/endpointsharding/c1_lockorder_probe_test.go:174 +0xe8
+        google.golang.org/grpc/balancer/endpointsharding.(*c1ParentCC).UpdateState(0xc0003962a0, {0x1?, {0x0?, 0xc0003c0000?}})
+        	/home/ubuntu/wt/dd885fa5/balancer/endpointsharding/c1_lockorder_probe_test.go:32 +0x56
+        google.golang.org/grpc/balancer/endpointsharding.(*endpointSharding).updateState(0xc0003ca000)
+        	/home/ubuntu/wt/dd885fa5/balancer/endpointsharding/endpointsharding.go:314 +0xcfc
+        google.golang.org/grpc/balancer/endpointsharding.(*balancerWrapper).UpdateState(0xc0003ce000, {0x4c8be9?, {0x1354280?, 0xc0003900f0?}})
+        	/home/ubuntu/wt/dd885fa5/balancer/endpointsharding/endpointsharding.go:400 +0x13d
+        google.golang.org/grpc/balancer/endpointsharding.(*c1Child).ExitIdle(0xc000386180)
+        	/home/ubuntu/wt/dd885fa5/balancer/endpointsharding/c1_lockorder_probe_test.go:59 +0x105
+        google.golang.org/grpc/balancer/endpointsharding.(*balancerWrapper).exitIdle(0xc0003ce000)
+        	/home/ubuntu/wt/dd885fa5/balancer/endpointsharding/endpointsharding.go:417 +0xcc
+        google.golang.org/grpc/balancer/endpointsharding.(*endpointSharding).ExitIdle-range1(...)
+        	/home/ubuntu/wt/dd885fa5/balancer/endpointsharding/endpointsharding.go:252
+        google.golang.org/grpc/balancer/endpointsharding.(*endpointSharding).ExitIdle.(*EndpointMap[...]).All.func1(...)
+        	/home/ubuntu/wt/dd885fa5/resolver/map.go:270
+        google.golang.org/grpc/balancer/endpointsharding.(*endpointSharding).ExitIdle(0xc0003ca000)
+        	/home/ubuntu/wt/dd885fa5/balancer/endpointsharding/endpointsharding.go:251 +0x172
+        google.golang.org/grpc/balancer/endpointsharding.TestVerifyC1_ExitIdleCallbackReachesParentCCUnderBothMutexes(0xc0003b4000)
+        	/home/ubuntu/wt/dd885fa5/balancer/endpointsharding/c1_lockorder_probe_test.go:176 +0x378
+        testing.tRunner(0xc0003b4000, 0x124bfa0)
+        	/usr/local/go/src/testing/testing.go:1934 +0x21d
+        created by testing.(*T).Run in goroutine 1
+        	/usr/local/go/src/testing/testing.go:1997 +0x9d3
+    c1_lockorder_probe_test.go:185: OBSERVED: es.updateState() acquired es.mu and called into es.cc while the caller retained balancerWrapper.mu
+--- PASS: TestVerifyC1_ExitIdleCallbackReachesParentCCUnderBothMutexes (0.00s)
+PASS
+ok  	google.golang.org/grpc/balancer/endpointsharding	1.516s
+exit=0

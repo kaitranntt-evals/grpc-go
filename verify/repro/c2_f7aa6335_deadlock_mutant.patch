@@ -1,0 +1,17 @@
+# Run: sh verify/repro/c2_cleanup_hang.sh f7aa6335   (or: git apply this file on evalon/grpc-go-en-f7aa6335, then go test ./balancer/endpointsharding -run 'Test/ChildOperationsIndependent/UpdateClientConnState/exitAll=false' -race -count=1 -v -timeout 45s)
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index d6f7ef25..768119a3 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -351,6 +351,11 @@ func (bw *balancerWrapper) ExitIdle() {
+ 	go func() {
+ 		bw.childMu.Lock()
+ 		defer bw.childMu.Unlock()
++		// VERIFY MUTANT (C2): hold the parent mutex across the call into the
++		// child. A child that synchronously reports state from ExitIdle then
++		// self-deadlocks on es.mu, and every later es.mu user blocks forever.
++		bw.es.mu.Lock()
++		defer bw.es.mu.Unlock()
+ 		if !bw.isClosed {
+ 			bw.child.ExitIdle()
+ 		}

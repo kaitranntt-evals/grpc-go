@@ -1,0 +1,4 @@
+pure guard-lost mutant | -race -v | 200 runs: PASS(false negative)=92 FAIL(caught)=108
+pure guard-lost mutant | -race (no -v) | 200 runs: PASS(false negative)=91 FAIL(caught)=109
+pure guard-lost mutant | no race, -v | 200 runs: PASS(false negative)=0 FAIL(caught)=200
+pure guard-lost mutant | no race (no -v) | 200 runs: PASS(false negative)=0 FAIL(caught)=200

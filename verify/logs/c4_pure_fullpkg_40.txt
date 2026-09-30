@@ -1,0 +1,2 @@
+pure guard-lost mutant | whole package test binary (-race -v) | 40 runs: all-green=20 red=20
+     20     --- FAIL: Test/EndpointSharding_ChildExitIdleAfterRemoval

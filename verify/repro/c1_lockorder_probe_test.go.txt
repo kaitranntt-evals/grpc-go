@@ -1,0 +1,186 @@
+// Run (on a checkout of the claim branch): cp verify/repro/c1_lockorder_probe_test.go.txt balancer/endpointsharding/c1_lockorder_probe_test.go && go test ./balancer/endpointsharding -run '^TestVerifyC1_' -race -count=1 -v
+//
+// Runtime probe for claim C1. It does not modify production code: it lives in
+// package endpointsharding so it can TryLock the production mutexes
+// (endpointSharding.mu = "parent mutex", balancerWrapper.mu = "child mutex")
+// from inside a child's synchronous callback. A PASS means the nested
+// acquisition (parent mutex taken while the caller still holds the child
+// mutex) was observed.
+
+package endpointsharding
+
+import (
+	"runtime"
+	"runtime/debug"
+	"strings"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/balancer/base"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/resolver"
+)
+
+type c1ParentCC struct {
+	balancer.ClientConn
+	onUpdateState func()
+}
+
+func (p *c1ParentCC) UpdateState(balancer.State) {
+	if p.onUpdateState != nil {
+		p.onUpdateState()
+	}
+}
+
+type c1Child struct {
+	cc          balancer.ClientConn
+	beforeCB    func() // runs inside UpdateClientConnState before the synchronous cc.UpdateState
+	afterCB     func() // runs inside UpdateClientConnState after the synchronous cc.UpdateState returned
+	exitIdleCBs int
+}
+
+func (c *c1Child) UpdateClientConnState(balancer.ClientConnState) error {
+	if c.beforeCB != nil {
+		c.beforeCB()
+	}
+	c.cc.UpdateState(balancer.State{ConnectivityState: connectivity.Idle, Picker: base.NewErrPicker(balancer.ErrNoSubConnAvailable)})
+	if c.afterCB != nil {
+		c.afterCB()
+	}
+	return nil
+}
+func (c *c1Child) ResolverError(error)                                        {}
+func (c *c1Child) UpdateSubConnState(balancer.SubConn, balancer.SubConnState) {}
+func (c *c1Child) Close()                                                     {}
+func (c *c1Child) ExitIdle() {
+	c.exitIdleCBs++
+	// Synchronous state update from within ExitIdle, as pickfirst does.
+	c.cc.UpdateState(balancer.State{ConnectivityState: connectivity.Connecting, Picker: base.NewErrPicker(balancer.ErrNoSubConnAvailable)})
+}
+
+// held reports whether mu is currently locked (by anyone).
+func c1Held(mu interface {
+	TryLock() bool
+	Unlock()
+}) bool {
+	if mu.TryLock() {
+		mu.Unlock()
+		return false
+	}
+	return true
+}
+
+func c1Setup(t *testing.T) (*endpointSharding, *balancerWrapper, *c1Child, *c1ParentCC, balancer.ClientConnState) {
+	t.Helper()
+	parent := &c1ParentCC{}
+	var child *c1Child
+	build := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+		child = &c1Child{cc: cc}
+		return child
+	}
+	es := NewBalancer(parent, balancer.BuildOptions{}, build, Options{DisableAutoReconnect: true}).(*endpointSharding)
+	ccs := balancer.ClientConnState{ResolverState: resolver.State{Endpoints: []resolver.Endpoint{{Addresses: []resolver.Address{{Addr: "only-child"}}}}}}
+	if err := es.UpdateClientConnState(ccs); err != nil {
+		t.Fatalf("initial UpdateClientConnState: %v", err)
+	}
+	var bw *balancerWrapper
+	for _, w := range es.children.Load().All() {
+		bw = w
+	}
+	if bw == nil || child == nil {
+		t.Fatal("no child built")
+	}
+	return es, bw, child, parent, ccs
+}
+
+func c1StackOf(marker string) string {
+	buf := make([]byte, 1<<20)
+	buf = buf[:runtime.Stack(buf, true)]
+	for _, g := range strings.Split(string(buf), "\n\n") {
+		if strings.Contains(g, marker) {
+			return g
+		}
+	}
+	return "<no goroutine matching " + marker + ">"
+}
+
+// Path named by the claim: UpdateClientConnState -> child -> synchronous
+// cc.UpdateState. The test pins the parent mutex (es.mu) from outside while the
+// child is inside UpdateClientConnState; if the callback acquires es.mu while
+// its caller retains the child mutex, the callback must block, with the child
+// mutex still locked, until the test releases es.mu.
+func TestVerifyC1_UpdateClientConnStateCallbackAcquiresParentMuUnderChildMu(t *testing.T) {
+	es, bw, child, _, ccs := c1Setup(t)
+
+	entered, proceed, returned := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	var childMuHeldOnEntry bool
+	child.beforeCB = func() {
+		childMuHeldOnEntry = c1Held(&bw.mu)
+		close(entered)
+		<-proceed
+	}
+	child.afterCB = func() { close(returned) }
+
+	done := make(chan error, 1)
+	go func() { done <- es.UpdateClientConnState(ccs) }()
+	<-entered
+	t.Logf("inside child.UpdateClientConnState: child mutex (balancerWrapper.mu) held by caller = %v", childMuHeldOnEntry)
+
+	es.mu.Lock() // pin the parent mutex
+	close(proceed)
+	var blocked bool
+	select {
+	case <-returned:
+	case <-time.After(500 * time.Millisecond):
+		blocked = true
+	}
+	childMuHeldWhileBlocked := c1Held(&bw.mu)
+	stack := c1StackOf("c1Child).UpdateClientConnState")
+	es.mu.Unlock()
+
+	t.Logf("synchronous cc.UpdateState callback blocked while test held es.mu = %v", blocked)
+	t.Logf("child mutex still held while callback was waiting for es.mu = %v", childMuHeldWhileBlocked)
+	t.Logf("stack of the goroutine waiting for es.mu:\n%s", stack)
+
+	select {
+	case <-returned:
+	case <-time.After(5 * time.Second):
+		t.Fatal("callback did not return after es.mu was released")
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("UpdateClientConnState: %v", err)
+	}
+	if !childMuHeldOnEntry || !blocked || !childMuHeldWhileBlocked {
+		t.Fatalf("nested acquisition NOT observed: childMuHeldOnEntry=%v blocked=%v childMuHeldWhileBlocked=%v", childMuHeldOnEntry, blocked, childMuHeldWhileBlocked)
+	}
+	t.Log("OBSERVED: callback acquires parent mutex es.mu while its caller retains child mutex balancerWrapper.mu")
+}
+
+// Non-inhibited path: ExitIdle -> child.ExitIdle -> synchronous cc.UpdateState
+// -> es.updateState() (a parent method that acquires es.mu) -> es.cc.UpdateState.
+// The probe runs inside the parent ClientConn (es.cc) and records which
+// production mutexes are locked at that instant.
+func TestVerifyC1_ExitIdleCallbackReachesParentCCUnderBothMutexes(t *testing.T) {
+	es, bw, child, parent, _ := c1Setup(t)
+
+	var calls int
+	var parentMuHeld, childMuHeld bool
+	var stack string
+	parent.onUpdateState = func() {
+		calls++
+		parentMuHeld = c1Held(&es.mu)
+		childMuHeld = c1Held(&bw.mu)
+		stack = string(debug.Stack())
+	}
+	es.ExitIdle()
+	parent.onUpdateState = nil
+
+	t.Logf("child.ExitIdle calls=%d, es.cc.UpdateState calls=%d", child.exitIdleCBs, calls)
+	t.Logf("inside es.cc.UpdateState: parent mutex es.mu held = %v, child mutex balancerWrapper.mu held = %v", parentMuHeld, childMuHeld)
+	t.Logf("stack inside es.cc.UpdateState:\n%s", stack)
+	if calls != 1 || !parentMuHeld || !childMuHeld {
+		t.Fatalf("nested acquisition NOT observed: calls=%d parentMuHeld=%v childMuHeld=%v", calls, parentMuHeld, childMuHeld)
+	}
+	t.Log("OBSERVED: es.updateState() acquired es.mu and called into es.cc while the caller retained balancerWrapper.mu")
+}

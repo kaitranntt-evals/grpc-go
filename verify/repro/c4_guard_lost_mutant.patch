@@ -1,0 +1,60 @@
+# Run: sh verify/repro/c4_false_pass.sh   (applies this file on evalon/grpc-go-en-30a9d20e: drops the closed-child guard and numbers ExitIdle deliveries on stderr)
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 0adbde8d..d7f0f04c 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -27,7 +27,9 @@ package endpointsharding
+ 
+ import (
+ 	"errors"
++	"fmt"
+ 	rand "math/rand/v2"
++	"os"
+ 	"sync"
+ 	"sync/atomic"
+ 
+@@ -373,6 +375,8 @@ type balancerWrapper struct {
+ 	child balancer.Balancer
+ 	// isClosed is guarded by childMu.
+ 	isClosed bool
++	// verifyRemoved is VERIFY instrumentation only; guarded by childMu.
++	verifyRemoved bool
+ 
+ 	// childState is guarded by es.mu.
+ 	childState ChildState
+@@ -400,10 +404,24 @@ func (bw *balancerWrapper) exitIdle() {
+ 	bw.childMu.Lock()
+ 	defer bw.childMu.Unlock()
+ 	if !bw.isClosed {
++		// VERIFY INSTRUMENTATION (C4): serialize and number the deliveries so
++		// the order in which children observe ExitIdle is printed exactly.
++		verifySeqMu.Lock()
++		defer verifySeqMu.Unlock()
+ 		bw.child.ExitIdle()
++		verifySeq++
++		bw.es.mu.Lock()
++		addr := bw.childState.Endpoint.Addresses[0].Addr
++		bw.es.mu.Unlock()
++		fmt.Fprintf(os.Stderr, "VERIFY-C4 delivery #%d: ExitIdle reached child %q (removed=%v)\n", verifySeq, addr, bw.verifyRemoved)
+ 	}
+ }
+ 
++var (
++	verifySeqMu sync.Mutex
++	verifySeq   int
++)
++
+ // updateClientConnState delivers the ClientConnState to the child balancer.
+ func (bw *balancerWrapper) updateClientConnState(ccs balancer.ClientConnState) error {
+ 	bw.childMu.Lock()
+@@ -420,7 +438,9 @@ func (bw *balancerWrapper) close() {
+ 		return
+ 	}
+ 	bw.child.Close()
+-	bw.isClosed = true
++	// VERIFY MUTANT (C4): the closed-state guard is lost; a removed child
++	// keeps receiving ExitIdle. Original line: bw.isClosed = true
++	bw.verifyRemoved = true
+ }
+ 
+ func (bw *balancerWrapper) resolverError(err error) {

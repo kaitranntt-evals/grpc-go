@@ -1,0 +1,9 @@
+=== RUN   TestVerifyC4_AwaitAddrDiscardsForbiddenEvent
+    c4_awaitaddr_probe_test.go:24: before awaitAddr: len(ch)=2 (A then B)
+    c4_awaitaddr_probe_test.go:27: after awaitAddr(B): len(ch)=0, t.Failed()=false
+    c4_awaitaddr_probe_test.go:36: negative receive saw nothing: A's ExitIdle event was consumed and discarded by awaitAddr
+--- PASS: TestVerifyC4_AwaitAddrDiscardsForbiddenEvent (0.01s)
+PASS
+ok  	google.golang.org/grpc/balancer/endpointsharding	0.014s
+     33 first=addr-a removedA_got_ExitIdle=1 result=PASS
+     67 first=addr-b removedA_got_ExitIdle=1 result=FAIL

@@ -1,0 +1,17 @@
+ok  	google.golang.org/grpc/balancer/endpointsharding	1.015s
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ChildExitIdleIndependent
+=== RUN   Test/ChildExitIdleIndependent/UpdateClientConnState
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000135b40})
+    endpointsharding_ext_test.go:466: Fast child's ExitIdle blocked behind the slow child
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000324000})
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({READY 0xc000324040})
+--- FAIL: Test (10.00s)
+    --- FAIL: Test/ChildExitIdleIndependent (10.00s)
+        --- FAIL: Test/ChildExitIdleIndependent/UpdateClientConnState (10.00s)
+FAIL
+FAIL	google.golang.org/grpc/balancer/endpointsharding	10.017s
+FAIL
+exit=1

@@ -1,0 +1,14 @@
+# Run: git apply this file on evalon/grpc-go-en-30a9d20e, then loop: go test ./balancer/endpointsharding -run 'Test/EndpointSharding_ChildExitIdleAfterRemoval' -race -count=1   (one-line mutant, no instrumentation: removed child keeps receiving ExitIdle)
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 0adbde8d..83424bd9 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -420,7 +420,7 @@ func (bw *balancerWrapper) close() {
+ 		return
+ 	}
+ 	bw.child.Close()
+-	bw.isClosed = true
++	// VERIFY PURE MUTANT (C4): bw.isClosed = true removed
+ }
+ 
+ func (bw *balancerWrapper) resolverError(err error) {

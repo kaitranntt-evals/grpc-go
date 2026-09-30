@@ -1,0 +1,31 @@
+e16b4f9e4dc51e1a4100e93767cb9bc4d489a716374a4d7207e1318abdcb9166  /home/ubuntu/eval_tests/tests/eval_endpointsharding_test.go
+--- fixture, unmutated
+--- PASS: TestEval_ChildExitIdleWhileAnotherChildBlocked (0.00s)
+--- PASS: TestEval_SameChildMutualExclusion (0.73s)
+--- PASS: TestEval_SynchronousChildUpdateDeadlock (0.00s)
+    eval_endpointsharding_test.go:1777: iteration 193: ExitIdle reached child before initial configuration
+--- FAIL: TestEval_ConstructionIdleCallbackSafety (0.28s)
+--- PASS: TestEval_ExistingChildIdleAttributeRace (0.00s)
+    eval_endpointsharding_test.go:1924: Expected direct callable ExitIdle on ChildState: ChildState retains facade wrapper field "Balancer" of type endpointsharding.ExitIdler exposing ExitIdle
+--- FAIL: TestEval_ChildStateExitIdleCallback (0.00s)
+--- PASS: TestEval_BatchUpdateInhibition (0.00s)
+--- PASS: TestEval_ResolverErrorConsolidatedNotification (0.00s)
+--- PASS: TestEval_PickerStateAggregationPrecedence (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/balancer/endpointsharding	1.030s
+FAIL
+--- fixture, pure guard-lost mutant
+--- PASS: TestEval_ChildExitIdleWhileAnotherChildBlocked (0.00s)
+    eval_endpointsharding_test.go:1285: ExitIdle called child after Close finished (queued call on closed child)
+--- FAIL: TestEval_SameChildMutualExclusion (0.63s)
+--- PASS: TestEval_SynchronousChildUpdateDeadlock (0.00s)
+--- PASS: TestEval_ConstructionIdleCallbackSafety (0.40s)
+--- PASS: TestEval_ExistingChildIdleAttributeRace (0.00s)
+    eval_endpointsharding_test.go:1924: Expected direct callable ExitIdle on ChildState: ChildState retains facade wrapper field "Balancer" of type endpointsharding.ExitIdler exposing ExitIdle
+--- FAIL: TestEval_ChildStateExitIdleCallback (0.00s)
+--- PASS: TestEval_BatchUpdateInhibition (0.00s)
+--- PASS: TestEval_ResolverErrorConsolidatedNotification (0.00s)
+--- PASS: TestEval_PickerStateAggregationPrecedence (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/balancer/endpointsharding	1.051s
+FAIL
