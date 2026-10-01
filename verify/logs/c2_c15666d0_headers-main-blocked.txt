@@ -1,0 +1,29 @@
+$ VERIFY_STALL=headers-main-blocked go test -v -run 'Test/ClientTransport_SlowReaderTinyDataFrames$' google.golang.org/grpc/internal/transport -count=1 -timeout 180s
+=== RUN   Test
+=== RUN   Test/ClientTransport_SlowReaderTinyDataFrames
+=== RUN   Test/ClientTransport_SlowReaderTinyDataFrames/compaction_enabled
+VERIFY C2 [t+  0.0s] test goroutine: parked for 25s; no deferred Close can run until it wakes
+VERIFY C2 [t+  0.0s] fake server: entering stalled socket read (instead of answering HEADERS), no deadline set
+VERIFY C2 [t+ 10.0s] fake server: stalled socket read (instead of answering HEADERS) was interrupted after 10.0s: n=0 err=EOF
+VERIFY C2 [t+ 10.0s] fake server goroutine returned 10.0s after it started: err=verify: stalled read ended: EOF
+VERIFY C2 [t+ 25.0s] test goroutine: resumed
+    recv_buffer_test.go:396: backlog holds 0 payload bytes, want 16383 (ctx error: context deadline exceeded)
+=== RUN   Test/ClientTransport_SlowReaderTinyDataFrames/compaction_disabled
+VERIFY C2 [t+ 25.0s] test goroutine: parked for 25s; no deferred Close can run until it wakes
+VERIFY C2 [t+ 25.0s] fake server: entering stalled socket read (instead of answering HEADERS), no deadline set
+VERIFY C2 [t+ 35.0s] fake server: stalled socket read (instead of answering HEADERS) was interrupted after 10.0s: n=0 err=EOF
+VERIFY C2 [t+ 35.0s] fake server goroutine returned 10.0s after it started: err=verify: stalled read ended: EOF
+VERIFY C2 [t+ 50.0s] test goroutine: resumed
+    recv_buffer_test.go:396: backlog holds 0 payload bytes, want 16383 (ctx error: context deadline exceeded)
+--- FAIL: Test (50.04s)
+    --- FAIL: Test/ClientTransport_SlowReaderTinyDataFrames (50.04s)
+        --- FAIL: Test/ClientTransport_SlowReaderTinyDataFrames/compaction_enabled (25.02s)
+        --- FAIL: Test/ClientTransport_SlowReaderTinyDataFrames/compaction_disabled (25.02s)
+=== RUN   TestConnectionError_Unwrap
+--- PASS: TestConnectionError_Unwrap (0.00s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	50.044s
+FAIL
+exit=1 wall=50.657741010s

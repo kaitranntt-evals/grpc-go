@@ -1,0 +1,13 @@
+mutant M_A, Test/RecvBufferCompactionMemory x5: pass=0 fail=5
+    recv_buffer_test.go:108: retained heap for 65535 unread payload bytes: 4000712 bytes
+mutant M_A, Test/RecvBufferCompactionReads x5: pass=0 fail=5
+mutant M_A, Test/RecvBufferCompactionPartialChunk x5: pass=0 fail=5
+    recv_buffer_test.go:286: VERIFY C7 iteration 0: before refill: queue=0xc00021efc0 chan=0 backlog=0 pendingLen=-1 (-1 = none)
+    recv_buffer_test.go:290: VERIFY C7 iteration 0: after putting [0 1 2 3 4 5] on the same queue: queue=0xc00021efc0 chan=1 backlog=0 pendingLen=5 (-1 = none)
+    recv_buffer_test.go:300: VERIFY C7 iteration 0: reads returned [0 1 2 3 4 5]; asserting == [0 1 2 3 4 5]; queue=0xc00021efc0 chan=1 backlog=0 pendingLen=5 (-1 = none)
+    recv_buffer_test.go:286: VERIFY C7 iteration 1: before refill: queue=0xc00021efc0 chan=1 backlog=0 pendingLen=5 (-1 = none)
+    recv_buffer_test.go:290: VERIFY C7 iteration 1: after putting [1 1 2 3 4 5] on the same queue: queue=0xc00021efc0 chan=1 backlog=0 pendingLen=11 (-1 = none)
+    recv_buffer_test.go:300: VERIFY C7 iteration 1: reads returned [1 2 3 4 5 1 2]; asserting == [1 1 2 3 4 5]; queue=0xc00021efc0 chan=1 backlog=0 pendingLen=11 (-1 = none)
+    recv_buffer_test.go:302: Read() returned [1 2 3 4 5 1 2], want [1 1 2 3 4 5]
+    --- FAIL: Test/RecvBufferCompactionPartialChunk (0.00s)
+mutant M_A, Test/RecvBufferCompactionZeroCopy x5: pass=5 fail=0

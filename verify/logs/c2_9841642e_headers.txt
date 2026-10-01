@@ -1,0 +1,25 @@
+$ VERIFY_STALL=headers go test -v -run 'Test/ClientTinyDataFramesReceiveMemory$' google.golang.org/grpc/internal/transport -count=1 -timeout 180s
+=== RUN   Test
+=== RUN   Test/ClientTinyDataFramesReceiveMemory
+=== RUN   Test/ClientTinyDataFramesReceiveMemory/compaction=true
+VERIFY C2 [t+  0.0s] fake server: entering stalled socket read (instead of answering HEADERS), no deadline set
+VERIFY C2 [t+ 10.0s] fake server: stalled socket read (instead of answering HEADERS) was interrupted after 10.0s: n=0 err=EOF
+VERIFY C2 [t+ 10.0s] fake server goroutine returned 10.0s after it started: err=verify: stalled read ended: EOF
+    recv_buffer_test.go:315: Timed out waiting for data: backlog has 0 entries holding 0 bytes, want 64534 bytes
+=== RUN   Test/ClientTinyDataFramesReceiveMemory/compaction=false
+VERIFY C2 [t+ 10.0s] fake server: entering stalled socket read (instead of answering HEADERS), no deadline set
+    recv_buffer_test.go:315: Timed out waiting for data: backlog has 0 entries holding 0 bytes, want 64534 bytes
+VERIFY C2 [t+ 20.0s] fake server: stalled socket read (instead of answering HEADERS) was interrupted after 10.0s: n=42 err=unexpected EOF
+VERIFY C2 [t+ 20.0s] fake server goroutine returned 10.0s after it started: err=verify: stalled read ended: unexpected EOF
+--- FAIL: Test (20.05s)
+    --- FAIL: Test/ClientTinyDataFramesReceiveMemory (20.05s)
+        --- FAIL: Test/ClientTinyDataFramesReceiveMemory/compaction=true (10.00s)
+        --- FAIL: Test/ClientTinyDataFramesReceiveMemory/compaction=false (10.00s)
+=== RUN   TestConnectionError_Unwrap
+--- PASS: TestConnectionError_Unwrap (0.00s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	20.061s
+FAIL
+exit=1 wall=20.457653852s

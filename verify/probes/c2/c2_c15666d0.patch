@@ -1,0 +1,53 @@
+diff --git a/internal/transport/recv_buffer_test.go b/internal/transport/recv_buffer_test.go
+index 22dfff61..b447df29 100644
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -354,7 +354,10 @@ func (s) TestClientTransport_SlowReaderTinyDataFrames(t *testing.T) {
+ 		defer lis.Close()
+ 		serverErr := make(chan error, 1)
+ 		go func() {
+-			serverErr <- serveTinyDataFrames(lis, numFrames)
++			verifyStart := time.Now()
++			verifyErr := serveTinyDataFrames(lis, numFrames)
++			verifyC2ServerReturned(verifyStart, verifyErr)
++			serverErr <- verifyErr
+ 		}()
+ 
+ 		ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+@@ -363,7 +366,7 @@ func (s) TestClientTransport_SlowReaderTinyDataFrames(t *testing.T) {
+ 			ChannelzParent: channelzSubChannel(t),
+ 			BufferPool:     mem.DefaultBufferPool(),
+ 		}
+-		ct, err := NewHTTP2Client(ctx, ctx, resolver.Address{Addr: lis.Addr().String()}, copts, func(GoAwayInfo) {})
++		ct, err := NewHTTP2Client(ctx, ctx, resolver.Address{Addr: verifyC2DialAddr(lis)}, copts, func(GoAwayInfo) {})
+ 		if err != nil {
+ 			t.Fatalf("NewHTTP2Client() = %v", err)
+ 		}
+@@ -376,6 +379,7 @@ func (s) TestClientTransport_SlowReaderTinyDataFrames(t *testing.T) {
+ 		// Wait for every frame to arrive without reading any of them. The
+ 		// first payload is handed to the reader's channel directly, so the
+ 		// backlog ends up holding one byte less than the total.
++		verifyC2MaybeBlockMain()
+ 		var payload int
+ 		for ctx.Err() == nil {
+ 			entries, retained, payload = recvBufferFootprint(&stream.buf)
+@@ -444,6 +448,9 @@ func serveTinyDataFrames(lis net.Listener, numFrames int) error {
+ 	}
+ 	bw := bufio.NewWriter(conn)
+ 	fr := http2.NewFramer(bw, conn)
++	if verifyC2Stall() == "handshake" {
++		return verifyC2StalledRead(conn, "instead of sending SETTINGS")
++	}
+ 	if err := fr.WriteSettings(); err != nil {
+ 		return err
+ 	}
+@@ -463,6 +470,9 @@ func serveTinyDataFrames(lis net.Listener, numFrames int) error {
+ 		}
+ 		switch frame := frame.(type) {
+ 		case *http2.HeadersFrame:
++			if verifyC2Stall() == "headers" {
++				return verifyC2StalledRead(conn, "instead of answering HEADERS")
++			}
+ 			var hbuf bytes.Buffer
+ 			henc := hpack.NewEncoder(&hbuf)
+ 			henc.WriteField(hpack.HeaderField{Name: ":status", Value: "200"})

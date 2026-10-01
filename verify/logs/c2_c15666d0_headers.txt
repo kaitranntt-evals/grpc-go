@@ -1,0 +1,25 @@
+$ VERIFY_STALL=headers go test -v -run 'Test/ClientTransport_SlowReaderTinyDataFrames$' google.golang.org/grpc/internal/transport -count=1 -timeout 180s
+=== RUN   Test
+=== RUN   Test/ClientTransport_SlowReaderTinyDataFrames
+=== RUN   Test/ClientTransport_SlowReaderTinyDataFrames/compaction_enabled
+VERIFY C2 [t+  0.0s] fake server: entering stalled socket read (instead of answering HEADERS), no deadline set
+VERIFY C2 [t+ 10.0s] fake server: stalled socket read (instead of answering HEADERS) was interrupted after 10.0s: n=0 err=EOF
+VERIFY C2 [t+ 10.0s] fake server goroutine returned 10.0s after it started: err=verify: stalled read ended: EOF
+    recv_buffer_test.go:391: fake server failed: verify: stalled read ended: EOF
+=== RUN   Test/ClientTransport_SlowReaderTinyDataFrames/compaction_disabled
+VERIFY C2 [t+ 10.0s] fake server: entering stalled socket read (instead of answering HEADERS), no deadline set
+VERIFY C2 [t+ 20.0s] fake server: stalled socket read (instead of answering HEADERS) was interrupted after 10.0s: n=0 err=EOF
+VERIFY C2 [t+ 20.0s] fake server goroutine returned 10.0s after it started: err=verify: stalled read ended: EOF
+    recv_buffer_test.go:391: fake server failed: verify: stalled read ended: EOF
+--- FAIL: Test (20.00s)
+    --- FAIL: Test/ClientTransport_SlowReaderTinyDataFrames (20.00s)
+        --- FAIL: Test/ClientTransport_SlowReaderTinyDataFrames/compaction_enabled (10.00s)
+        --- FAIL: Test/ClientTransport_SlowReaderTinyDataFrames/compaction_disabled (10.00s)
+=== RUN   TestConnectionError_Unwrap
+--- PASS: TestConnectionError_Unwrap (0.00s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	20.009s
+FAIL
+exit=1 wall=20.388759017s

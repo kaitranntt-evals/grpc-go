@@ -1,0 +1,53 @@
+diff --git a/internal/transport/recv_buffer_test.go b/internal/transport/recv_buffer_test.go
+index 7e2544b0..08b96800 100644
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -281,7 +281,10 @@ func (s) TestClientTinyDataFramesReceiveMemory(t *testing.T) {
+ 
+ 			serverErr := make(chan error, 1)
+ 			go func() {
+-				serverErr <- serveTinyDataFrames(lis, numFrames)
++				verifyStart := time.Now()
++				verifyErr := serveTinyDataFrames(lis, numFrames)
++				verifyC2ServerReturned(verifyStart, verifyErr)
++				serverErr <- verifyErr
+ 			}()
+ 
+ 			connectCtx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+@@ -292,7 +295,7 @@ func (s) TestClientTinyDataFramesReceiveMemory(t *testing.T) {
+ 				ChannelzParent: channelzSubChannel(t),
+ 				BufferPool:     mem.DefaultBufferPool(),
+ 			}
+-			ct, err := NewHTTP2Client(connectCtx, ctx, resolver.Address{Addr: lis.Addr().String()}, copts, func(GoAwayInfo) {})
++			ct, err := NewHTTP2Client(connectCtx, ctx, resolver.Address{Addr: verifyC2DialAddr(lis)}, copts, func(GoAwayInfo) {})
+ 			if err != nil {
+ 				t.Fatalf("Error while creating client transport: %v", err)
+ 			}
+@@ -305,6 +308,7 @@ func (s) TestClientTinyDataFramesReceiveMemory(t *testing.T) {
+ 
+ 			// Wait, without reading, until every frame but the one sitting
+ 			// in the channel has been queued in the stream's backlog.
++			verifyC2MaybeBlockMain()
+ 			var entries, payload int
+ 			for deadline := time.Now().Add(defaultTestTimeout); payload != backlogBytes; {
+ 				if time.Now().After(deadline) {
+@@ -348,6 +352,9 @@ func serveTinyDataFrames(lis net.Listener, numFrames int) error {
+ 	var mu sync.Mutex
+ 	w := bufio.NewWriter(sconn)
+ 	sfr := http2.NewFramer(w, sconn)
++	if verifyC2Stall() == "handshake" {
++		return verifyC2StalledRead(sconn, "instead of sending SETTINGS")
++	}
+ 	if err := sfr.WriteSettings(); err != nil {
+ 		return fmt.Errorf("error while writing settings: %v", err)
+ 	}
+@@ -365,6 +372,9 @@ func serveTinyDataFrames(lis net.Listener, numFrames int) error {
+ 		}
+ 		switch frame := frame.(type) {
+ 		case *http2.HeadersFrame:
++			if verifyC2Stall() == "headers" {
++				return verifyC2StalledRead(sconn, "instead of answering HEADERS")
++			}
+ 			var buf bytes.Buffer
+ 			henc := hpack.NewEncoder(&buf)
+ 			for _, hf := range []hpack.HeaderField{

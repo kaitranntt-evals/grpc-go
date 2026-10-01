@@ -1,0 +1,12 @@
+$ go test -v -run '^TestEval_' google.golang.org/grpc/internal/transport -race -count=1
+    eval_recv_buffer_compaction_test.go:91: Got backlog length 1025 after compaction, want <= 64
+--- FAIL: TestEval_RecvBufferCompaction (0.00s)
+    eval_recv_buffer_compaction_test.go:125: Got backlog length 1025, want <= 64 (compaction enabled)
+--- FAIL: TestEval_RecvBufferCompactionDisabled (0.00s)
+--- PASS: TestEval_RecvBufferCompactionSkippedLargeBuffer (0.02s)
+--- PASS: TestEval_RecvBufferErrorResetSafety (0.00s)
+    eval_recv_buffer_compaction_test.go:305: Got backlog length 1073 after mixed frame compaction, want <= 134
+--- FAIL: TestEval_RecvBufferCompaction_MixedFrames (0.00s)
+    eval_recv_buffer_compaction_test.go:345: Cycle 0: backlog length 1123 exceeded bound 512
+--- FAIL: TestEval_RecvBufferCompaction_MultiCycleMemoryBound (0.00s)
+FAIL	google.golang.org/grpc/internal/transport	0.042s

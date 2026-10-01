@@ -1,0 +1,25 @@
+$ VERIFY_STALL=handshake go test -v -run 'Test/ClientTransport_SlowReaderTinyDataFrames$' google.golang.org/grpc/internal/transport -count=1 -timeout 180s
+=== RUN   Test
+=== RUN   Test/ClientTransport_SlowReaderTinyDataFrames
+=== RUN   Test/ClientTransport_SlowReaderTinyDataFrames/compaction_enabled
+VERIFY C2 [t+  0.0s] fake server: entering stalled socket read (instead of sending SETTINGS), no deadline set
+    recv_buffer_test.go:371: NewHTTP2Client() = connection error: desc = "error reading server preface: read tcp 127.0.0.1:53180->127.0.0.1:38989: use of closed network connection"
+VERIFY C2 [t+ 10.0s] fake server: stalled socket read (instead of sending SETTINGS) was interrupted after 10.0s: n=9 err=unexpected EOF
+VERIFY C2 [t+ 10.0s] fake server goroutine returned 10.0s after it started: err=verify: stalled read ended: unexpected EOF
+=== RUN   Test/ClientTransport_SlowReaderTinyDataFrames/compaction_disabled
+VERIFY C2 [t+ 10.0s] fake server: entering stalled socket read (instead of sending SETTINGS), no deadline set
+    recv_buffer_test.go:371: NewHTTP2Client() = connection error: desc = "error reading server preface: read tcp 127.0.0.1:52182->127.0.0.1:37605: use of closed network connection"
+VERIFY C2 [t+ 20.0s] fake server: stalled socket read (instead of sending SETTINGS) was interrupted after 10.0s: n=9 err=unexpected EOF
+VERIFY C2 [t+ 20.0s] fake server goroutine returned 10.0s after it started: err=verify: stalled read ended: unexpected EOF
+--- FAIL: Test (20.10s)
+    --- FAIL: Test/ClientTransport_SlowReaderTinyDataFrames (20.10s)
+        --- FAIL: Test/ClientTransport_SlowReaderTinyDataFrames/compaction_enabled (10.05s)
+        --- FAIL: Test/ClientTransport_SlowReaderTinyDataFrames/compaction_disabled (10.00s)
+=== RUN   TestConnectionError_Unwrap
+--- PASS: TestConnectionError_Unwrap (0.00s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	20.102s
+FAIL
+exit=1 wall=20.472324809s

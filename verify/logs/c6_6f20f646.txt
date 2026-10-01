@@ -1,0 +1,6 @@
+$ go test -v -run 'Test/ServerTransport_TinyDataFramesMemory$' google.golang.org/grpc/internal/transport -count=1
+VERIFY C6: Stream.readTo freed 9 delivered buffer(s) (0 ref-counted/pool-backed, 131072 bytes); counting pool: gets=0, puts before Free=0, puts after Free=0
+VERIFY C6: Stream.readTo freed 131072 delivered buffer(s) (0 ref-counted/pool-backed, 131072 bytes); counting pool: gets=0, puts before Free=0, puts after Free=0
+--- PASS: Test (0.42s)
+    --- PASS: Test/ServerTransport_TinyDataFramesMemory (0.42s)
+ok  	google.golang.org/grpc/internal/transport	0.423s

@@ -1,0 +1,23 @@
+$ VERIFY_STALL=accept go test -v -run 'Test/ClientTinyDataFramesReceiveMemory$' google.golang.org/grpc/internal/transport -count=1 -timeout 180s
+=== RUN   Test
+=== RUN   Test/ClientTinyDataFramesReceiveMemory
+=== RUN   Test/ClientTinyDataFramesReceiveMemory/compaction=true
+VERIFY C2 [t+  0.0s] client is pointed at a decoy listener; the fake server's lis.Accept() now stalls (no deadline)
+    recv_buffer_test.go:300: Error while creating client transport: connection error: desc = "error reading server preface: read tcp 127.0.0.1:53840->127.0.0.1:43095: use of closed network connection"
+VERIFY C2 [t+ 10.1s] fake server goroutine returned 10.0s after it started: err=error while accepting: accept tcp 127.0.0.1:42159: use of closed network connection
+=== RUN   Test/ClientTinyDataFramesReceiveMemory/compaction=false
+VERIFY C2 [t+ 10.1s] client is pointed at a decoy listener; the fake server's lis.Accept() now stalls (no deadline)
+    recv_buffer_test.go:300: Error while creating client transport: connection error: desc = "error reading server preface: read tcp 127.0.0.1:33982->127.0.0.1:37493: use of closed network connection"
+VERIFY C2 [t+ 20.1s] fake server goroutine returned 10.0s after it started: err=error while accepting: accept tcp 127.0.0.1:45567: use of closed network connection
+--- FAIL: Test (20.09s)
+    --- FAIL: Test/ClientTinyDataFramesReceiveMemory (20.09s)
+        --- FAIL: Test/ClientTinyDataFramesReceiveMemory/compaction=true (10.05s)
+        --- FAIL: Test/ClientTinyDataFramesReceiveMemory/compaction=false (10.04s)
+=== RUN   TestConnectionError_Unwrap
+--- PASS: TestConnectionError_Unwrap (0.00s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	20.094s
+FAIL
+exit=1 wall=20.460791805s

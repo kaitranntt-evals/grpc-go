@@ -1,0 +1,27 @@
+$ VERIFY_STALL=accept-main-blocked go test -v -run 'Test/ClientStream_ManyTinyDataFramesSlowReader$' google.golang.org/grpc/internal/transport -count=1 -timeout 180s
+=== RUN   Test
+=== RUN   Test/ClientStream_ManyTinyDataFramesSlowReader
+=== RUN   Test/ClientStream_ManyTinyDataFramesSlowReader/compaction=true
+VERIFY C2 [t+  0.0s] client is pointed at a decoy listener; the fake server's lis.Accept() now stalls (no deadline)
+VERIFY C2 [t+  0.0s] test goroutine: parked for 25s; no deferred Close can run until it wakes
+VERIFY C2 [t+ 25.1s] test goroutine: resumed
+    recvbuffer_test.go:311: NewHTTP2Client() failed: connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:40293: i/o timeout"
+VERIFY C2 [t+ 25.1s] fake server goroutine returned 25.1s after it started: err=accept: accept tcp 127.0.0.1:46325: use of closed network connection
+=== RUN   Test/ClientStream_ManyTinyDataFramesSlowReader/compaction=false
+VERIFY C2 [t+ 25.1s] client is pointed at a decoy listener; the fake server's lis.Accept() now stalls (no deadline)
+VERIFY C2 [t+ 25.1s] test goroutine: parked for 25s; no deferred Close can run until it wakes
+VERIFY C2 [t+ 50.1s] test goroutine: resumed
+    recvbuffer_test.go:311: NewHTTP2Client() failed: connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:39889: i/o timeout"
+VERIFY C2 [t+ 50.1s] fake server goroutine returned 25.0s after it started: err=accept: accept tcp 127.0.0.1:36411: use of closed network connection
+--- FAIL: Test (50.08s)
+    --- FAIL: Test/ClientStream_ManyTinyDataFramesSlowReader (50.08s)
+        --- FAIL: Test/ClientStream_ManyTinyDataFramesSlowReader/compaction=true (25.08s)
+        --- FAIL: Test/ClientStream_ManyTinyDataFramesSlowReader/compaction=false (25.00s)
+=== RUN   TestConnectionError_Unwrap
+--- PASS: TestConnectionError_Unwrap (0.00s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	50.085s
+FAIL
+exit=1 wall=52.706501342s

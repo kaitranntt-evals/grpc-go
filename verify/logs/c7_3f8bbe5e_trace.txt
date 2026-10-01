@@ -1,0 +1,67 @@
+$ go test -v -run 'Test/ReceiveBufferCompactionZeroCopy$' google.golang.org/grpc/internal/transport -count=1   # branch test + trace logging only
+    recv_buffer_test.go:148: VERIFY C7: put(1 bytes) on recv=0xc000261ae0
+    recv_buffer_test.go:153: VERIFY C7: Read(1) on recv=0xc000261ae0 returned 1 bytes; asserting same backing storage as the put: true
+    recv_buffer_test.go:148: VERIFY C7: put(1025 bytes) on recv=0xc000261ae0
+    recv_buffer_test.go:153: VERIFY C7: Read(1025) on recv=0xc000261ae0 returned 1025 bytes; asserting same backing storage as the put: true
+    recv_buffer_test.go:148: VERIFY C7: put(4096 bytes) on recv=0xc000261ae0
+    recv_buffer_test.go:153: VERIFY C7: Read(4096) on recv=0xc000261ae0 returned 4096 bytes; asserting same backing storage as the put: true
+    recv_buffer_test.go:148: VERIFY C7: put(16384 bytes) on recv=0xc000261ae0
+    recv_buffer_test.go:153: VERIFY C7: Read(16384) on recv=0xc000261ae0 returned 16384 bytes; asserting same backing storage as the put: true
+    recv_buffer_test.go:159: VERIFY C7: -- 4 reads done; more data now arrives on the same recv=0xc000261ae0 --
+    recv_buffer_test.go:170: VERIFY C7: put(1 bytes) on recv=0xc000261ae0 -> chan=1 backlog=0
+    recv_buffer_test.go:170: VERIFY C7: put(1025 bytes) on recv=0xc000261ae0 -> chan=1 backlog=1
+    recv_buffer_test.go:170: VERIFY C7: put(4096 bytes) on recv=0xc000261ae0 -> chan=1 backlog=2
+    recv_buffer_test.go:170: VERIFY C7: put(16384 bytes) on recv=0xc000261ae0 -> chan=1 backlog=3
+    recv_buffer_test.go:170: VERIFY C7: put(1 bytes) on recv=0xc000261ae0 -> chan=1 backlog=4
+    recv_buffer_test.go:170: VERIFY C7: put(10 bytes) on recv=0xc000261ae0 -> chan=1 backlog=5
+    recv_buffer_test.go:170: VERIFY C7: put(100 bytes) on recv=0xc000261ae0 -> chan=1 backlog=6
+    recv_buffer_test.go:178: VERIFY C7: Read(1) on recv=0xc000261ae0 returned 1 bytes; asserting len and same backing storage: true
+    recv_buffer_test.go:178: VERIFY C7: Read(1025) on recv=0xc000261ae0 returned 1025 bytes; asserting len and same backing storage: true
+    recv_buffer_test.go:178: VERIFY C7: Read(4096) on recv=0xc000261ae0 returned 4096 bytes; asserting len and same backing storage: true
+    recv_buffer_test.go:178: VERIFY C7: Read(16384) on recv=0xc000261ae0 returned 16384 bytes; asserting len and same backing storage: true
+    recv_buffer_test.go:178: VERIFY C7: Read(1) on recv=0xc000261ae0 returned 1 bytes; asserting len and same backing storage: true
+    recv_buffer_test.go:178: VERIFY C7: Read(10) on recv=0xc000261ae0 returned 10 bytes; asserting len and same backing storage: true
+    recv_buffer_test.go:178: VERIFY C7: Read(100) on recv=0xc000261ae0 returned 100 bytes; asserting len and same backing storage: true
+    recv_buffer_test.go:148: VERIFY C7: put(1 bytes) on recv=0xc000261c20
+    recv_buffer_test.go:153: VERIFY C7: Read(1) on recv=0xc000261c20 returned 1 bytes; asserting same backing storage as the put: true
+    recv_buffer_test.go:148: VERIFY C7: put(1025 bytes) on recv=0xc000261c20
+    recv_buffer_test.go:153: VERIFY C7: Read(1025) on recv=0xc000261c20 returned 1025 bytes; asserting same backing storage as the put: true
+    recv_buffer_test.go:148: VERIFY C7: put(4096 bytes) on recv=0xc000261c20
+    recv_buffer_test.go:153: VERIFY C7: Read(4096) on recv=0xc000261c20 returned 4096 bytes; asserting same backing storage as the put: true
+    recv_buffer_test.go:148: VERIFY C7: put(16384 bytes) on recv=0xc000261c20
+    recv_buffer_test.go:153: VERIFY C7: Read(16384) on recv=0xc000261c20 returned 16384 bytes; asserting same backing storage as the put: true
+    recv_buffer_test.go:159: VERIFY C7: -- 4 reads done; more data now arrives on the same recv=0xc000261c20 --
+    recv_buffer_test.go:170: VERIFY C7: put(1 bytes) on recv=0xc000261c20 -> chan=1 backlog=0
+    recv_buffer_test.go:170: VERIFY C7: put(1025 bytes) on recv=0xc000261c20 -> chan=1 backlog=1
+    recv_buffer_test.go:170: VERIFY C7: put(4096 bytes) on recv=0xc000261c20 -> chan=1 backlog=2
+    recv_buffer_test.go:170: VERIFY C7: put(16384 bytes) on recv=0xc000261c20 -> chan=1 backlog=3
+    recv_buffer_test.go:178: VERIFY C7: Read(1) on recv=0xc000261c20 returned 1 bytes; asserting len and same backing storage: true
+    recv_buffer_test.go:178: VERIFY C7: Read(1025) on recv=0xc000261c20 returned 1025 bytes; asserting len and same backing storage: true
+    recv_buffer_test.go:178: VERIFY C7: Read(4096) on recv=0xc000261c20 returned 4096 bytes; asserting len and same backing storage: true
+    recv_buffer_test.go:178: VERIFY C7: Read(16384) on recv=0xc000261c20 returned 16384 bytes; asserting len and same backing storage: true
+    --- PASS: Test/ReceiveBufferCompactionZeroCopy (0.00s)
+        --- PASS: Test/ReceiveBufferCompactionZeroCopy/compaction=false (0.00s)
+        --- PASS: Test/ReceiveBufferCompactionZeroCopy/compaction=true (0.00s)
+ok  	google.golang.org/grpc/internal/transport	0.006s
+$ go test -v -run 'Test/ReceiveBufferCompactionConcurrent$' google.golang.org/grpc/internal/transport -count=20   # branch test + counters only
+    recv_buffer_test.go:289: VERIFY C7: 1168 reads; 1163 of them completed before later data arrived on the same recvBuffer; 50 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1491 reads; 1482 of them completed before later data arrived on the same recvBuffer; 159 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1579 reads; 1575 of them completed before later data arrived on the same recvBuffer; 194 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1480 reads; 1463 of them completed before later data arrived on the same recvBuffer; 149 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1656 reads; 1640 of them completed before later data arrived on the same recvBuffer; 224 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1394 reads; 1370 of them completed before later data arrived on the same recvBuffer; 147 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1516 reads; 1488 of them completed before later data arrived on the same recvBuffer; 184 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1880 reads; 1867 of them completed before later data arrived on the same recvBuffer; 313 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1562 reads; 1547 of them completed before later data arrived on the same recvBuffer; 173 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1375 reads; 1366 of them completed before later data arrived on the same recvBuffer; 131 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1284 reads; 1267 of them completed before later data arrived on the same recvBuffer; 93 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1351 reads; 1315 of them completed before later data arrived on the same recvBuffer; 112 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1149 reads; 1140 of them completed before later data arrived on the same recvBuffer; 58 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1445 reads; 1439 of them completed before later data arrived on the same recvBuffer; 163 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1425 reads; 1420 of them completed before later data arrived on the same recvBuffer; 134 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1218 reads; 1208 of them completed before later data arrived on the same recvBuffer; 92 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1375 reads; 1371 of them completed before later data arrived on the same recvBuffer; 116 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1199 reads; 1170 of them completed before later data arrived on the same recvBuffer; 81 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1336 reads; 1320 of them completed before later data arrived on the same recvBuffer; 115 of those had fully drained it first
+    recv_buffer_test.go:289: VERIFY C7: 1408 reads; 1391 of them completed before later data arrived on the same recvBuffer; 134 of those had fully drained it first
+ok  	google.golang.org/grpc/internal/transport	0.105s

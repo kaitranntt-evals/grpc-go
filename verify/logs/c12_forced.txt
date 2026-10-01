@@ -1,0 +1,57 @@
+=== RUN   Test
+=== RUN   Test/ServerTransport_TinyDataFramesMemory
+    recvbuffer_test.go:350: Byte 0 = 0, want 0
+    recvbuffer_test.go:305: VERIFY C12: 3s after the assertion failure the server transport is still blocked reading: the client connection was NOT closed by any cleanup
+    grpctest.go:45: Leaked goroutine: goroutine 11 [IO wait]:
+        internal/poll.runtime_pollWait(0x7c1b17689c00, 0x72)
+        	/usr/local/go/src/runtime/netpoll.go:351 +0x85
+        internal/poll.(*pollDesc).wait(0xc0002fe000?, 0xc000016044?, 0x0)
+        	/usr/local/go/src/internal/poll/fd_poll_runtime.go:84 +0x27
+        internal/poll.(*pollDesc).waitRead(...)
+        	/usr/local/go/src/internal/poll/fd_poll_runtime.go:89
+        internal/poll.(*FD).Read(0xc0002fe000, {0xc000016044, 0x9, 0x9})
+        	/usr/local/go/src/internal/poll/fd_unix.go:165 +0x279
+        net.(*netFD).Read(0xc0002fe000, {0xc000016044?, 0x8dbd5a?, 0x8?})
+        	/usr/local/go/src/net/fd_posix.go:68 +0x25
+        net.(*conn).Read(0xc000000000, {0xc000016044?, 0x0?, 0xc000080c10?})
+        	/usr/local/go/src/net/net.go:196 +0x45
+        io.ReadAtLeast({0xceb0a0, 0xc000000000}, {0xc000016044, 0x9, 0x9}, 0x9)
+        	/usr/local/go/src/io/io.go:335 +0x8e
+        io.ReadFull(...)
+        	/usr/local/go/src/io/io.go:354
+        golang.org/x/net/http2.readFrameHeader({0xc000016044, 0x9, 0x8f9837?}, {0xceb0a0?, 0xc000000000?})
+        	/home/ubuntu/go/pkg/mod/golang.org/x/net@v0.58.0/http2/frame.go:250 +0x65
+        golang.org/x/net/http2.(*Framer).ReadFrameHeader(0xc000016000)
+        	/home/ubuntu/go/pkg/mod/golang.org/x/net@v0.58.0/http2/frame.go:513 +0x6b
+        google.golang.org/grpc/internal/transport.(*framer).readFrame(0xc0002fe080)
+        	/home/ubuntu/wt/ac4f7aec/internal/transport/http_util.go:504 +0x45
+        google.golang.org/grpc/internal/transport.(*http2Server).HandleStreams(0xc0000ec000, {0xcf2110, 0xc0002c8700}, 0xc000046200)
+        	/home/ubuntu/wt/ac4f7aec/internal/transport/http2_server.go:646 +0x105
+        google.golang.org/grpc/internal/transport.runTinyDataFramesServer.func2()
+        	/home/ubuntu/wt/ac4f7aec/internal/transport/recvbuffer_test.go:324 +0x254
+        created by google.golang.org/grpc/internal/transport.runTinyDataFramesServer in goroutine 9
+        	/home/ubuntu/wt/ac4f7aec/internal/transport/recvbuffer_test.go:308 +0x288
+    grpctest.go:45: Leaked goroutine: goroutine 21 [select]:
+        google.golang.org/grpc/internal/transport.(*controlBuffer).get(0xc000232040, 0x1)
+        	/home/ubuntu/wt/ac4f7aec/internal/transport/controlbuf.go:431 +0x108
+        google.golang.org/grpc/internal/transport.(*loopyWriter).run(0xc0001ee0a0)
+        	/home/ubuntu/wt/ac4f7aec/internal/transport/controlbuf.go:606 +0x78
+        google.golang.org/grpc/internal/transport.NewServerTransport.func3()
+        	/home/ubuntu/wt/ac4f7aec/internal/transport/http2_server.go:350 +0xdc
+        created by google.golang.org/grpc/internal/transport.NewServerTransport in goroutine 11
+        	/home/ubuntu/wt/ac4f7aec/internal/transport/http2_server.go:348 +0x193b
+    grpctest.go:45: Leaked goroutine: goroutine 22 [select]:
+        google.golang.org/grpc/internal/transport.(*http2Server).keepalive(0xc0000ec000)
+        	/home/ubuntu/wt/ac4f7aec/internal/transport/http2_server.go:1214 +0x1ea
+        created by google.golang.org/grpc/internal/transport.NewServerTransport in goroutine 11
+        	/home/ubuntu/wt/ac4f7aec/internal/transport/http2_server.go:371 +0x197d
+    grpctest.go:77: Goroutine leak check disabled for future tests
+--- FAIL: Test (13.07s)
+    --- FAIL: Test/ServerTransport_TinyDataFramesMemory (13.06s)
+=== RUN   TestConnectionError_Unwrap
+--- PASS: TestConnectionError_Unwrap (0.00s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	13.070s
+FAIL

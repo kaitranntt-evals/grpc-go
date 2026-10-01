@@ -1,0 +1,30 @@
+diff --git a/internal/transport/transport_test.go b/internal/transport/transport_test.go
+index 05515130..e96a65f2 100644
+--- a/internal/transport/transport_test.go
++++ b/internal/transport/transport_test.go
+@@ -86,6 +86,7 @@ func newBufferSlice(b []byte) mem.BufferSlice {
+ 
+ func (s *Stream) readTo(p []byte) (int, error) {
+ 	data, err := s.read(len(p))
++	defer verifyC6AfterFree(verifyC6BeforeFree(data)) // VERIFY: runs after the Free below
+ 	defer data.Free()
+ 
+ 	if err != nil {
+@@ -4360,7 +4361,7 @@ func (s) TestRecvBufferCompaction_TinyFrames(t *testing.T) {
+ func (s) TestRecvBufferCompaction_LargeFramesUntouched(t *testing.T) {
+ 	setReceiveBufferCompaction(t, true)
+ 	st := newTestRecvStream()
+-	pool := mem.DefaultBufferPool()
++	var pool mem.BufferPool = verifyC6Pool // VERIFY: was mem.DefaultBufferPool()
+ 	newLarge := func(val byte) mem.Buffer {
+ 		buf := pool.Get(http2MaxFrameLen)
+ 		for i := range *buf {
+@@ -4539,7 +4540,7 @@ func (s) TestServerReceiveBufferCompaction_TinyDataFrames(t *testing.T) {
+ 	for _, tc := range tests {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			setReceiveBufferCompaction(t, tc.enabled)
+-			server := setUpServerOnly(t, 0, &ServerConfig{BufferPool: mem.DefaultBufferPool()}, suspended)
++			server := setUpServerOnly(t, 0, &ServerConfig{BufferPool: verifyC6Pool}, suspended)
+ 			defer server.stop()
+ 
+ 			conn, err := net.Dial("tcp", server.lis.Addr().String())

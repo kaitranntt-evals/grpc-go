@@ -1,0 +1,35 @@
+diff --git a/internal/transport/recv_buffer_test.go b/internal/transport/recv_buffer_test.go
+index 7a095c9c..9ee6997d 100644
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -272,11 +272,22 @@ func (s) TestRecvBufferCompactionPartialChunk(t *testing.T) {
+ 	var queue recvBuffer
+ 	queue.init()
+ 	reader := recvBufferReader{ctx: ctx, ctxDone: ctx.Done(), recv: &queue}
++	verifyState := func() string { // VERIFY: trace only
++		queue.mu.Lock()
++		defer queue.mu.Unlock()
++		pending := -1
++		if queue.pending != nil {
++			pending = len(*queue.pending)
++		}
++		return fmt.Sprintf("queue=%p chan=%d backlog=%d pendingLen=%d (-1 = none)", &queue, len(queue.c), len(queue.backlog), pending)
++	}
+ 	for i := 0; i < 10; i++ {
+ 		want := []byte{byte(i), 1, 2, 3, 4, 5}
++		t.Logf("VERIFY C7 iteration %d: before refill: %s", i, verifyState())
+ 		for _, b := range want {
+ 			queue.put(recvMsg{buffer: mem.SliceBuffer{b}})
+ 		}
++		t.Logf("VERIFY C7 iteration %d: after putting %v on the same queue: %s", i, want, verifyState())
+ 		var got []byte
+ 		for len(got) < len(want) {
+ 			buf, err := reader.Read(2)
+@@ -286,6 +297,7 @@ func (s) TestRecvBufferCompactionPartialChunk(t *testing.T) {
+ 			got = append(got, buf.ReadOnlyData()...)
+ 			buf.Free()
+ 		}
++		t.Logf("VERIFY C7 iteration %d: reads returned %v; asserting == %v; %s", i, got, want, verifyState())
+ 		if !bytes.Equal(got, want) {
+ 			t.Fatalf("Read() returned %v, want %v", got, want)
+ 		}

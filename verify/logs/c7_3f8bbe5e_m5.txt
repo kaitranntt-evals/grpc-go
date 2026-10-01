@@ -1,0 +1,9 @@
+mutant M5, Test/ReceiveBufferCompactionMemory x10: pass=10 fail=0
+mutant M5, Test/ReceiveBufferCompactionZeroCopy x10: pass=10 fail=0
+mutant M5, Test/ReceiveBufferCompactionMixedReads x10: pass=10 fail=0
+mutant M5, Test/ReceiveBufferCompactionConcurrent x10: pass=0 fail=10
+panic: runtime error: index out of range [-1]
+	/home/ubuntu/wt/3f8bbe5e/internal/transport/transport.go:119 +0x576
+	/home/ubuntu/wt/3f8bbe5e/internal/transport/recv_buffer_test.go:239 +0x54
+	/home/ubuntu/wt/3f8bbe5e/internal/transport/recv_buffer_test.go:248 +0x82
+	/home/ubuntu/wt/3f8bbe5e/internal/transport/recv_buffer_test.go:245 +0x20e

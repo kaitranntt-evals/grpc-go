@@ -1,0 +1,13 @@
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index a330300c..4670491f 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -150,7 +150,7 @@ func (b *recvBuffer) compact(buf mem.Buffer) {
+ func (b *recvBuffer) flushPending() {
+ 	if b.pending != nil {
+ 		b.backlog = append(b.backlog, recvMsg{buffer: mem.NewBuffer(b.pending, mem.DefaultBufferPool())})
+-		b.pending = nil
++		// VERIFY MUTANT M_A: b.pending is not cleared, so compaction state survives the hand-off to the reader.
+ 	}
+ }
+ 

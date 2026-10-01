@@ -1,0 +1,34 @@
+diff --git a/internal/transport/recv_buffer_test.go b/internal/transport/recv_buffer_test.go
+index c72a5d30..abb4b360 100644
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -91,7 +91,7 @@ func newTestRecvStream(t *testing.T, compaction bool) *Stream {
+ 		ctx:           ctx,
+ 		readRequester: &fakeReadRequester{},
+ 	}
+-	s.buf.init(nil)
++	s.buf.init(verifyC6Pool) // VERIFY: was init(nil), which selects mem.DefaultBufferPool()
+ 	s.trReader = transportReader{
+ 		reader: recvBufferReader{
+ 			ctx:     s.ctx,
+@@ -283,7 +283,7 @@ func (s) TestServerWithTinyDataFrames(t *testing.T) {
+ 	// so the server never has to block the sender.
+ 	const numFrames = defaultWindowSize / 2
+ 
+-	server := setUpServerOnly(t, 0, &ServerConfig{BufferPool: mem.DefaultBufferPool()}, suspended)
++	server := setUpServerOnly(t, 0, &ServerConfig{BufferPool: verifyC6Pool}, suspended)
+ 	defer server.stop()
+ 
+ 	conn, err := net.Dial("tcp", server.lis.Addr().String())
+diff --git a/internal/transport/transport_test.go b/internal/transport/transport_test.go
+index 62144ef7..1bd28413 100644
+--- a/internal/transport/transport_test.go
++++ b/internal/transport/transport_test.go
+@@ -83,6 +83,7 @@ func newBufferSlice(b []byte) mem.BufferSlice {
+ 
+ func (s *Stream) readTo(p []byte) (int, error) {
+ 	data, err := s.read(len(p))
++	defer verifyC6AfterFree(verifyC6BeforeFree(data)) // VERIFY: runs after the Free below
+ 	defer data.Free()
+ 
+ 	if err != nil {

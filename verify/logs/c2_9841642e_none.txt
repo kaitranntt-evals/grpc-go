@@ -1,0 +1,18 @@
+$ VERIFY_STALL=none go test -v -run 'Test/ClientTinyDataFramesReceiveMemory$' google.golang.org/grpc/internal/transport -count=1 -timeout 180s
+=== RUN   Test
+=== RUN   Test/ClientTinyDataFramesReceiveMemory
+=== RUN   Test/ClientTinyDataFramesReceiveMemory/compaction=true
+=== RUN   Test/ClientTinyDataFramesReceiveMemory/compaction=false
+VERIFY C2 [t+  0.1s] fake server goroutine returned 0.1s after it started: err=<nil>
+VERIFY C2 [t+  0.1s] fake server goroutine returned 0.1s after it started: err=<nil>
+--- PASS: Test (0.15s)
+    --- PASS: Test/ClientTinyDataFramesReceiveMemory (0.15s)
+        --- PASS: Test/ClientTinyDataFramesReceiveMemory/compaction=true (0.06s)
+        --- PASS: Test/ClientTinyDataFramesReceiveMemory/compaction=false (0.09s)
+=== RUN   TestConnectionError_Unwrap
+--- PASS: TestConnectionError_Unwrap (0.00s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	0.152s
+exit=0 wall=.633424699s

@@ -1,0 +1,15 @@
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index f034ea92..313bf1d5 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -132,9 +132,7 @@ func (b *recvBuffer) load() {
+ 		case b.c <- b.backlog[0]:
+ 			b.backlog[0] = recvMsg{}
+ 			b.backlog = b.backlog[1:]
+-			if len(b.backlog) == 0 {
+-				b.compacted = nil
+-			}
++			// VERIFY MUTANT M5: the chunk is no longer detached when it is handed to the reader.
+ 		default:
+ 		}
+ 	}

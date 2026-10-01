@@ -1,0 +1,13 @@
+$ go test -v -run 'Test/RecvBuffer_TinyFramesCompaction$' google.golang.org/grpc/internal/transport -count=1
+VERIFY C6: Stream.readTo freed 3 delivered buffer(s) (2 ref-counted/pool-backed, 20000 bytes); counting pool: gets=3, puts before Free=1, puts after Free=3
+VERIFY C6: Stream.readTo freed 20000 delivered buffer(s) (0 ref-counted/pool-backed, 20000 bytes); counting pool: gets=3, puts before Free=3, puts after Free=3
+--- PASS: Test (0.01s)
+    --- PASS: Test/RecvBuffer_TinyFramesCompaction (0.01s)
+        --- PASS: Test/RecvBuffer_TinyFramesCompaction/enabled (0.00s)
+        --- PASS: Test/RecvBuffer_TinyFramesCompaction/disabled (0.01s)
+ok  	google.golang.org/grpc/internal/transport	0.013s
+$ go test -v -run 'Test/ServerWithTinyDataFrames$' google.golang.org/grpc/internal/transport -count=1
+VERIFY C6: Stream.readTo freed 3 delivered buffer(s) (2 ref-counted/pool-backed, 32767 bytes); counting pool: gets=3, puts before Free=1, puts after Free=3
+--- PASS: Test (0.08s)
+    --- PASS: Test/ServerWithTinyDataFrames (0.08s)
+ok  	google.golang.org/grpc/internal/transport	0.086s

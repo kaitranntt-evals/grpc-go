@@ -1,0 +1,29 @@
+$ go test -v -run '^TestVerifyC[345]_' google.golang.org/grpc/internal/transport -race -count=1
+=== RUN   TestVerifyC3_BurstNoReads
+    verify_c345_live_probe_test.go:227: C3 bare init() only (fixture path), 1026 one-byte puts, no reads: chan=1 backlogEntries=1025 tailBytes=0 unreadPayloadBytes=1026 distinctBackingArrays=1026 largestEntryLen=1
+    verify_c345_live_probe_test.go:235: C3 live http2Client stream, 1026 one-byte DATA frames, no reads: chan=1 backlogEntries=0 tailBytes=1025 unreadPayloadBytes=1026 distinctBackingArrays=2 largestEntryLen=1025
+    verify_c345_live_probe_test.go:248: C3 live stream delivered all 1026 bytes in order
+--- PASS: TestVerifyC3_BurstNoReads (0.01s)
+=== RUN   TestVerifyC4_MixedSizes
+    verify_c345_live_probe_test.go:271: C4 bare init() only (fixture path), 1074 mixed 1..7-byte puts: chan=1 backlogEntries=1073 tailBytes=0 unreadPayloadBytes=4290 distinctBackingArrays=1074 largestEntryLen=7
+    verify_c345_live_probe_test.go:277: C4 live http2Client stream, 1074 mixed 1..7-byte DATA frames (4290 bytes): chan=1 backlogEntries=0 tailBytes=4289 unreadPayloadBytes=4290 distinctBackingArrays=2 largestEntryLen=4289
+    verify_c345_live_probe_test.go:301: C4 live stream, 3 x (200 one-byte frames + one 8 KiB frame) = 603 frames, 25176 bytes: chan=1 backlogEntries=6 tailBytes=0 unreadPayloadBytes=25176 distinctBackingArrays=7 largestEntryLen=8192
+    verify_c345_live_probe_test.go:311: C4 live streams delivered all bytes in order
+--- PASS: TestVerifyC4_MixedSizes (0.01s)
+=== RUN   TestVerifyC5_EnqueueReadCycles
+    verify_c345_live_probe_test.go:340: C5 bare init() only (fixture path), cycle 0 after enqueue: chan=1 backlogEntries=1123 tailBytes=0 unreadPayloadBytes=3370 distinctBackingArrays=1124 largestEntryLen=5
+    verify_c345_live_probe_test.go:340: C5 bare init() only (fixture path), cycle 1 after enqueue: chan=0 backlogEntries=2247 tailBytes=0 unreadPayloadBytes=6739 distinctBackingArrays=2247 largestEntryLen=5
+    verify_c345_live_probe_test.go:340: C5 bare init() only (fixture path), cycle 2 after enqueue: chan=0 backlogEntries=3370 tailBytes=0 unreadPayloadBytes=10107 distinctBackingArrays=3370 largestEntryLen=5
+    verify_c345_live_probe_test.go:358: C5 live stream, cycle 0 after enqueueing 1124 frames (unread so far 3370 bytes): chan=1 backlogEntries=0 tailBytes=3369 unreadPayloadBytes=3370 distinctBackingArrays=2 largestEntryLen=3369
+    verify_c345_live_probe_test.go:365: C5 live stream, cycle 0 after intermediate 7-byte read (unread 3363 bytes): chan=0 backlogEntries=0 tailBytes=0 unreadPayloadBytes=0 distinctBackingArrays=0 largestEntryLen=0
+    verify_c345_live_probe_test.go:358: C5 live stream, cycle 1 after enqueueing 1124 frames (unread so far 6733 bytes): chan=1 backlogEntries=0 tailBytes=3369 unreadPayloadBytes=3370 distinctBackingArrays=2 largestEntryLen=3369
+    verify_c345_live_probe_test.go:365: C5 live stream, cycle 1 after intermediate 7-byte read (unread 6726 bytes): chan=1 backlogEntries=0 tailBytes=3369 unreadPayloadBytes=3370 distinctBackingArrays=2 largestEntryLen=3369
+    verify_c345_live_probe_test.go:358: C5 live stream, cycle 2 after enqueueing 1124 frames (unread so far 10096 bytes): chan=1 backlogEntries=0 tailBytes=6739 unreadPayloadBytes=6740 distinctBackingArrays=2 largestEntryLen=6739
+    verify_c345_live_probe_test.go:365: C5 live stream, cycle 2 after intermediate 7-byte read (unread 10089 bytes): chan=1 backlogEntries=0 tailBytes=6739 unreadPayloadBytes=6740 distinctBackingArrays=2 largestEntryLen=6739
+    verify_c345_live_probe_test.go:374: C5 live stream delivered all 10110 bytes in order across 3 cycles
+--- PASS: TestVerifyC5_EnqueueReadCycles (0.02s)
+=== RUN   TestVerifyC3_LiveServerStream
+    verify_c345_live_probe_test.go:446: C3 live http2Server stream, 1026 one-byte DATA frames, no reads: chan=1 backlogEntries=0 tailBytes=1025 unreadPayloadBytes=1026 distinctBackingArrays=2 largestEntryLen=1025
+--- PASS: TestVerifyC3_LiveServerStream (0.01s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	1.070s

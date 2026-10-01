@@ -1,0 +1,8 @@
+$ go test -v -run '^TestEval_' google.golang.org/grpc/internal/transport -race -count=1
+--- PASS: TestEval_RecvBufferCompaction (0.00s)
+--- PASS: TestEval_RecvBufferCompactionDisabled (0.00s)
+--- PASS: TestEval_RecvBufferCompactionSkippedLargeBuffer (0.01s)
+--- PASS: TestEval_RecvBufferErrorResetSafety (0.00s)
+--- PASS: TestEval_RecvBufferCompaction_MixedFrames (0.00s)
+--- PASS: TestEval_RecvBufferCompaction_MultiCycleMemoryBound (0.00s)
+ok  	google.golang.org/grpc/internal/transport	1.037s

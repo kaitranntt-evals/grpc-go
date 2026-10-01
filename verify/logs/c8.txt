@@ -1,0 +1,12 @@
+=== RUN   TestVerifyC8_PartGate_NilPoolSkipsConsolidation
+    verify_c8_handler_no_compaction_test.go:73: C8 gate: init() -> pool == nil                pool==nil:true  after 1000 one-byte puts: {chanMsgs:1 backlogEntries:999 pendingBytes:0 payload:1000 retainedCap:1000 distinct:1000}
+    verify_c8_handler_no_compaction_test.go:73: C8 gate: initWithPool(DefaultBufferPool())    pool==nil:false after 1000 one-byte puts: {chanMsgs:1 backlogEntries:0 pendingBytes:999 payload:1000 retainedCap:1025 distinct:2}
+--- PASS: TestVerifyC8_PartGate_NilPoolSkipsConsolidation (0.00s)
+=== RUN   TestVerifyC8_PartHandlerInit_ShortBodyReadsStaySeparate
+    verify_c8_handler_no_compaction_test.go:101: C8 handler init: serverHandlerTransport has a buffer pool: true; stream recvBuffer.pool == nil: true
+    verify_c8_handler_no_compaction_test.go:124: C8 handler stream after 1000 one-byte request-body reads, application not reading: {chanMsgs:1 backlogEntries:999 pendingBytes:0 payload:1000 retainedCap:16384000 distinct:1000}
+    verify_c8_handler_no_compaction_test.go:125: C8 handler stream: 1000 queue entries for 1000 unread bytes; 1000 distinct source buffers; 16384000 bytes of backing capacity retained (16384x the unread payload)
+    verify_c8_handler_no_compaction_test.go:128: C8 OBSERVED: handler payloads are queued one entry / one source buffer per read (no compaction)
+--- PASS: TestVerifyC8_PartHandlerInit_ShortBodyReadsStaySeparate (0.03s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	1.044s

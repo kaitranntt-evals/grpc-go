@@ -1,0 +1,29 @@
+$ VERIFY_STALL=headers-main-blocked go test -v -run 'Test/ClientTinyDataFramesReceiveMemory$' google.golang.org/grpc/internal/transport -count=1 -timeout 180s
+=== RUN   Test
+=== RUN   Test/ClientTinyDataFramesReceiveMemory
+=== RUN   Test/ClientTinyDataFramesReceiveMemory/compaction=true
+VERIFY C2 [t+  0.0s] test goroutine: parked for 25s; no deferred Close can run until it wakes
+VERIFY C2 [t+  0.0s] fake server: entering stalled socket read (instead of answering HEADERS), no deadline set
+VERIFY C2 [t+ 10.0s] fake server: stalled socket read (instead of answering HEADERS) was interrupted after 10.0s: n=0 err=EOF
+VERIFY C2 [t+ 10.0s] fake server goroutine returned 10.0s after it started: err=verify: stalled read ended: EOF
+VERIFY C2 [t+ 25.1s] test goroutine: resumed
+    recv_buffer_test.go:319: Server failed: verify: stalled read ended: EOF
+=== RUN   Test/ClientTinyDataFramesReceiveMemory/compaction=false
+VERIFY C2 [t+ 25.1s] test goroutine: parked for 25s; no deferred Close can run until it wakes
+VERIFY C2 [t+ 25.1s] fake server: entering stalled socket read (instead of answering HEADERS), no deadline set
+VERIFY C2 [t+ 35.1s] fake server: stalled socket read (instead of answering HEADERS) was interrupted after 10.0s: n=0 err=EOF
+VERIFY C2 [t+ 35.1s] fake server goroutine returned 10.0s after it started: err=verify: stalled read ended: EOF
+VERIFY C2 [t+ 50.1s] test goroutine: resumed
+    recv_buffer_test.go:319: Server failed: verify: stalled read ended: EOF
+--- FAIL: Test (50.12s)
+    --- FAIL: Test/ClientTinyDataFramesReceiveMemory (50.12s)
+        --- FAIL: Test/ClientTinyDataFramesReceiveMemory/compaction=true (25.08s)
+        --- FAIL: Test/ClientTinyDataFramesReceiveMemory/compaction=false (25.05s)
+=== RUN   TestConnectionError_Unwrap
+--- PASS: TestConnectionError_Unwrap (0.00s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	50.130s
+FAIL
+exit=1 wall=50.738510370s

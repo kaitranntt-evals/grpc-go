@@ -1,0 +1,13 @@
+=== RUN   TestVerifyC11_FullChannelLoadAbandonsWrapper
+    verify_c11_abandoned_wrapper_test.go:58: step 3: writer refilled the delivery channel before the reader's load(): len(b.c)=1
+    verify_c11_abandoned_wrapper_test.go:63: step 4: pending chunk: len=3000 cap=4096 (pool-backed: true), len(b.backlog)=0, len(b.c)=1
+    verify_c11_abandoned_wrapper_test.go:71: step 5: reader's load() with a full channel: wrappers created by this call=1, wrappers freed=0, b.pending still owned by recvBuffer=true, len(b.c)=1
+    verify_c11_abandoned_wrapper_test.go:75: C11 OBSERVED: load() constructed a pooled-buffer wrapper, took the full-channel default branch, and dropped the wrapper without Free
+    verify_c11_abandoned_wrapper_test.go:86: 100 further load() calls while the channel stays full: wrappers created=100, freed=0
+    verify_c11_abandoned_wrapper_test.go:100: drain: bytes intact=true; wrappers created=1 freed=1; pool gets=1 puts=1
+--- PASS: TestVerifyC11_FullChannelLoadAbandonsWrapper (0.00s)
+=== RUN   TestVerifyC11_ConcurrentReaderWriter
+    verify_c11_abandoned_wrapper_test.go:138: concurrent run, 2000000 one-byte puts fully read and freed: pooled wrappers created=43, freed=25, abandoned=18; pool gets=38 puts=38
+--- PASS: TestVerifyC11_ConcurrentReaderWriter (1.37s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	2.391s

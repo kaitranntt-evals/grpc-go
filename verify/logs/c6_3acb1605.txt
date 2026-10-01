@@ -1,0 +1,12 @@
+$ go test -v -run 'Test/RecvBufferCompaction_LargeFramesUntouched$' google.golang.org/grpc/internal/transport -count=1
+VERIFY C6: Stream.readTo freed 5 delivered buffer(s) (2 ref-counted/pool-backed, 32772 bytes); counting pool: gets=2, puts before Free=0, puts after Free=2
+    --- PASS: Test/RecvBufferCompaction_LargeFramesUntouched (0.00s)
+ok  	google.golang.org/grpc/internal/transport	0.006s
+$ go test -v -run 'Test/ServerReceiveBufferCompaction_TinyDataFrames$' google.golang.org/grpc/internal/transport -count=1
+VERIFY C6: Stream.readTo freed 3 delivered buffer(s) (0 ref-counted/pool-backed, 30000 bytes); counting pool: gets=0, puts before Free=0, puts after Free=0
+VERIFY C6: Stream.readTo freed 30000 delivered buffer(s) (0 ref-counted/pool-backed, 30000 bytes); counting pool: gets=0, puts before Free=0, puts after Free=0
+--- PASS: Test (0.11s)
+    --- PASS: Test/ServerReceiveBufferCompaction_TinyDataFrames (0.11s)
+        --- PASS: Test/ServerReceiveBufferCompaction_TinyDataFrames/enabled (0.05s)
+        --- PASS: Test/ServerReceiveBufferCompaction_TinyDataFrames/disabled (0.06s)
+ok  	google.golang.org/grpc/internal/transport	0.118s

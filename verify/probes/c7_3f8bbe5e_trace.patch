@@ -1,0 +1,78 @@
+diff --git a/internal/transport/recv_buffer_test.go b/internal/transport/recv_buffer_test.go
+index a9e307a3..aebdcfd6 100644
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -24,6 +24,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"runtime"
++	"sync/atomic"
+ 	"testing"
+ 
+ 	"golang.org/x/net/http2"
+@@ -144,15 +145,18 @@ func (s) TestReceiveBufferCompactionZeroCopy(t *testing.T) {
+ 				data := mem.Copy(bytes.Repeat([]byte{42}, size), mem.DefaultBufferPool())
+ 				original := &data.ReadOnlyData()[0]
+ 				recv.put(recvMsg{buffer: data})
++				t.Logf("VERIFY C7: put(%d bytes) on recv=%p", size, &recv)
+ 				got, err := reader.Read(size)
+ 				if err != nil {
+ 					t.Fatal(err)
+ 				}
++				t.Logf("VERIFY C7: Read(%d) on recv=%p returned %d bytes; asserting same backing storage as the put: %v", size, &recv, got.Len(), &got.ReadOnlyData()[0] == original)
+ 				if &got.ReadOnlyData()[0] != original {
+ 					t.Errorf("immediate delivery copied %d-byte buffer", size)
+ 				}
+ 				got.Free()
+ 			}
++			t.Logf("VERIFY C7: -- %d reads done; more data now arrives on the same recv=%p --", 4, &recv)
+ 			sizes := []int{1, 1025, 4096, 16384}
+ 			if !enabled {
+ 				sizes = append(sizes, 1, 10, 100)
+@@ -162,12 +166,16 @@ func (s) TestReceiveBufferCompactionZeroCopy(t *testing.T) {
+ 				data := mem.Copy(bytes.Repeat([]byte{42}, size), mem.DefaultBufferPool())
+ 				originals = append(originals, &data.ReadOnlyData()[0])
+ 				recv.put(recvMsg{buffer: data})
++				recv.mu.Lock()
++				t.Logf("VERIFY C7: put(%d bytes) on recv=%p -> chan=%d backlog=%d", size, &recv, len(recv.c), len(recv.backlog))
++				recv.mu.Unlock()
+ 			}
+ 			for i, size := range sizes {
+ 				got, err := reader.Read(size)
+ 				if err != nil {
+ 					t.Fatal(err)
+ 				}
++				t.Logf("VERIFY C7: Read(%d) on recv=%p returned %d bytes; asserting len and same backing storage: %v", size, &recv, got.Len(), got.Len() == size && &got.ReadOnlyData()[0] == originals[i])
+ 				if got.Len() != size || &got.ReadOnlyData()[0] != originals[i] {
+ 					t.Errorf("queued delivery changed %d-byte buffer", size)
+ 				}
+@@ -235,9 +243,12 @@ func (s) TestReceiveBufferCompactionConcurrent(t *testing.T) {
+ 	var recv recvBuffer
+ 	recv.init()
+ 	const count = 32 * 1024
++	var verifyWritten atomic.Int64 // VERIFY: trace only
+ 	write := func(i int) {
+ 		recv.put(recvMsg{buffer: mem.SliceBuffer{byte(i)}})
++		verifyWritten.Add(1)
+ 	}
++	verifyReads, verifyReadsBeforeLaterData, verifyDrainedThenRefilled := 0, 0, 0
+ 	for i := range 100 {
+ 		write(i)
+ 	}
+@@ -266,8 +277,16 @@ func (s) TestReceiveBufferCompactionConcurrent(t *testing.T) {
+ 			i++
+ 		}
+ 		buf.Free()
++		verifyReads++
++		if w := int(verifyWritten.Load()); w < count {
++			verifyReadsBeforeLaterData++ // this read completed while more data was still to arrive on the same buffer
++			if w == i {
++				verifyDrainedThenRefilled++ // the reader had consumed everything written so far
++			}
++		}
+ 		runtime.Gosched()
+ 	}
++	t.Logf("VERIFY C7: %d reads; %d of them completed before later data arrived on the same recvBuffer; %d of those had fully drained it first", verifyReads, verifyReadsBeforeLaterData, verifyDrainedThenRefilled)
+ 	if _, err := reader.Read(1); err != io.EOF {
+ 		t.Errorf("Read() after draining = %v, want EOF", err)
+ 	}

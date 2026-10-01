@@ -1,0 +1,60 @@
+diff --git a/internal/transport/recvbuffer_test.go b/internal/transport/recvbuffer_test.go
+index 9313c3e1..a3ce53f5 100644
+--- a/internal/transport/recvbuffer_test.go
++++ b/internal/transport/recvbuffer_test.go
+@@ -28,6 +28,7 @@ import (
+ 	"net"
+ 	"runtime"
+ 	"testing"
++	"time"
+ 
+ 	"golang.org/x/net/http2"
+ 	"golang.org/x/net/http2/hpack"
+@@ -229,7 +230,9 @@ func testClientStreamManyTinyDataFrames(t *testing.T, compaction bool) {
+ 
+ 	serverErr := make(chan error, 1)
+ 	go func() {
+-		serverErr <- func() error {
++		verifyStart := time.Now()
++		serverErr <- func() (verifyErr error) {
++			defer func() { verifyC2ServerReturned(verifyStart, verifyErr) }()
+ 			sconn, err := lis.Accept()
+ 			if err != nil {
+ 				return fmt.Errorf("accept: %v", err)
+@@ -240,6 +243,9 @@ func testClientStreamManyTinyDataFrames(t *testing.T, compaction bool) {
+ 			}
+ 			w := bufio.NewWriter(sconn)
+ 			sfr := http2.NewFramer(w, sconn)
++			if verifyC2Stall() == "handshake" {
++				return verifyC2StalledRead(sconn, "instead of sending SETTINGS")
++			}
+ 			if err := sfr.WriteSettings(); err != nil {
+ 				return err
+ 			}
+@@ -261,6 +267,9 @@ func testClientStreamManyTinyDataFrames(t *testing.T, compaction bool) {
+ 					streamID = hf.StreamID
+ 				}
+ 			}
++			if verifyC2Stall() == "headers" {
++				return verifyC2StalledRead(sconn, "instead of answering HEADERS")
++			}
+ 			go func() {
+ 				for {
+ 					if _, err := sfr.ReadFrame(); err != nil {
+@@ -297,7 +306,7 @@ func testClientStreamManyTinyDataFrames(t *testing.T, compaction bool) {
+ 
+ 	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+ 	defer cancel()
+-	ct, err := NewHTTP2Client(ctx, ctx, resolver.Address{Addr: lis.Addr().String()}, ConnectOptions{BufferPool: mem.DefaultBufferPool()}, func(GoAwayInfo) {})
++	ct, err := NewHTTP2Client(ctx, ctx, resolver.Address{Addr: verifyC2DialAddr(lis)}, ConnectOptions{BufferPool: mem.DefaultBufferPool()}, func(GoAwayInfo) {})
+ 	if err != nil {
+ 		t.Fatalf("NewHTTP2Client() failed: %v", err)
+ 	}
+@@ -309,6 +318,7 @@ func testClientStreamManyTinyDataFrames(t *testing.T, compaction bool) {
+ 
+ 	// Wait for the trailers, which arrive after all DATA frames have been
+ 	// queued on the stream.
++	verifyC2MaybeBlockMain()
+ 	select {
+ 	case <-cs.Done():
+ 	case err := <-serverErr:

@@ -1,0 +1,25 @@
+diff --git a/internal/transport/recv_buffer_compaction_test.go b/internal/transport/recv_buffer_compaction_test.go
+index c0948ff2..3e2682d9 100644
+--- a/internal/transport/recv_buffer_compaction_test.go
++++ b/internal/transport/recv_buffer_compaction_test.go
+@@ -269,7 +269,7 @@ func retainedServerMemoryForTinyFrames(t *testing.T, compaction bool, numFrames
+ 		// and disables BDP estimation, so the client doesn't need to
+ 		// respond to BDP pings.
+ 		st, err := NewServerTransport(conn, &ServerConfig{
+-			BufferPool:            mem.DefaultBufferPool(),
++			BufferPool:            verifyC6Pool,
+ 			MaxStreams:            math.MaxUint32,
+ 			InitialWindowSize:     int32(4 * numFrames),
+ 			InitialConnWindowSize: int32(4 * numFrames),
+diff --git a/internal/transport/transport_test.go b/internal/transport/transport_test.go
+index 67a812e5..56670c49 100644
+--- a/internal/transport/transport_test.go
++++ b/internal/transport/transport_test.go
+@@ -83,6 +83,7 @@ func newBufferSlice(b []byte) mem.BufferSlice {
+ 
+ func (s *Stream) readTo(p []byte) (int, error) {
+ 	data, err := s.read(len(p))
++	defer verifyC6AfterFree(verifyC6BeforeFree(data)) // VERIFY: runs after the Free below
+ 	defer data.Free()
+ 
+ 	if err != nil {

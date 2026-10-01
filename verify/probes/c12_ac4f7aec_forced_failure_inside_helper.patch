@@ -1,0 +1,39 @@
+# How to run (branch evalon/grpc-go-tr-ac4f7aec): git apply verify/probes/c12_ac4f7aec_forced_failure_inside_helper.patch && go test -v -run 'Test/ServerTransport_TinyDataFramesMemory$' google.golang.org/grpc/internal/transport -count=1   (variant of the C12 repro: the forced failure is inside sendTinyDataFrames, after net.Dial)
+diff --git a/internal/transport/recvbuffer_test.go b/internal/transport/recvbuffer_test.go
+index 52673388..b314fe9d 100644
+--- a/internal/transport/recvbuffer_test.go
++++ b/internal/transport/recvbuffer_test.go
+@@ -26,6 +26,7 @@ import (
+ 	"net"
+ 	"runtime"
+ 	"testing"
++	"time"
+ 
+ 	"golang.org/x/net/http2"
+ 	"golang.org/x/net/http2/hpack"
+@@ -239,7 +240,7 @@ func sendTinyDataFrames(t *testing.T, addr string, n int) net.Conn {
+ 	// The server processes frames in order, so receiving the ack for this
+ 	// ping guarantees that all the DATA frames were handled.
+ 	pingData := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
+-	if err := framer.WritePing(false, pingData); err != nil {
++	if err := framer.WritePing(false, pingData); err == nil { // VERIFY (C12): forced failure inside the helper, after net.Dial succeeded
+ 		t.Fatalf("Failed to write ping: %v", err)
+ 	}
+ 	for {
+@@ -294,6 +295,16 @@ func runTinyDataFramesServer(t *testing.T, numFrames int) uint64 {
+ 
+ 	streamCh := make(chan *ServerStream, 1)
+ 	serverDone := make(chan struct{})
++	// VERIFY (C12): observation only -- reports whether the server side ever sees
++	// the raw client connection close after the test function has bailed out.
++	t.Cleanup(func() {
++		select {
++		case <-serverDone:
++			t.Logf("VERIFY C12: server transport exited: the client connection WAS closed on the failure path")
++		case <-time.After(3 * time.Second):
++			t.Logf("VERIFY C12: 3s after the assertion failure the server transport is still blocked reading: the client connection was NOT closed by any cleanup")
++		}
++	})
+ 	go func() {
+ 		defer close(serverDone)
+ 		conn, err := lis.Accept()

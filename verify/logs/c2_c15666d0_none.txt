@@ -1,0 +1,20 @@
+$ VERIFY_STALL=none go test -v -run 'Test/ClientTransport_SlowReaderTinyDataFrames$' google.golang.org/grpc/internal/transport -count=1 -timeout 180s
+=== RUN   Test
+=== RUN   Test/ClientTransport_SlowReaderTinyDataFrames
+=== RUN   Test/ClientTransport_SlowReaderTinyDataFrames/compaction_enabled
+=== RUN   Test/ClientTransport_SlowReaderTinyDataFrames/compaction_disabled
+VERIFY C2 [t+  0.0s] fake server goroutine returned 0.0s after it started: err=<nil>
+VERIFY C2 [t+  0.0s] fake server goroutine returned 0.0s after it started: err=<nil>
+=== NAME  Test/ClientTransport_SlowReaderTinyDataFrames
+    recv_buffer_test.go:430: stream footprint after 16384 one-byte DATA frames: compaction enabled: 5 entries / 22432 bytes; disabled: 16383 entries / 540639 bytes
+--- PASS: Test (0.04s)
+    --- PASS: Test/ClientTransport_SlowReaderTinyDataFrames (0.04s)
+        --- PASS: Test/ClientTransport_SlowReaderTinyDataFrames/compaction_enabled (0.02s)
+        --- PASS: Test/ClientTransport_SlowReaderTinyDataFrames/compaction_disabled (0.02s)
+=== RUN   TestConnectionError_Unwrap
+--- PASS: TestConnectionError_Unwrap (0.00s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	0.046s
+exit=0 wall=.526365752s

@@ -1,0 +1,31 @@
+# How to run (branch evalon/grpc-go-tr-b490959e): git apply verify/repro/c11_b490959e_mem_instrumentation.patch   (counters only, in mem/buffers.go; used by verify/repro/c11_b490959e_abandoned_wrapper_test.go)
+diff --git a/mem/buffers.go b/mem/buffers.go
+index 2b410b16..81d613d2 100644
+--- a/mem/buffers.go
++++ b/mem/buffers.go
+@@ -118,9 +118,17 @@ func NewBuffer(data *[]byte, pool BufferPool) Buffer {
+ 	b.pool = pool
+ 	b.rootBuf = b
+ 	b.refs.Store(1)
++	VerifyPooledWrappersCreated.Add(1) // VERIFY instrumentation (C11)
+ 	return b
+ }
+ 
++// VERIFY instrumentation (C11): counts ref-counted pooled-buffer wrappers
++// created by NewBuffer and root wrappers released through Free.
++var (
++	VerifyPooledWrappersCreated atomic.Int64
++	VerifyPooledWrappersFreed   atomic.Int64
++)
++
+ // Copy creates a new Buffer from the given data, initializing the reference
+ // counter to 1.
+ //
+@@ -170,6 +178,7 @@ func (b *buffer) Free() {
+ 			b.pool = nil
+ 		}
+ 		b.origData = nil
++		VerifyPooledWrappersFreed.Add(1) // VERIFY instrumentation (C11)
+ 	} else {
+ 		// This buffer doesn't own the data slice, decrement a ref on the root
+ 		// buffer.

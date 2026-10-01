@@ -1,0 +1,17 @@
+=== RUN   TestVerifyC1_ThreeOneBytePutsNoReads
+    verify_c1_stale_backlog_ref_test.go:41: after 3 one-byte puts, no reads: len(b.c)=1 len(b.backlog)=1
+    verify_c1_stale_backlog_ref_test.go:42: b.compacted (consolidated payload) = b2 c3  (len=2 cap=256, backing 0xc00000f100)
+    verify_c1_stale_backlog_ref_test.go:43: buffers already released via Free(): [put#2 put#3]
+    verify_c1_stale_backlog_ref_test.go:48: b.backlog[0].buffer: type=transport.vC1TrackedBuffer payload=b2 backing=0xc0000155ff
+    verify_c1_stale_backlog_ref_test.go:54:   -> b.backlog[0].buffer IS the original source buffer of put#2 (identical backing array 0xc0000155ff == 0xc0000155ff: true); already freed: true; its byte is also in b.compacted: true
+    verify_c1_stale_backlog_ref_test.go:63: unread bytes behind the channel: 1 according to b.backlog entries, 2 according to b.compacted
+    verify_c1_stale_backlog_ref_test.go:67: C1 OBSERVED: a queue entry still references a replaced (merged and freed) source buffer
+    verify_c1_stale_backlog_ref_test.go:79: bytes delivered to a reader through get()/load(): a1 b2 c3
+--- PASS: TestVerifyC1_ThreeOneBytePutsNoReads (0.00s)
+=== RUN   TestVerifyC1_StaleEntryIsAFreedPooledBuffer
+    verify_c1_stale_backlog_ref_test.go:105: len(b.backlog)=1 b.compacted=02 03
+    verify_c1_stale_backlog_ref_test.go:109: C1 OBSERVED: reading b.backlog[0].buffer panics: Cannot read freed buffer
+    verify_c1_stale_backlog_ref_test.go:117: C1 OBSERVED: freeing b.backlog[0].buffer (as the fixture teardown loops do) panics: Cannot free freed buffer
+--- PASS: TestVerifyC1_StaleEntryIsAFreedPooledBuffer (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	1.015s
