@@ -1,0 +1,377 @@
+// Run (from the root of a checkout of the branch under test): go test -count=1 -v -run '^TestVerify_FollowUpConnectionUsesReplacementRoots$' ./verify/repro/followup_probe/
+// Helpers below are copied verbatim from the eval fixture tests/eval_handshake_lifetime_test.go; only the test function differs.
+package clusterimpl_test
+
+import (
+	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials/tls/certprovider"
+	"google.golang.org/grpc/credentials/xds"
+	"google.golang.org/grpc/internal"
+	"google.golang.org/grpc/internal/stubserver"
+	"google.golang.org/grpc/internal/testutils"
+	"google.golang.org/grpc/internal/testutils/xds/e2e"
+	"google.golang.org/grpc/internal/xds/bootstrap"
+	"google.golang.org/grpc/internal/xds/xdsclient/xdsresource"
+	"google.golang.org/grpc/resolver"
+	"google.golang.org/grpc/testdata"
+	_ "google.golang.org/grpc/xds"
+
+	v3clusterpb "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	v3corepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	v3tlspb "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
+	testgrpc "google.golang.org/grpc/interop/grpc_testing"
+	testpb "google.golang.org/grpc/interop/grpc_testing"
+)
+
+func evalClientTLSClusterWithValidationProvider(t *testing.T, clusterName, serviceName, providerInstance string) *v3clusterpb.Cluster {
+	t.Helper()
+	cluster := e2e.DefaultCluster(clusterName, serviceName, e2e.SecurityLevelNone)
+	cluster.TransportSocket = &v3corepb.TransportSocket{
+		Name: "envoy.transport_sockets.tls",
+		ConfigType: &v3corepb.TransportSocket_TypedConfig{
+			TypedConfig: testutils.MarshalAny(t, &v3tlspb.UpstreamTlsContext{
+				CommonTlsContext: &v3tlspb.CommonTlsContext{
+					ValidationContextType: &v3tlspb.CommonTlsContext_ValidationContextCertificateProviderInstance{
+						ValidationContextCertificateProviderInstance: &v3tlspb.CommonTlsContext_CertificateProviderInstance{
+							InstanceName: providerInstance,
+						},
+					},
+				},
+			}),
+		},
+	}
+	return cluster
+}
+
+func evalLoadServerCACertPool(t *testing.T) *x509.CertPool {
+	t.Helper()
+	return evalLoadCertPool(t, "x509/server_ca_cert.pem")
+}
+
+func evalLoadCertPool(t *testing.T, rel string) *x509.CertPool {
+	t.Helper()
+	pemData, err := os.ReadFile(testdata.Path(rel))
+	if err != nil {
+		t.Fatalf("Failed to read %s: %v", rel, err)
+	}
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(pemData) {
+		t.Fatalf("Failed to parse testdata/%s", rel)
+	}
+	return roots
+}
+
+type evalHandshakeLifetimeRootProvider struct {
+	roots     *x509.CertPool
+	entered   chan struct{}
+	release   chan struct{}
+	closed    chan struct{}
+	mu        sync.Mutex
+	isClosed  bool
+	closeOnce sync.Once
+}
+
+func (p *evalHandshakeLifetimeRootProvider) KeyMaterial(ctx context.Context) (*certprovider.KeyMaterial, error) {
+	if p.entered != nil {
+		select {
+		case p.entered <- struct{}{}:
+		default:
+		}
+	}
+	if p.release != nil {
+		select {
+		case <-p.release:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.isClosed {
+		return nil, errors.New("provider instance is closed")
+	}
+	return &certprovider.KeyMaterial{Roots: p.roots}, nil
+}
+
+func (p *evalHandshakeLifetimeRootProvider) Close() {
+	p.closeOnce.Do(func() {
+		p.mu.Lock()
+		p.isClosed = true
+		p.mu.Unlock()
+		close(p.closed)
+	})
+}
+
+type evalHandshakeLifetimeProviderBuilder struct {
+	name     string
+	provider certprovider.Provider
+}
+
+func (b *evalHandshakeLifetimeProviderBuilder) Name() string { return b.name }
+
+func (b *evalHandshakeLifetimeProviderBuilder) ParseConfig(any) (*certprovider.BuildableConfig, error) {
+	return certprovider.NewBuildableConfig(b.name, nil, func(certprovider.BuildOptions) certprovider.Provider {
+		return b.provider
+	}), nil
+}
+
+type evalHandshakeLifetimeResolverBuilder struct {
+	resolver.Builder
+	replacementRoot string
+	applied         chan struct{}
+}
+
+func (b *evalHandshakeLifetimeResolverBuilder) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {
+	return b.Builder.Build(target, &evalHandshakeLifetimeClientConn{
+		ClientConn:      cc,
+		replacementRoot: b.replacementRoot,
+		applied:         b.applied,
+	}, opts)
+}
+
+type evalHandshakeLifetimeClientConn struct {
+	resolver.ClientConn
+	replacementRoot string
+	applied         chan struct{}
+}
+
+func (cc *evalHandshakeLifetimeClientConn) UpdateState(state resolver.State) error {
+	err := cc.ClientConn.UpdateState(state)
+	if err != nil || state.Attributes == nil {
+		return err
+	}
+	config := xdsresource.XDSConfigFromResolverState(state)
+	if config == nil {
+		return nil
+	}
+	for _, result := range config.Clusters {
+		if result == nil || result.Err != nil || result.Config.Cluster == nil || result.Config.Cluster.SecurityCfg == nil {
+			continue
+		}
+		if result.Config.Cluster.SecurityCfg.RootInstanceName == cc.replacementRoot {
+			select {
+			case cc.applied <- struct{}{}:
+			default:
+			}
+			break
+		}
+	}
+	return nil
+}
+
+func evalWaitForChan(ctx context.Context, t *testing.T, ch <-chan struct{}, msg string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-ctx.Done():
+		t.Fatalf("%s: %v", msg, ctx.Err())
+	}
+}
+
+// TestVerify_FollowUpConnectionUsesReplacementRoots is the positive control for
+// C1. It is the follow-up phase of the eval fixture
+// (TestEval_SecurityConfigUpdate_ActiveHandshakeKeepsProvider) with the
+// in-flight-handshake phase removed: connection 1 completes under validation
+// roots A (trusted), the Cluster security configuration is replaced with roots
+// B (which do not trust the server), and a distinct follow-up connection to a
+// fresh backend must (a) fetch KeyMaterial from provider B for that attempt and
+// (b) fail with an x509 trust error that cannot occur under roots A.
+func TestVerify_FollowUpConnectionUsesReplacementRoots(t *testing.T) {
+	const (
+		instanceA = "followup-probe-root-a"
+		instanceB = "followup-probe-root-b"
+		target    = "test.service"
+	)
+	roots := evalLoadServerCACertPool(t)
+	untrustedRoots := evalLoadCertPool(t, "x509/client_ca_cert.pem")
+
+	providerA := &evalHandshakeLifetimeRootProvider{
+		roots:   roots,
+		entered: make(chan struct{}, 1),
+		closed:  make(chan struct{}),
+	}
+	providerB := &evalHandshakeLifetimeRootProvider{
+		roots:   untrustedRoots,
+		entered: make(chan struct{}, 1),
+		closed:  make(chan struct{}),
+	}
+	builderA := &evalHandshakeLifetimeProviderBuilder{
+		name:     fmt.Sprintf("followup-probe-a-%s", uuid.New()),
+		provider: providerA,
+	}
+	builderB := &evalHandshakeLifetimeProviderBuilder{
+		name:     fmt.Sprintf("followup-probe-b-%s", uuid.New()),
+		provider: providerB,
+	}
+	certprovider.Register(builderA)
+	certprovider.Register(builderB)
+
+	mgmtServer := e2e.StartManagementServer(t, e2e.ManagementServerOptions{})
+	nodeID := uuid.New().String()
+	providerCfg := func(plugin string) json.RawMessage {
+		return json.RawMessage(fmt.Sprintf(`{"plugin_name": %q, "config": {}}`, plugin))
+	}
+	bootstrapContents, err := bootstrap.NewContentsForTesting(bootstrap.ConfigOptionsForTesting{
+		Servers: []byte(fmt.Sprintf(`[{
+			"server_uri": "passthrough:///%s",
+			"channel_creds": [{"type": "insecure"}],
+			"server_features": ["trusted_xds_server"]
+		}]`, mgmtServer.Address)),
+		Node: []byte(fmt.Sprintf(`{"id": "%s"}`, nodeID)),
+		CertificateProviders: map[string]json.RawMessage{
+			instanceA: providerCfg(builderA.name),
+			instanceB: providerCfg(builderB.name),
+		},
+		ServerListenerResourceNameTemplate: e2e.ServerListenerResourceNameTemplate,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create bootstrap configuration: %v", err)
+	}
+
+	r, err := internal.NewXDSResolverWithConfigForTesting.(func([]byte) (resolver.Builder, error))(bootstrapContents)
+	if err != nil {
+		t.Fatalf("Failed to create xDS resolver for testing: %v", err)
+	}
+	replacementApplied := make(chan struct{}, 1)
+	r = &evalHandshakeLifetimeResolverBuilder{
+		Builder:         r,
+		replacementRoot: instanceB,
+		applied:         replacementApplied,
+	}
+	cc, err := grpc.NewClient(r.Scheme()+":///"+target, grpc.WithTransportCredentials(evalXDSClientCredsWithInsecureFallback(t)), grpc.WithResolvers(r))
+	if err != nil {
+		t.Fatalf("grpc.NewClient() failed: %v", err)
+	}
+	cc.Connect()
+	t.Cleanup(func() { cc.Close() })
+	firstServer := stubserver.StartTestService(t, nil, grpc.Creds(evalTLSServerCreds(t)))
+	t.Cleanup(firstServer.Stop)
+	serverAddress := firstServer.Address
+	resources := e2e.DefaultClientResources(e2e.ResourceParams{
+		DialTarget: target,
+		NodeID:     nodeID,
+		Host:       "localhost",
+		Port:       testutils.ParsePort(t, serverAddress),
+		SecLevel:   e2e.SecurityLevelNone,
+	})
+	clusterName := resources.Clusters[0].Name
+	serviceName := resources.Endpoints[0].ClusterName
+	resources.Clusters[0] = evalClientTLSClusterWithValidationProvider(t, clusterName, serviceName, instanceA)
+
+	ctx, cancel := context.WithTimeout(context.Background(), evalDefaultTestTimeout)
+	defer cancel()
+	if err := mgmtServer.Update(ctx, resources); err != nil {
+		t.Fatalf("Failed to update management server with the initial Cluster: %v", err)
+	}
+
+	// Connection 1: completes under the prior roots (A), which trust the server.
+	client := testgrpc.NewTestServiceClient(cc)
+	if _, err := client.EmptyCall(ctx, &testpb.Empty{}, grpc.WaitForReady(true)); err != nil {
+		t.Fatalf("First RPC under the prior validation roots failed: %v", err)
+	}
+	evalWaitForChan(ctx, t, providerA.entered, "provider A KeyMaterial was never used for the first connection")
+	select {
+	case <-providerB.entered:
+		t.Fatal("Replacement provider KeyMaterial ran before the Cluster security configuration update")
+	default:
+	}
+	t.Logf("connection 1 succeeded under prior roots A")
+
+	// Replace the Cluster security configuration: validation roots A -> B.
+	resources.Clusters[0] = evalClientTLSClusterWithValidationProvider(t, clusterName, serviceName, instanceB)
+	if err := mgmtServer.Update(ctx, resources); err != nil {
+		t.Fatalf("Failed to update management server with the replacement Cluster: %v", err)
+	}
+	evalWaitForChan(ctx, t, replacementApplied, "timed out waiting for the replacement Cluster security configuration to be applied")
+	evalWaitForChan(ctx, t, providerA.closed, "timed out waiting for the replaced provider to close")
+
+	// Force a distinct follow-up connection: new backend, same server certificate.
+	firstServer.Stop()
+	secondServer := stubserver.StartTestService(t, nil, grpc.Creds(evalTLSServerCreds(t)))
+	t.Cleanup(secondServer.Stop)
+	resources.Endpoints[0] = e2e.DefaultEndpoint(serviceName, "localhost", []uint32{testutils.ParsePort(t, secondServer.Address)})
+	if err := mgmtServer.Update(ctx, resources); err != nil {
+		t.Fatalf("Failed to update management server with a new endpoint after the replacement: %v", err)
+	}
+	// Reset the provider-scoped signal immediately before the follow-up attempt.
+	select {
+	case <-providerB.entered:
+	default:
+	}
+	followErr := make(chan error, 1)
+	followCtx, followCancel := context.WithTimeout(ctx, 3*time.Second)
+	defer followCancel()
+	go func() {
+		const maxAttempts = 100
+		for attempt := 1; attempt <= maxAttempts; attempt++ {
+			_, err := client.EmptyCall(followCtx, &testpb.Empty{})
+			if err == nil || strings.Contains(err.Error(), "x509: certificate signed by unknown authority") || followCtx.Err() != nil {
+				followErr <- err
+				return
+			}
+			timer := time.NewTimer(25 * time.Millisecond)
+			select {
+			case <-timer.C:
+			case <-followCtx.Done():
+				timer.Stop()
+				followErr <- followCtx.Err()
+				return
+			}
+		}
+		followErr <- fmt.Errorf("replacement roots were not observed after %d follow-up RPC attempts", maxAttempts)
+	}()
+	evalWaitForChan(followCtx, t, providerB.entered, "timed out waiting for replacement provider KeyMaterial on the follow-up RPC")
+	select {
+	case err := <-followErr:
+		if err == nil || !strings.Contains(err.Error(), "x509: certificate signed by unknown authority") {
+			t.Fatalf("Follow-up RPC error = %v, want x509 unknown authority", err)
+		}
+		t.Logf("follow-up connection rejected under replacement roots B: %v", err)
+	case <-followCtx.Done():
+		t.Fatalf("Timed out waiting for the follow-up RPC to fail: %v", followCtx.Err())
+	}
+}
+
+const evalDefaultTestTimeout = 5 * time.Second
+
+func evalXDSClientCredsWithInsecureFallback(t *testing.T) credentials.TransportCredentials {
+	t.Helper()
+	xdsCreds, err := xds.NewClientCredentials(xds.ClientOptions{FallbackCreds: insecure.NewCredentials()})
+	if err != nil {
+		t.Fatalf("Failed to create xDS credentials: %v", err)
+	}
+	return xdsCreds
+}
+
+func evalTLSServerCreds(t *testing.T) credentials.TransportCredentials {
+	t.Helper()
+	cert, err := tls.LoadX509KeyPair(testdata.Path("x509/server1_cert.pem"), testdata.Path("x509/server1_key.pem"))
+	if err != nil {
+		t.Fatalf("Failed to load server cert and key: %v", err)
+	}
+	pemData, err := os.ReadFile(testdata.Path("x509/client_ca_cert.pem"))
+	if err != nil {
+		t.Fatalf("Failed to read client CA cert: %v", err)
+	}
+	roots := x509.NewCertPool()
+	roots.AppendCertsFromPEM(pemData)
+	return credentials.NewTLS(&tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ClientCAs:    roots,
+	})
+}

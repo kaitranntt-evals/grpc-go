@@ -1,0 +1,99 @@
+// Audit instrumentation (run v-9df7d8ff). Not production code: copied to credentials/xds/verify_hook.go by verify/repro/apply_instrumentation.sh.
+//
+// With no VERIFY_* environment variable set it is behaviour-neutral. It adds:
+//
+//	VERIFY_TRACE=1                 one stderr line per ClientHandshake attempt
+//	                               (begin / tls-config-built / end).
+//	VERIFY_MUTATE=pin-first-roots  seeded defect: the validation roots (and peer
+//	                               verification func) of the first handshake that
+//	                               verified its peer are pinned per HandshakeInfo
+//	                               pointer and silently reused for every later
+//	                               ClientHandshake call. A handshake that is still
+//	                               in flight during a replacement is unaffected
+//	                               (nothing is pinned yet), but a distinct
+//	                               follow-up connection is no longer governed by
+//	                               the replacement validation roots.
+package xds
+
+import (
+	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
+	"net"
+	"os"
+	"sync"
+	"sync/atomic"
+
+	"google.golang.org/grpc/credentials"
+	xdsinternal "google.golang.org/grpc/internal/credentials/xds"
+)
+
+var (
+	verifyTraceOn  = os.Getenv("VERIFY_TRACE") != ""
+	verifyMutateOn = os.Getenv("VERIFY_MUTATE") == "pin-first-roots"
+	verifyAttempts atomic.Int64
+	verifyPinned   sync.Map // *atomic.Pointer[xdsinternal.HandshakeInfo] -> *verifyPin
+)
+
+type verifyAttemptKey struct{}
+
+type verifyPin struct {
+	roots   *x509.CertPool
+	verify  func([][]byte, [][]*x509.Certificate) error
+	attempt int64
+}
+
+func verifyTracef(format string, args ...any) {
+	if verifyTraceOn {
+		fmt.Fprintf(os.Stderr, "VERIFY-TRACE "+format+"\n", args...)
+	}
+}
+
+// ClientHandshake wraps the solution's implementation (renamed to
+// clientHandshakeImpl by the apply script) to number each attempt.
+func (c *credsImpl) ClientHandshake(ctx context.Context, authority string, rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
+	n := verifyAttempts.Add(1)
+	var hi *xdsinternal.HandshakeInfo
+	if chi := credentials.ClientHandshakeInfoFromContext(ctx); chi.Attributes != nil {
+		if p := xdsinternal.HandshakeInfoFromAttributes(chi.Attributes); p != nil {
+			hi = p.Load()
+		}
+	}
+	if verifyTraceOn && rawConn != nil {
+		verifyTracef("attempt=%d begin conn=%v->%v hi@begin=%p", n, rawConn.LocalAddr(), rawConn.RemoteAddr(), hi)
+	}
+	conn, ai, err := c.clientHandshakeImpl(context.WithValue(ctx, verifyAttemptKey{}, n), authority, rawConn)
+	verifyTracef("attempt=%d end err=%v", n, err)
+	return conn, ai, err
+}
+
+// verifyHookTLSConfig is called by the solution's ClientHandshake right before
+// tls.Client(rawConn, cfg).
+func verifyHookTLSConfig(ctx context.Context, hiPtr *atomic.Pointer[xdsinternal.HandshakeInfo], cfg *tls.Config) *tls.Config {
+	n, _ := ctx.Value(verifyAttemptKey{}).(int64)
+	verifyTracef("attempt=%d tls-config-built hi@tls=%p roots=%p", n, hiPtr.Load(), cfg.RootCAs)
+	if !verifyMutateOn {
+		return cfg
+	}
+	if p, ok := verifyPinned.Load(hiPtr); ok {
+		pin := p.(*verifyPin)
+		cfg = cfg.Clone()
+		cfg.RootCAs = pin.roots
+		cfg.VerifyPeerCertificate = pin.verify
+		verifyTracef("attempt=%d MUTATION-ACTIVE current roots ignored; reusing roots=%p pinned by attempt=%d", n, pin.roots, pin.attempt)
+		return cfg
+	}
+	orig, roots := cfg.VerifyPeerCertificate, cfg.RootCAs
+	cfg = cfg.Clone()
+	cfg.VerifyPeerCertificate = func(raw [][]byte, chains [][]*x509.Certificate) error {
+		err := orig(raw, chains)
+		if err == nil {
+			if _, loaded := verifyPinned.LoadOrStore(hiPtr, &verifyPin{roots: roots, verify: orig, attempt: n}); !loaded {
+				verifyTracef("attempt=%d MUTATION pinned roots=%p for all later attempts on this HandshakeInfo pointer", n, roots)
+			}
+		}
+		return err
+	}
+	return cfg
+}
