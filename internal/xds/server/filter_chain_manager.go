@@ -446,12 +446,11 @@ func (fc *filterChain) applyConfiguration(urc *usableRouteConfiguration, serverF
 	fc.serverFilters = serverFilters
 
 	// Stop the old interceptors before releasing the filters they might depend on.
-	// minimum_acceptable: releases server filters before stopping interceptors
-	for _, sf := range oldFilters {
-		sf.Close()
-	}
 	if oldURC != nil {
 		oldURC.stop()
+	}
+	for _, sf := range oldFilters {
+		sf.Close()
 	}
 }
 

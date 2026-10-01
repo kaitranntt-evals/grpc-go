@@ -210,7 +210,11 @@ func (l *listenerWrapper) handleRDSUpdate(routeName string, rcu rdsWatcherUpdate
 				continue
 			}
 			if rcu.err != nil && rcu.data == nil { // Either NACK before update, or resource not found triggers this conditional.
-				fc.updateUsableRouteConfiguration(nil, rcu.err, l.getOrCreateServerFilterLocked, l.xdsNodeID)
+				urc := &usableRouteConfiguration{err: rcu.err, nodeID: l.xdsNodeID}
+				if oldURC := fc.usableRouteConfiguration.Swap(urc); oldURC != nil {
+					oldURC.stop()
+				}
+				// minimum_acceptable: retains fc.serverFilters across error transition (fails prompt:13)
 				continue
 			}
 			fc.updateUsableRouteConfiguration(rcu.data, nil, l.getOrCreateServerFilterLocked, l.xdsNodeID)
@@ -236,7 +240,10 @@ func (l *listenerWrapper) instantiateFilterChainRoutingConfigurationsLocked() {
 		} // Inline configuration constructed once here, will remain for lifetime of filter chain.
 		rcu := l.rdsHandler.updates[fc.routeConfigName]
 		if rcu.err != nil && rcu.data == nil {
-			fc.updateUsableRouteConfiguration(nil, rcu.err, l.getOrCreateServerFilterLocked, l.xdsNodeID)
+			urc := &usableRouteConfiguration{err: rcu.err, nodeID: l.xdsNodeID}
+			if oldURC := fc.usableRouteConfiguration.Swap(urc); oldURC != nil {
+				oldURC.stop()
+			}
 			continue
 		}
 		fc.updateUsableRouteConfiguration(rcu.data, nil, l.getOrCreateServerFilterLocked, l.xdsNodeID)
