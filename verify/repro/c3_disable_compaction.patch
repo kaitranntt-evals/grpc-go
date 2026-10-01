@@ -1,0 +1,14 @@
+Run: sh verify/repro/c3_heap_delta.sh (step 4 applies this verify-only regression, compaction never runs, with 'git apply' in a scratch worktree of evalon/grpc-go-tr-8401755a).
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index c5268401..98ea095a 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -142,7 +142,7 @@ func (b *recvBuffer) put(r recvMsg) {
+ 		}
+ 	}
+ 	// The reader is not keeping up: the message must be queued.
+-	if b.pool != nil && r.err == nil && r.buffer.Len() <= recvBufferCompactionThreshold {
++	if false && b.pool != nil && r.err == nil && r.buffer.Len() <= recvBufferCompactionThreshold {
+ 		b.compactLocked(r.buffer)
+ 		b.mu.Unlock()
+ 		return

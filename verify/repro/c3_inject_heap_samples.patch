@@ -1,0 +1,24 @@
+Run: sh verify/repro/c3_heap_delta.sh (it applies this verify-only test-helper hook with 'git apply' in a scratch worktree of evalon/grpc-go-tr-8401755a).
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -29,6 +29,10 @@ import (
+ 	"google.golang.org/grpc/mem"
+ )
+ 
++// verifyHeapHook is verify-only instrumentation (C3): when set, it may replace
++// the heap sample that heapAllocBytes is about to return.
++var verifyHeapHook func(real uint64) uint64
++
+ // heapAllocBytes forces a full garbage collection and returns the number of
+ // bytes of allocated heap objects that are still live.
+ func heapAllocBytes() uint64 {
+@@ -38,6 +42,9 @@ func heapAllocBytes() uint64 {
+ 	runtime.GC()
+ 	var ms runtime.MemStats
+ 	runtime.ReadMemStats(&ms)
++	if verifyHeapHook != nil {
++		return verifyHeapHook(ms.HeapAlloc)
++	}
+ 	return ms.HeapAlloc
+ }
+ 

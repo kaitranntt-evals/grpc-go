@@ -1,0 +1,14 @@
+Run: sh verify/repro/c1_zero_copy_unbounded_receive.sh (it applies this verify-only mutation with 'git apply' in a scratch worktree of evalon/grpc-go-tr-f5eba3f9, then reverts it).
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index 2d766c0d..de437c01 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -146,7 +146,7 @@ func (b *recvBuffer) load() {
+ 		// data or for the stream to end.
+ 		b.flushPending()
+ 	}
+-	if len(b.backlog) > 0 {
++	if false && len(b.backlog) > 0 { // verify C1 mutation: load never promotes the backlog to b.c
+ 		select {
+ 		case b.c <- b.backlog[0]:
+ 			b.backlog[0] = recvMsg{}
