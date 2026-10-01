@@ -1,0 +1,37 @@
+# Run: bash verify/run.sh C1   (applied with `git apply` in a worktree of evalon/grpc-go-tr-fbdde71c; injects a put-after-read bug: put() keeps appending to a tail chunk the reader already consumed)
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index 342a4e52..a3e0b18f 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -73,6 +73,9 @@ type recvBuffer struct {
+ 	mu      sync.Mutex
+ 	backlog []recvMsg
+ 	err     error
++	// tail caches the chunk at the end of the backlog. MUTATION (verify C1):
++	// load() does not invalidate it when the chunk leaves the backlog.
++	tail *recvBufferChunk
+ }
+ 
+ const (
+@@ -120,10 +123,7 @@ func (b *recvBuffer) put(r recvMsg) {
+ 	if envconfig.EnableReceiveBufferCompaction && r.err == nil && r.buffer != nil && r.buffer.Len() < recvBufferSmallMessageSize {
+ 		// Only compact backlogged small payloads. Immediate delivery and larger
+ 		// payloads retain their original buffers and zero-copy behavior.
+-		var chunk *recvBufferChunk
+-		if len(b.backlog) > 0 {
+-			chunk, _ = b.backlog[len(b.backlog)-1].buffer.(*recvBufferChunk)
+-		}
++		chunk := b.tail
+ 		if chunk != nil && chunk.Len()+r.buffer.Len() <= cap(chunk.SliceBuffer) {
+ 			chunk.SliceBuffer = append(chunk.SliceBuffer, r.buffer.ReadOnlyData()...)
+ 			r.buffer.Free()
+@@ -134,6 +134,9 @@ func (b *recvBuffer) put(r recvMsg) {
+ 		chunk.SliceBuffer = append(chunk.SliceBuffer, r.buffer.ReadOnlyData()...)
+ 		r.buffer.Free()
+ 		r.buffer = chunk
++		b.tail = chunk
++	} else {
++		b.tail = nil
+ 	}
+ 	b.backlog = append(b.backlog, r)
+ 	b.mu.Unlock()

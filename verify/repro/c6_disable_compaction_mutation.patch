@@ -1,0 +1,14 @@
+# Run: bash verify/run.sh C6   (applied with `git apply` in a worktree of evalon/grpc-go-tr-91caeccb; makes recvBuffer.compact a no-op so compaction never happens even when enabled)
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index 59e080be..524d4fce 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -129,7 +129,7 @@ func (b *recvBuffer) put(r recvMsg) {
+ // Caller must hold b.mu.
+ func (b *recvBuffer) compact(buf mem.Buffer) bool {
+ 	n := buf.Len()
+-	if !mem.IsBelowBufferPoolingThreshold(n) {
++	if true { // MUTATION (verify C6): compaction never happens, even when enabled
+ 		return false
+ 	}
+ 	if len(b.compacted)+n > maxCompactedBufferLen {
