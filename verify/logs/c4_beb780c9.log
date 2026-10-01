@@ -1,0 +1,17 @@
+$ git grep -n "SetConnection(" -- internal/xds/server/listener_wrapper_test.go
+internal/xds/server/listener_wrapper_test.go:111:	ctx := transport.SetConnection(context.Background(), &connWrapper{urc: fc.usableRouteConfiguration})
+$ git diff 4ee6ac46 HEAD -- internal/xds/server/listener_wrapper_test.go | grep -n "SetConnection\|WithTimeout\|WithCancel\|^+func (s)"
+81:+func (s) TestListenerWrapper_RDSUpdateErrorAndClose(t *testing.T) {
+117:+	ctx := transport.SetConnection(context.Background(), &connWrapper{urc: fc.usableRouteConfiguration})
+$ sed -n 80p scripts/vet.sh
+git grep -e 'context.Background()' --or -e 'context.TODO()' -- "*_test.go" | grep -v "benchmark/primitives/context_test.go" | grep -v 'context.WithTimeout(' | not grep -v 'context.WithCancel('
+$ the same pipeline without the leading "not", on the branch working tree:
+internal/xds/server/listener_wrapper_test.go:	ctx := transport.SetConnection(context.Background(), &connWrapper{urc: fc.usableRouteConfiguration})
+pipeline exit=0 (0 => offending lines found => vet.sh's "not grep" fails)
+$ the same pipeline at base 4ee6ac46:
+pipeline exit=1 (1 => clean)
+$ go test -race -count=1 -v -run "Test/ListenerWrapper_RDSUpdateErrorAndClose" ./internal/xds/server/
+--- PASS: Test (0.00s)
+    --- PASS: Test/ListenerWrapper_RDSUpdateErrorAndClose (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/xds/server	1.026s

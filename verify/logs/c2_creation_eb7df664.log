@@ -1,0 +1,35 @@
+### branch HEAD: e97654c8 xds/server: close interceptors when replacing route configurations
+### test code under probe (test/xds/xds_server_filter_state_retention_test.go):
+		// The second filter chain may still be updating when the RPC completes.
+		wantClosed := int32(update * len(inboundLis.FilterChains))
+		for interceptorsDestroyed.Load() != wantClosed && ctx.Err() == nil {
+			time.Sleep(time.Millisecond)
+		}
+		if got := interceptorsDestroyed.Load(); got != wantClosed {
+			t.Fatalf("After RDS update %d, closed %d interceptors, want %d", update, got, wantClosed)
+		}
+		if got, want := interceptorsCreated.Load(), int32((update+1)*len(inboundLis.FilterChains)); got != want {
+			t.Fatalf("Created %d interceptors, want %d", got, want)
+		}
+### instrumentation:
+@@ -428,0 +429 @@ func (fc *filterChain) constructUsableRouteConfiguration(config xdsresource.Rout
++	verifyC2Delay()
+@@ -729,0 +730 @@ func (s) TestServerSideXDS_FilterStateRetention_AcrossUpdates_RDS(t *testing.T)
++		t.Logf("PROBE destruction poll finished (update %d): interceptorsDestroyed=%d interceptorsCreated=%d (asserted next: %d)", update, interceptorsDestroyed.Load(), interceptorsCreated.Load(), (update+1)*len(inboundLis.FilterChains))
+### [no delay] go test -race -count=1 -v -run '^Test$/^ServerSideXDS_FilterStateRetention_AcrossUpdates_RDS$' ./test/xds/
+    xds_server_filter_state_retention_test.go:730: PROBE destruction poll finished (update 1): interceptorsDestroyed=2 interceptorsCreated=4 (asserted next: 4)
+    xds_server_filter_state_retention_test.go:730: PROBE destruction poll finished (update 2): interceptorsDestroyed=4 interceptorsCreated=6 (asserted next: 6)
+    xds_server_filter_state_retention_test.go:730: PROBE destruction poll finished (update 3): interceptorsDestroyed=6 interceptorsCreated=8 (asserted next: 8)
+--- PASS: Test (0.04s)
+    --- PASS: Test/ServerSideXDS_FilterStateRetention_AcrossUpdates_RDS (0.03s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.064s
+### [replacement construction delayed by 300ms] VERIFY_C2_CREATE_DELAY=300ms go test -race -count=1 -v -run '^Test$/^ServerSideXDS_FilterStateRetention_AcrossUpdates_RDS$' ./test/xds/
+    xds_server_filter_state_retention_test.go:730: PROBE destruction poll finished (update 1): interceptorsDestroyed=2 interceptorsCreated=3 (asserted next: 4)
+    xds_server_filter_state_retention_test.go:732: Created 3 interceptors, want 4
+--- FAIL: Test (1.23s)
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_AcrossUpdates_RDS (1.22s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	1.268s
+FAIL
+### restored; git status --short: []

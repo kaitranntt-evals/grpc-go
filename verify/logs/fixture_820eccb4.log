@@ -1,0 +1,11 @@
+### fixture sha256: 09122ab416a9858c3f7bf37ce2ee150f742b799a4e71fab1878e0532c99ebb56   branch HEAD: b3c4818e xds/server: close interceptors of replaced route configuratio
+### go test -v -run '^Test$/^Eval_' ./test/xds -race -count=1
+--- PASS: Test (0.19s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_MultiGenerationRDSUpdate (0.03s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_RDSUpdate (0.08s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorSwapOrder (0.03s)
+    --- PASS: Test/Eval_ServerSideXDS_PartialRouteFailure_ClosesInterceptors (0.02s)
+    --- PASS: Test/Eval_ServerSideXDS_PartialVirtualHostFailure_ClosesInterceptors (0.03s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.215s
+### removed; git status --short: []

@@ -1,0 +1,31 @@
+### assertions that follow the replacement-traffic loop (test/xds/xds_server_filter_state_retention_test.go):
+		if got, want := filtersCreated.Load(), int32(1); got != want {
+			t.Fatalf("Created %d filter instances after %d in-place RDS update(s), want: %d", got, i, want)
+		}
+		if got, want := filtersDestroyed.Load(), int32(0); got != want {
+			t.Fatalf("Destroyed %d filter instances after %d in-place RDS update(s), want: %d", got, i, want)
+		}
+		if got, want := interceptorsCreated.Load(), int32(2*(i+1)); got != want {
+			t.Fatalf("Created %d interceptor instances after %d in-place RDS update(s), want: %d", got, i, want)
+		}
+		if got, want := interceptorsDestroyed.Load(), int32(2*i); got != want {
+			t.Fatalf("Destroyed %d interceptor instances after %d in-place RDS update(s), want: %d", got, i, want)
+		}
+	}
+### VERIFY_C2_CLOSE_DELAY=0s go test -race -count=1 -v -run '^Test$/^ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange$' ./test/xds/
+    xds_server_filter_state_retention_test.go:837: PROBE replacement traffic observed for update 1: interceptorsCreated=4 (asserted next: 4) interceptorsDestroyed=2 (asserted next: 2)
+    xds_server_filter_state_retention_test.go:837: PROBE replacement traffic observed for update 2: interceptorsCreated=6 (asserted next: 6) interceptorsDestroyed=4 (asserted next: 4)
+    xds_server_filter_state_retention_test.go:837: PROBE replacement traffic observed for update 3: interceptorsCreated=8 (asserted next: 8) interceptorsDestroyed=6 (asserted next: 6)
+--- PASS: Test (0.07s)
+    --- PASS: Test/ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange (0.07s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.100s
+### VERIFY_C2_CLOSE_DELAY=300ms go test -race -count=1 -v -run '^Test$/^ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange$' ./test/xds/
+    xds_server_filter_state_retention_test.go:837: PROBE replacement traffic observed for update 1: interceptorsCreated=3 (asserted next: 4) interceptorsDestroyed=0 (asserted next: 2)
+    xds_server_filter_state_retention_test.go:845: Created 3 interceptor instances after 1 in-place RDS update(s), want: 4
+--- FAIL: Test (1.24s)
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange (1.23s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	1.263s
+FAIL
+### restored; git status --short: []

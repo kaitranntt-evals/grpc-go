@@ -1,0 +1,18 @@
+### branch HEAD: 422f3382 chore: apply eval changes
+### added test/xds tests: ServerSideXDS_RouteConfigUpdate_ClosesRetiredInterceptors
+### [unmodified] go test -race -count=1 -v -run '^Test$/^(ServerSideXDS_RouteConfigUpdate_ClosesRetiredInterceptors)$' ./test/xds/
+--- PASS: Test (0.07s)
+    --- PASS: Test/ServerSideXDS_RouteConfigUpdate_ClosesRetiredInterceptors (0.07s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.100s
+### instrumentation:
+@@ -546,2 +546,3 @@ func (il *interceptorList) AllowRPC(ctx context.Context) error {
++	verifyC2Delay()
+### [close delayed by 300ms] VERIFY_C2_CLOSE_DELAY=300ms go test -race -count=1 -v -run '^Test$/^(ServerSideXDS_RouteConfigUpdate_ClosesRetiredInterceptors)$' ./test/xds/
+    xds_server_rds_interceptor_cleanup_test.go:254: Destroyed 0 interceptor instances after 1 route configuration updates, want: 1
+--- FAIL: Test (0.69s)
+    --- FAIL: Test/ServerSideXDS_RouteConfigUpdate_ClosesRetiredInterceptors (0.68s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	0.721s
+FAIL
+### restored; git status --short: []

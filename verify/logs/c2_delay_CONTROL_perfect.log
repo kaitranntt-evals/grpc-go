@@ -1,0 +1,16 @@
+### branch HEAD: 614cb739 fix(xds): stabilize interceptor leak test loop break condition per PR #9149
+### added test/xds tests: ServerSideXDS_InterceptorLeak_RDSUpdate
+### [unmodified] go test -race -count=1 -v -run '^Test$/^(ServerSideXDS_InterceptorLeak_RDSUpdate)$' ./test/xds/
+--- PASS: Test (0.04s)
+    --- PASS: Test/ServerSideXDS_InterceptorLeak_RDSUpdate (0.03s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.060s
+### instrumentation:
+@@ -564,2 +564,3 @@ func (il *interceptorList) AllowRPC(ctx context.Context) error {
++	verifyC2Delay()
+### [close delayed by 300ms] VERIFY_C2_CLOSE_DELAY=300ms go test -race -count=1 -v -run '^Test$/^(ServerSideXDS_InterceptorLeak_RDSUpdate)$' ./test/xds/
+--- PASS: Test (1.90s)
+    --- PASS: Test/ServerSideXDS_InterceptorLeak_RDSUpdate (1.89s)
+PASS
+ok  	google.golang.org/grpc/test/xds	2.921s
+### restored; git status --short: [?? verify/]

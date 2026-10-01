@@ -1,0 +1,51 @@
+### added/changed test functions (git diff 4ee6ac46 HEAD -- "*_test.go")
++func (s) TestUsableRouteConfiguration_InterceptorLifecycle(t *testing.T) {
++func (s) TestServerSideXDS_FilterStateRetention_InPlaceRDSUpdate(t *testing.T) {
+### references to the production handler / watcher callbacks in added test lines
+(none)
+### error-state coverage in the added tests
+67:+	wantErr := errors.New("rds resource error")
+68:+	fc.setUsableRouteConfiguration(newUsableRouteConfiguration(nil, wantErr))
+73:+	if got == nil || got.err != wantErr {
+74:+		t.Fatalf("acquireUsableRouteConfiguration() returned %+v, want configuration with error %v", got, wantErr)
+### [unmodified] added tests
+--- PASS: Test (0.00s)
+    --- PASS: Test/UsableRouteConfiguration_InterceptorLifecycle (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/xds/server	1.027s
+--- PASS: Test (0.12s)
+    --- PASS: Test/ServerSideXDS_FilterStateRetention_InPlaceRDSUpdate (0.12s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.148s
+### [unmodified] feasibility probe (not part of the branch)
+PROBE after success: published err=<nil> vhs=1
+PROBE after error: published err=verify: rds resource error after success vhs=0
+--- PASS: Test (0.00s)
+    --- PASS: Test/VerifyC6_HandleRDSUpdate_ErrorAfterSuccess (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/xds/server	1.025s
+### mutation applied:
+ internal/xds/server/listener_wrapper.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+### [MUTATED] added tests
+--- PASS: Test (0.00s)
+    --- PASS: Test/UsableRouteConfiguration_InterceptorLifecycle (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/xds/server	1.025s
+--- PASS: Test (0.07s)
+    --- PASS: Test/ServerSideXDS_FilterStateRetention_InPlaceRDSUpdate (0.07s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.096s
+### [MUTATED] feasibility probe (not part of the branch)
+PROBE after success: published err=<nil> vhs=1
+PROBE after error: published err=<nil> vhs=1
+after error: published configuration err = <nil>, want verify: rds resource error after success
+--- FAIL: Test (0.00s)
+    --- FAIL: Test/VerifyC6_HandleRDSUpdate_ErrorAfterSuccess (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/xds/server	0.024s
+FAIL
+### [MUTATED] full packages (pre-existing tests included)
+ok  	google.golang.org/grpc/internal/xds/server	1.094s
+ok  	google.golang.org/grpc/test/xds	13.179s
+### reverted; git status --short:

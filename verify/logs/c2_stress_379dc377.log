@@ -1,0 +1,3 @@
+### go test -race -count=150 -cpu 1,4 -v -run '^Test$/^(ServerSideXDS_RouteConfigUpdate_ClosesRetiredInterceptors)$' ./test/xds/   (unmodified branch 422f3382)
+subtest PASS lines: 300   subtest FAIL lines: 0
+ok  	google.golang.org/grpc/test/xds	24.929s

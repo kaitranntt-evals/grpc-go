@@ -1,0 +1,18 @@
+### branch HEAD: 39804296 chore: apply eval changes
+### added test/xds tests: ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange
+### [unmodified] go test -race -count=1 -v -run '^Test$/^(ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange)$' ./test/xds/
+--- PASS: Test (0.12s)
+    --- PASS: Test/ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange (0.12s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.149s
+### instrumentation:
+@@ -558,2 +558,3 @@ func (il *interceptorList) AllowRPC(ctx context.Context) error {
++	verifyC2Delay()
+### [close delayed by 300ms] VERIFY_C2_CLOSE_DELAY=300ms go test -race -count=1 -v -run '^Test$/^(ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange)$' ./test/xds/
+    xds_server_filter_state_retention_test.go:844: Created 3 interceptor instances after 1 in-place RDS update(s), want: 4
+--- FAIL: Test (1.24s)
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange (1.23s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	1.265s
+FAIL
+### restored; git status --short: []

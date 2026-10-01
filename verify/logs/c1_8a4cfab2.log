@@ -1,0 +1,23 @@
+=== RUN   Test
+=== RUN   Test/VerifyC1_AllRoutesDisabledDestroyOrder
+    zz_verify_c1_probe_test.go:170: PROBE event[0] ServerFilter.Build                 id=0 filterRefCnt=-1 stack=[server.getOrCreateServerFilterWithMap <- server.(*listenerWrapper).getOrCreateServerFilterLocked <- server.(*filterChain).newInterceptor <- server.(*filterChain).convertVirtualHost <- server.(*filterChain).constructUsableRouteConfiguration <- server.(*listenerWrapper).handleRDSUpdate]
+    zz_verify_c1_probe_test.go:170: PROBE event[1] Interceptor.Build                  id=1 filterRefCnt=-1 stack=[server.(*filterChain).newInterceptor <- server.(*filterChain).convertVirtualHost <- server.(*filterChain).constructUsableRouteConfiguration <- server.(*listenerWrapper).handleRDSUpdate]
+    zz_verify_c1_probe_test.go:170: PROBE event[2] --- gen1 active; in-place replacement starts (override=map[probe:{}]) --- id=0 filterRefCnt=1 stack=[]
+    zz_verify_c1_probe_test.go:170: PROBE event[3] ServerFilter.Close(destroyed)      id=0 filterRefCnt=0 stack=[server.(*refCountedServerFilter).Close <- server.(*filterChain).constructUsableRouteConfiguration <- server.(*listenerWrapper).handleRDSUpdate]
+    zz_verify_c1_probe_test.go:170: PROBE event[4] Interceptor.Close                  id=1 filterRefCnt=0 stack=[server.(*interceptorList).Close <- server.(*virtualHostWithInterceptors).closeInterceptors <- server.(*usableRouteConfiguration).closeInterceptors <- server.(*usableRouteConfiguration).retire <- server.(*filterChain).updateRouteConfiguration <- server.(*listenerWrapper).handleRDSUpdate]
+    zz_verify_c1_probe_test.go:170: PROBE event[5] --- handleRDSUpdate(gen2) returned --- id=0 filterRefCnt=0 stack=[]
+    zz_verify_c1_probe_test.go:209: PROBE RESULT all-disabled: FILTER DESTROYED BEFORE retired interceptor closed (event 3 < event 4)
+=== RUN   Test/VerifyC1_RefCountAtRetiredInterceptorClose
+    zz_verify_c1_probe_test.go:170: PROBE event[0] ServerFilter.Build                 id=0 filterRefCnt=-1 stack=[server.getOrCreateServerFilterWithMap <- server.(*listenerWrapper).getOrCreateServerFilterLocked <- server.(*filterChain).newInterceptor <- server.(*filterChain).convertVirtualHost <- server.(*filterChain).constructUsableRouteConfiguration <- server.(*listenerWrapper).handleRDSUpdate]
+    zz_verify_c1_probe_test.go:170: PROBE event[1] Interceptor.Build                  id=1 filterRefCnt=-1 stack=[server.(*filterChain).newInterceptor <- server.(*filterChain).convertVirtualHost <- server.(*filterChain).constructUsableRouteConfiguration <- server.(*listenerWrapper).handleRDSUpdate]
+    zz_verify_c1_probe_test.go:170: PROBE event[2] --- gen1 active; in-place replacement starts (override=map[]) --- id=0 filterRefCnt=1 stack=[]
+    zz_verify_c1_probe_test.go:170: PROBE event[3] Interceptor.Build                  id=2 filterRefCnt=2 stack=[server.(*filterChain).newInterceptor <- server.(*filterChain).convertVirtualHost <- server.(*filterChain).constructUsableRouteConfiguration <- server.(*listenerWrapper).handleRDSUpdate]
+    zz_verify_c1_probe_test.go:170: PROBE event[4] Interceptor.Close                  id=1 filterRefCnt=1 stack=[server.(*interceptorList).Close <- server.(*virtualHostWithInterceptors).closeInterceptors <- server.(*usableRouteConfiguration).closeInterceptors <- server.(*usableRouteConfiguration).retire <- server.(*filterChain).updateRouteConfiguration <- server.(*listenerWrapper).handleRDSUpdate]
+    zz_verify_c1_probe_test.go:170: PROBE event[5] --- handleRDSUpdate(gen2) returned --- id=0 filterRefCnt=1 stack=[]
+    zz_verify_c1_probe_test.go:184: PROBE RESULT ordinary-replacement: filterRefCnt observed inside retired interceptor Close = 1 (2 => retired reference still held; 1 => retired reference already released)
+--- PASS: Test (0.00s)
+    --- PASS: Test/VerifyC1_AllRoutesDisabledDestroyOrder (0.00s)
+    --- PASS: Test/VerifyC1_RefCountAtRetiredInterceptorClose (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/xds/server	1.024s
+exit=0

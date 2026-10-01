@@ -1,0 +1,502 @@
+=== RUN   Test
+=== RUN   Test/VerifyC5_AllRoutesDisableFilter
+    setup.go:45: Created new snapshot cache...
+    tlogger.go:133: INFO server.go:732 [core] [Server #1] Server created  (t=+726.796µs)
+    setup.go:45: Registered Aggregated Discovery Service (ADS)...
+    setup.go:45: xDS management server serving at: 127.0.0.1:37995...
+    tlogger.go:133: INFO server.go:928 [core] [Server #1 ListenSocket #2] ListenSocket created  (t=+937.629µs)
+    tlogger.go:133: INFO server.go:732 [core] [Server #3] Server created  (t=+2.139892ms)
+    tlogger.go:133: INFO pool.go:309 [xds] xDS node ID: 0660757b-1dd3-4df0-bbb8-8a0a7dc0c943  (t=+2.274407ms)
+    tlogger.go:133: INFO server.go:118 [xds] [xds-server 0xc0004af1c0] Created xds.GRPCServer  (t=+2.307278ms)
+    stubserver.go:300: Started test service backend at "127.0.0.1:44647"
+    tlogger.go:133: INFO server.go:177 [xds] [xds-server 0xc0004af1c0] Serve() passed a net.Listener on 127.0.0.1:44647  (t=+2.524197ms)
+    tlogger.go:133: INFO clientconn.go:1837 [core] original dial target is: "passthrough:///127.0.0.1:37995"  (t=+2.633843ms)
+    tlogger.go:133: INFO clientconn.go:516 [core] [Channel #4] Channel created for target "passthrough:///127.0.0.1:37995"  (t=+2.684938ms)
+    tlogger.go:133: INFO clientconn.go:247 [core] [Channel #4] parsed dial target is: resolver.Target{URL:url.URL{Scheme:"passthrough", Opaque:"", User:(*url.Userinfo)(nil), Host:"", Path:"/127.0.0.1:37995", RawPath:"", OmitHost:false, ForceQuery:false, RawQuery:"", Fragment:"", RawFragment:""}}  (t=+2.887897ms)
+    tlogger.go:133: INFO clientconn.go:248 [core] [Channel #4] Channel authority set to "127.0.0.1:37995"  (t=+3.454889ms)
+    tlogger.go:133: INFO server.go:928 [core] [Server #3 ListenSocket #5] ListenSocket created  (t=+3.698894ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #4] Channel Connectivity change to CONNECTING  (t=+3.787538ms)
+    tlogger.go:133: INFO resolver_wrapper.go:211 [core] [Channel #4] Resolver state updated: {
+          "Addresses": [
+            {
+              "Addr": "127.0.0.1:37995",
+              "ServerName": "",
+              "Attributes": null,
+              "BalancerAttributes": null,
+              "Metadata": null
+            }
+          ],
+          "Endpoints": [
+            {
+              "Addresses": [
+                {
+                  "Addr": "127.0.0.1:37995",
+                  "ServerName": "",
+                  "Attributes": null,
+                  "BalancerAttributes": null,
+                  "Metadata": null
+                }
+              ],
+              "Attributes": null
+            }
+          ],
+          "ServiceConfig": null,
+          "Attributes": null
+        } (resolver returned new addresses)  (t=+4.277325ms)
+    tlogger.go:133: INFO balancer_wrapper.go:121 [core] [Channel #4] Channel switches to new LB policy "pick_first"  (t=+4.457089ms)
+    tlogger.go:133: INFO clientconn.go:923 [core] [Channel #4 SubChannel #6] Subchannel created  (t=+4.567378ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #4 SubChannel #6] Subchannel Connectivity change to CONNECTING  (t=+4.655425ms)
+    tlogger.go:133: INFO clientconn.go:421 [core] [Channel #4] Channel exiting idle mode  (t=+4.702993ms)
+    tlogger.go:133: INFO clientconn.go:1471 [core] [Channel #4 SubChannel #6] Subchannel picks a new address "127.0.0.1:37995" to connect  (t=+4.861713ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #4 SubChannel #6] Subchannel Connectivity change to READY  (t=+5.386131ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #4] Channel Connectivity change to READY  (t=+5.477171ms)
+    logging.go:30: open watch 1 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:44647:{}] from nodeID "0660757b-1dd3-4df0-bbb8-8a0a7dc0c943", version ""
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 0660757b-1dd3-4df0-bbb8-8a0a7dc0c943
+    logging.go:30: respond open watch 1 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:44647] with new version "1"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:44647]) version "" with version "1" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:44647]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    tlogger.go:133: INFO clientconn.go:1837 [core] original dial target is: "xds:///my-service"  (t=+7.079467ms)
+    tlogger.go:133: INFO clientconn.go:516 [core] [Channel #9] Channel created for target "xds:///my-service"  (t=+7.138558ms)
+    tlogger.go:133: INFO clientconn.go:247 [core] [Channel #9] parsed dial target is: resolver.Target{URL:url.URL{Scheme:"xds", Opaque:"", User:(*url.Userinfo)(nil), Host:"", Path:"/my-service", RawPath:"", OmitHost:false, ForceQuery:false, RawQuery:"", Fragment:"", RawFragment:""}}  (t=+7.19686ms)
+    tlogger.go:133: INFO clientconn.go:248 [core] [Channel #9] Channel authority set to "my-service"  (t=+7.233393ms)
+    logging.go:30: open watch 2 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:44647:{}] from nodeID "0660757b-1dd3-4df0-bbb8-8a0a7dc0c943", version "1"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "" with version "1" and resources [routeName]
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc0005a6080)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc00032e140)}  (t=+11.413565ms)
+    logging.go:30: open watch 3 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "0660757b-1dd3-4df0-bbb8-8a0a7dc0c943", version "1"
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #9] Channel Connectivity change to CONNECTING  (t=+11.559949ms)
+    tlogger.go:133: INFO pool.go:309 [xds] xDS node ID: 0660757b-1dd3-4df0-bbb8-8a0a7dc0c943  (t=+12.010382ms)
+    tlogger.go:133: INFO xds_resolver.go:157 [xds] [xds-resolver 0xc00055e3f0] Creating resolver for target: xds:///my-service  (t=+12.060202ms)
+    tlogger.go:133: INFO clientconn.go:1837 [core] original dial target is: "passthrough:///127.0.0.1:37995"  (t=+12.137643ms)
+    tlogger.go:133: INFO clientconn.go:516 [core] [Channel #10] Channel created for target "passthrough:///127.0.0.1:37995"  (t=+12.184671ms)
+    tlogger.go:133: INFO clientconn.go:247 [core] [Channel #10] parsed dial target is: resolver.Target{URL:url.URL{Scheme:"passthrough", Opaque:"", User:(*url.Userinfo)(nil), Host:"", Path:"/127.0.0.1:37995", RawPath:"", OmitHost:false, ForceQuery:false, RawQuery:"", Fragment:"", RawFragment:""}}  (t=+12.238364ms)
+    tlogger.go:133: INFO clientconn.go:248 [core] [Channel #10] Channel authority set to "127.0.0.1:37995"  (t=+12.269194ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #10] Channel Connectivity change to CONNECTING  (t=+12.407112ms)
+    tlogger.go:133: INFO clientconn.go:421 [core] [Channel #9] Channel exiting idle mode  (t=+12.534285ms)
+    tlogger.go:133: INFO resolver_wrapper.go:211 [core] [Channel #10] Resolver state updated: {
+          "Addresses": [
+            {
+              "Addr": "127.0.0.1:37995",
+              "ServerName": "",
+              "Attributes": null,
+              "BalancerAttributes": null,
+              "Metadata": null
+            }
+          ],
+          "Endpoints": [
+            {
+              "Addresses": [
+                {
+                  "Addr": "127.0.0.1:37995",
+                  "ServerName": "",
+                  "Attributes": null,
+                  "BalancerAttributes": null,
+                  "Metadata": null
+                }
+              ],
+              "Attributes": null
+            }
+          ],
+          "ServiceConfig": null,
+          "Attributes": null
+        } (resolver returned new addresses)  (t=+12.585206ms)
+    tlogger.go:133: INFO balancer_wrapper.go:121 [core] [Channel #10] Channel switches to new LB policy "pick_first"  (t=+12.718771ms)
+    tlogger.go:133: INFO clientconn.go:923 [core] [Channel #10 SubChannel #11] Subchannel created  (t=+12.798661ms)
+    tlogger.go:133: INFO clientconn.go:421 [core] [Channel #10] Channel exiting idle mode  (t=+12.845706ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #10 SubChannel #11] Subchannel Connectivity change to CONNECTING  (t=+12.906596ms)
+    tlogger.go:133: INFO clientconn.go:1471 [core] [Channel #10 SubChannel #11] Subchannel picks a new address "127.0.0.1:37995" to connect  (t=+12.962751ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #10 SubChannel #11] Subchannel Connectivity change to READY  (t=+13.291182ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #10] Channel Connectivity change to READY  (t=+13.407453ms)
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "" with version "1" and resources [my-service]
+    logging.go:30: open watch 4 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "0660757b-1dd3-4df0-bbb8-8a0a7dc0c943", version "1"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "" with version "1" and resources [route-my-service]
+    logging.go:30: open watch 5 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "0660757b-1dd3-4df0-bbb8-8a0a7dc0c943", version "1"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "" with version "1" and resources [cluster-my-service]
+    logging.go:30: open watch 6 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "0660757b-1dd3-4df0-bbb8-8a0a7dc0c943", version "1"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "" with version "1" and resources [endpoints-my-service]
+    logging.go:30: open watch 7 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "0660757b-1dd3-4df0-bbb8-8a0a7dc0c943", version "1"
+    tlogger.go:133: INFO resolver_wrapper.go:211 [core] [Channel #9] Resolver state updated: {
+          "Addresses": null,
+          "Endpoints": [],
+          "ServiceConfig": {
+            "Config": {
+              "Config": null,
+              "Methods": {}
+            },
+            "Err": null
+          },
+          "Attributes": {
+            "\u003c%!p(xdsclient.clientKeyType=grpc.xds.internal.client.Client)\u003e": "\u003c0xc000634000\u003e",
+            "\u003c%!p(xdsdepmgr.xdsClusterSubscriberKey={})\u003e": "\u003c0xc000410540\u003e",
+            "\u003c%!p(xdsresource.xdsConfigkey={})\u003e": "\u003c0xc000504940\u003e",
+            "\u003c%!p(resolver.csKeyType=grpc.internal.resolver.configSelector)\u003e": "\u003c0xc0000faf50\u003e"
+          }
+        } (service config updated)  (t=+20.710062ms)
+    tlogger.go:133: INFO balancer_wrapper.go:121 [core] [Channel #9] Channel switches to new LB policy "xds_cluster_manager_experimental"  (t=+20.866758ms)
+    tlogger.go:133: INFO clustermanager.go:58 [xds] [xds-cluster-manager-lb 0xc000504b00] Created  (t=+20.919361ms)
+    tlogger.go:133: INFO balancergroup.go:274 [xds] [xds-cluster-manager-lb 0xc000504b00] Adding child policy of type "cds_experimental" for child "cluster:cluster-my-service"  (t=+20.963231ms)
+    tlogger.go:133: INFO balancergroup.go:102 [xds] [xds-cluster-manager-lb 0xc000504b00] Creating child policy of type "cds_experimental" for child "cluster:cluster-my-service"  (t=+20.993758ms)
+    tlogger.go:133: INFO cdsbalancer.go:90 [xds] [cds-lb 0xc0002b8e00] Created  (t=+21.02555ms)
+    tlogger.go:133: INFO cdsbalancer.go:167 [xds] [cds-lb 0xc0002b8e00] Received balancer config update: {
+          "LoadBalancingConfig": null,
+          "cluster": "cluster-my-service",
+          "isDynamic": false
+        }  (t=+21.103139ms)
+    tlogger.go:133: INFO balancer.go:76 [xds] [priority-lb 0xc0000fb030] Created  (t=+21.373844ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [xds-cluster-manager-lb 0xc000504b00] Balancer state update from child cluster:cluster-my-service, new state: {ConnectivityState:CONNECTING Picker:0xc0004adf50}  (t=+21.913772ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:147 [xds] [xds-cluster-manager-lb 0xc000504b00] State update from sub-balancer "cluster:cluster-my-service": {ConnectivityState:CONNECTING Picker:0xc0004adf50}  (t=+21.951863ms)
+    tlogger.go:133: INFO balancergroup.go:274 [xds] [priority-lb 0xc0000fb030] Adding child policy of type "outlier_detection_experimental" for child "priority-0-0"  (t=+21.98171ms)
+    tlogger.go:133: INFO balancergroup.go:102 [xds] [priority-lb 0xc0000fb030] Creating child policy of type "outlier_detection_experimental" for child "priority-0-0"  (t=+22.011201ms)
+    tlogger.go:133: INFO balancer.go:94 [xds] [outlier-detection-lb 0xc000699b30] Created  (t=+22.043015ms)
+    tlogger.go:133: INFO clusterimpl.go:88 [xds] [xds-cluster-impl-lb 0xc0000c3b80] Created  (t=+22.089419ms)
+    tlogger.go:133: INFO clusterimpl.go:100 [xds] [xds-cluster-impl-lb 0xc0000c3b80] xDS credentials in use: false  (t=+22.125684ms)
+    tlogger.go:133: INFO weightedtarget.go:65 [xds] [weighted-target-lb 0xc000504fa0] Created  (t=+22.21965ms)
+    tlogger.go:133: INFO balancer.go:88 [xds] [wrrlocality-lb 0xc000684450] Created  (t=+22.254432ms)
+    tlogger.go:133: INFO balancergroup.go:274 [xds] [weighted-target-lb 0xc000504fa0] Adding child policy of type "round_robin" for child "{region=\"region-1\", zone=\"zone-1\", sub_zone=\"subzone-1\"}"  (t=+22.400323ms)
+    tlogger.go:133: INFO balancergroup.go:102 [xds] [weighted-target-lb 0xc000504fa0] Creating child policy of type "round_robin" for child "{region=\"region-1\", zone=\"zone-1\", sub_zone=\"subzone-1\"}"  (t=+22.441133ms)
+    tlogger.go:133: INFO roundrobin.go:56 [roundrobin] [0xc000685aa0] Created  (t=+22.473253ms)
+    tlogger.go:133: INFO clientconn.go:923 [core] [Channel #9 SubChannel #14] Subchannel created  (t=+22.632819ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [weighted-target-lb 0xc000504fa0] Balancer state update from child {region="region-1", zone="zone-1", sub_zone="subzone-1"}, new state: {ConnectivityState:CONNECTING Picker:0xc000614e00}  (t=+22.694281ms)
+    tlogger.go:133: INFO aggregator.go:253 [xds] [weighted-target-lb 0xc000504fa0] Child pickers with config: map[{region="region-1", zone="zone-1", sub_zone="subzone-1"}:weight:1,picker:0xc000614e00,state:CONNECTING,stateToAggregate:CONNECTING]  (t=+22.733943ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #9 SubChannel #14] Subchannel Connectivity change to CONNECTING  (t=+22.807235ms)
+    tlogger.go:133: INFO clientconn.go:1471 [core] [Channel #9 SubChannel #14] Subchannel picks a new address "127.0.0.1:44647" to connect  (t=+22.845753ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [priority-lb 0xc0000fb030] Balancer state update from child priority-0-0, new state: {ConnectivityState:CONNECTING Picker:0xc0002bc768}  (t=+22.985059ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [xds-cluster-manager-lb 0xc000504b00] Balancer state update from child cluster:cluster-my-service, new state: {ConnectivityState:CONNECTING Picker:0xc0002bc768}  (t=+23.029646ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:147 [xds] [xds-cluster-manager-lb 0xc000504b00] State update from sub-balancer "cluster:cluster-my-service": {ConnectivityState:CONNECTING Picker:0xc0002bc768}  (t=+23.065272ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:191 [xds] [xds-cluster-manager-lb 0xc000504b00] Child pickers: map[cluster:cluster-my-service:picker:0xc0002bc768,state:CONNECTING,stateToAggregate:CONNECTING]  (t=+23.108807ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #9 SubChannel #14] Subchannel Connectivity change to READY  (t=+23.425227ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [weighted-target-lb 0xc000504fa0] Balancer state update from child {region="region-1", zone="zone-1", sub_zone="subzone-1"}, new state: {ConnectivityState:READY Picker:0xc0004f6200}  (t=+23.553863ms)
+    tlogger.go:133: INFO aggregator.go:253 [xds] [weighted-target-lb 0xc000504fa0] Child pickers with config: map[{region="region-1", zone="zone-1", sub_zone="subzone-1"}:weight:1,picker:0xc0004f6200,state:READY,stateToAggregate:READY]  (t=+23.620277ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [priority-lb 0xc0000fb030] Balancer state update from child priority-0-0, new state: {ConnectivityState:READY Picker:0xc0005961b0}  (t=+23.658406ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [xds-cluster-manager-lb 0xc000504b00] Balancer state update from child cluster:cluster-my-service, new state: {ConnectivityState:READY Picker:0xc0005961b0}  (t=+23.693648ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:147 [xds] [xds-cluster-manager-lb 0xc000504b00] State update from sub-balancer "cluster:cluster-my-service": {ConnectivityState:READY Picker:0xc0005961b0}  (t=+23.727356ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:191 [xds] [xds-cluster-manager-lb 0xc000504b00] Child pickers: map[cluster:cluster-my-service:picker:0xc0005961b0,state:READY,stateToAggregate:READY]  (t=+23.765705ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #9] Channel Connectivity change to READY  (t=+23.804471ms)
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 0660757b-1dd3-4df0-bbb8-8a0a7dc0c943
+    logging.go:30: respond open watch 2 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:44647] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:44647]) version "1" with version "2" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:44647]
+    logging.go:30: respond open watch 3 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "1" with version "2" and resources [routeName]
+    logging.go:30: respond open watch 4 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "1" with version "2" and resources [my-service]
+    logging.go:30: respond open watch 5 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "1" with version "2" and resources [route-my-service]
+    logging.go:30: respond open watch 6 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "1" with version "2" and resources [cluster-my-service]
+    logging.go:30: respond open watch 7 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "1" with version "2" and resources [endpoints-my-service]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    logging.go:30: open watch 8 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "0660757b-1dd3-4df0-bbb8-8a0a7dc0c943", version "2"
+    logging.go:30: open watch 9 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:44647:{}] from nodeID "0660757b-1dd3-4df0-bbb8-8a0a7dc0c943", version "2"
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc0004afac0)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc0000c7090)}  (t=+25.565516ms)
+    logging.go:30: open watch 10 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "0660757b-1dd3-4df0-bbb8-8a0a7dc0c943", version "2"
+    logging.go:30: open watch 11 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "0660757b-1dd3-4df0-bbb8-8a0a7dc0c943", version "2"
+    logging.go:30: open watch 12 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "0660757b-1dd3-4df0-bbb8-8a0a7dc0c943", version "2"
+    logging.go:30: open watch 13 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "0660757b-1dd3-4df0-bbb8-8a0a7dc0c943", version "2"
+    tlogger.go:129: WARNING ads_stream.go:452 [xds] [xds-client 0xc00046b2c0] [xds-channel 0xc0003540a0] [ads-stream 0xc00046a000] ADS stream closed: rpc error: code = Canceled desc = context canceled  (t=+45.359241ms)
+    tlogger.go:129: WARNING ads_stream.go:410 [xds] [xds-client 0xc00046b2c0] [xds-channel 0xc0003540a0] [ads-stream 0xc00046a000] Sending ADS request for type "type.googleapis.com/envoy.config.route.v3.RouteConfiguration", resources: [], version: "2", nonce: "4" failed: EOF  (t=+45.435278ms)
+    tlogger.go:133: INFO ads_stream.go:165 [xds] [xds-client 0xc00046b2c0] [xds-channel 0xc0003540a0] [ads-stream 0xc00046a000] Shutdown ADS stream  (t=+45.478367ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #4] Channel Connectivity change to SHUTDOWN  (t=+45.526475ms)
+    tlogger.go:133: INFO resolver_wrapper.go:112 [core] [Channel #4] Closing the name resolver  (t=+45.555577ms)
+    tlogger.go:133: INFO balancer_wrapper.go:159 [core] [Channel #4] ccBalancerWrapper: closing  (t=+45.609824ms)
+    logging.go:30: open watch 14 for type.googleapis.com/envoy.config.listener.v3.Listener map[] from nodeID "0660757b-1dd3-4df0-bbb8-8a0a7dc0c943", version "2"
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #4 SubChannel #6] Subchannel Connectivity change to SHUTDOWN  (t=+45.71684ms)
+    tlogger.go:133: INFO clientconn.go:1710 [core] [Channel #4 SubChannel #6] Subchannel deleted  (t=+45.766744ms)
+    tlogger.go:133: INFO clientconn.go:1232 [core] [Channel #4] Channel deleted  (t=+45.895546ms)
+    tlogger.go:133: INFO channel.go:143 [xds] [xds-client 0xc00046b2c0] [xds-channel 0xc0003540a0] Shutdown  (t=+45.943579ms)
+    tlogger.go:133: INFO server.go:864 [core] [Server #3 ListenSocket #5] ListenSocket deleted  (t=+45.99851ms)
+    tlogger.go:133: INFO xdsclient.go:210 [xds] [xds-client 0xc00046b2c0] Shutdown  (t=+46.153866ms)
+    zz_verify_c5_e2e_test.go:252: PROBE event[0] ServerFilter.Build
+    zz_verify_c5_e2e_test.go:252: PROBE event[1] Interceptor#1.Build
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #9 SubChannel #14] Subchannel Connectivity change to IDLE  (t=+46.207157ms)
+    zz_verify_c5_e2e_test.go:252: PROBE event[2] --- generation 1 serving (RPC OK); sending in-place RDS replacement for "routeName" ---
+    zz_verify_c5_e2e_test.go:252: PROBE event[3] ServerFilter.Close (filter DESTROYED) stack=[server.(*refCountedServerFilter).Close <- server.(*filterChain).constructUsableRouteConfiguration <- server.(*listenerWrapper).handleRDSUpdate <- server.(*rdsWatcher).ResourceChanged]
+    zz_verify_c5_e2e_test.go:252: PROBE event[4] Interceptor#1.Close parentFilterAlreadyDestroyed=true stack=[server.(*interceptorList).Close <- server.(*usableRouteConfiguration).close <- server.(*filterChain).updateUsableRouteConfiguration <- server.(*listenerWrapper).handleRDSUpdate <- server.(*rdsWatcher).ResourceChanged]
+    zz_verify_c5_e2e_test.go:252: PROBE event[5] --- replacement observed; stopping server ---
+    zz_verify_c5_e2e_test.go:254: PROBE RESULT after in-place replacement: retired interceptors closed while parent filter still alive=0, closed AFTER parent filter was destroyed=1
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [weighted-target-lb 0xc000504fa0] Balancer state update from child {region="region-1", zone="zone-1", sub_zone="subzone-1"}, new state: {ConnectivityState:IDLE Picker:0xc0002c6740}  (t=+46.314835ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #9] Channel Connectivity change to SHUTDOWN  (t=+46.425561ms)
+    tlogger.go:133: INFO resolver_wrapper.go:112 [core] [Channel #9] Closing the name resolver  (t=+46.476075ms)
+    tlogger.go:133: INFO balancer_wrapper.go:159 [core] [Channel #9] ccBalancerWrapper: closing  (t=+46.53853ms)
+    tlogger.go:133: INFO aggregator.go:253 [xds] [weighted-target-lb 0xc000504fa0] Child pickers with config: map[{region="region-1", zone="zone-1", sub_zone="subzone-1"}:weight:1,picker:0xc0002c6740,state:IDLE,stateToAggregate:IDLE]  (t=+46.592717ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [priority-lb 0xc0000fb030] Balancer state update from child priority-0-0, new state: {ConnectivityState:IDLE Picker:0xc0004fa798}  (t=+46.649491ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [weighted-target-lb 0xc000504fa0] Balancer state update from child {region="region-1", zone="zone-1", sub_zone="subzone-1"}, new state: {ConnectivityState:CONNECTING Picker:0xc0002c6780}  (t=+46.721758ms)
+    tlogger.go:129: WARNING ads_stream.go:410 [xds] [xds-client 0xc00059e280] [xds-channel 0xc000175bd0] [ads-stream 0xc00059e320] Sending ADS request for type "type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment", resources: [], version: "2", nonce: "8" failed: EOF  (t=+46.754478ms)
+    tlogger.go:133: INFO aggregator.go:253 [xds] [weighted-target-lb 0xc000504fa0] Child pickers with config: map[{region="region-1", zone="zone-1", sub_zone="subzone-1"}:weight:1,picker:0xc0002c6780,state:CONNECTING,stateToAggregate:CONNECTING]  (t=+46.803447ms)
+    tlogger.go:129: WARNING ads_stream.go:452 [xds] [xds-client 0xc00059e280] [xds-channel 0xc000175bd0] [ads-stream 0xc00059e320] ADS stream closed: rpc error: code = Canceled desc = context canceled  (t=+46.857921ms)
+    tlogger.go:133: INFO clusterimpl.go:508 [xds] [xds-cluster-impl-lb 0xc0000c3b80] Shutdown  (t=+46.9229ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #9 SubChannel #14] Subchannel Connectivity change to CONNECTING  (t=+46.969732ms)
+    tlogger.go:133: INFO clientconn.go:1471 [core] [Channel #9 SubChannel #14] Subchannel picks a new address "127.0.0.1:44647" to connect  (t=+47.02257ms)
+    tlogger.go:133: INFO ads_stream.go:165 [xds] [xds-client 0xc00059e280] [xds-channel 0xc000175bd0] [ads-stream 0xc00059e320] Shutdown ADS stream  (t=+47.067263ms)
+    tlogger.go:133: INFO balancergroup.go:351 [xds] [priority-lb 0xc0000fb030] Removing child policy for child "priority-0-0"  (t=+47.113651ms)
+    tlogger.go:133: INFO cdsbalancer.go:416 [xds] [cds-lb 0xc0002b8e00] Shutdown  (t=+47.153822ms)
+    tlogger.go:133: INFO clustermanager.go:192 [xds] [xds-cluster-manager-lb 0xc000504b00] Shutdown  (t=+47.184027ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #10] Channel Connectivity change to SHUTDOWN  (t=+47.262103ms)
+    tlogger.go:129: WARNING clientconn.go:1534 [core] [Channel #9 SubChannel #14] grpc: addrConn.createTransport failed to connect to {Addr: "127.0.0.1:44647", ServerName: "my-service", Attributes: {"<%!p(xds.hostnameKey={})>": "" , "<%!p(xds.handshakeAttrKey={})>": "<0xc0000c3bf0>" , "<%!p(xds.handshakeClusterNameKey={})>": "cluster-my-service" }, BalancerAttributes: {"<%!p(weight.attributeKey={})>": "Weight: 2147483648" , "<%!p(wrrlocality.attributeKey={})>": "Locality Weight: 1" , "<%!p(xds.localityKeyType=grpc.xds.internal.address.locality)>": "<%!p(clients.Locality={region-1 zone-1 subzone-1})>" , "<%!p(hierarchy.pathKeyType=grpc.internal.address.hierarchical_path)>": "<0xc000504ca0>" }}. Err: connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:44647: connect: connection refused"  (t=+47.303791ms)
+    tlogger.go:133: INFO resolver_wrapper.go:112 [core] [Channel #10] Closing the name resolver  (t=+47.369396ms)
+    tlogger.go:133: INFO balancer_wrapper.go:159 [core] [Channel #10] ccBalancerWrapper: closing  (t=+47.441692ms)
+    tlogger.go:133: INFO clientconn.go:1305 [core] [Channel #9 SubChannel #14] Subchannel Connectivity change to TRANSIENT_FAILURE, last error: connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:44647: connect: connection refused"  (t=+47.471122ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #10 SubChannel #11] Subchannel Connectivity change to SHUTDOWN  (t=+47.545128ms)
+    tlogger.go:133: INFO clientconn.go:1710 [core] [Channel #10 SubChannel #11] Subchannel deleted  (t=+47.621989ms)
+    tlogger.go:133: INFO clientconn.go:1232 [core] [Channel #10] Channel deleted  (t=+47.760975ms)
+    tlogger.go:133: INFO channel.go:143 [xds] [xds-client 0xc00059e280] [xds-channel 0xc000175bd0] Shutdown  (t=+47.813197ms)
+    tlogger.go:133: INFO xdsclient.go:210 [xds] [xds-client 0xc00059e280] Shutdown  (t=+47.901328ms)
+    tlogger.go:133: INFO xds_resolver.go:295 [xds] [xds-resolver 0xc00055e3f0] Shutdown  (t=+47.940799ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #9 SubChannel #14] Subchannel Connectivity change to SHUTDOWN  (t=+48.000379ms)
+    tlogger.go:133: INFO clientconn.go:1710 [core] [Channel #9 SubChannel #14] Subchannel deleted  (t=+48.041204ms)
+    tlogger.go:133: INFO clientconn.go:1232 [core] [Channel #9] Channel deleted  (t=+48.08008ms)
+    tlogger.go:133: INFO server.go:864 [core] [Server #1 ListenSocket #2] ListenSocket deleted  (t=+48.192878ms)
+=== RUN   Test/VerifyC5_ReplacementWithNoRoutes
+    setup.go:45: Created new snapshot cache...
+    tlogger.go:133: INFO server.go:732 [core] [Server #17] Server created  (t=+154.697µs)
+    setup.go:45: Registered Aggregated Discovery Service (ADS)...
+    setup.go:45: xDS management server serving at: 127.0.0.1:45855...
+    tlogger.go:133: INFO server.go:928 [core] [Server #17 ListenSocket #18] ListenSocket created  (t=+319.568µs)
+    tlogger.go:133: INFO server.go:732 [core] [Server #19] Server created  (t=+1.047477ms)
+    tlogger.go:133: INFO pool.go:309 [xds] xDS node ID: be3344bb-1015-418e-81d3-e7cb59d1e4c1  (t=+1.137439ms)
+    tlogger.go:133: INFO server.go:118 [xds] [xds-server 0xc000614b00] Created xds.GRPCServer  (t=+1.168059ms)
+    stubserver.go:300: Started test service backend at "127.0.0.1:41991"
+    tlogger.go:133: INFO server.go:177 [xds] [xds-server 0xc000614b00] Serve() passed a net.Listener on 127.0.0.1:41991  (t=+1.318793ms)
+    tlogger.go:133: INFO clientconn.go:1837 [core] original dial target is: "passthrough:///127.0.0.1:45855"  (t=+1.38633ms)
+    tlogger.go:133: INFO clientconn.go:516 [core] [Channel #20] Channel created for target "passthrough:///127.0.0.1:45855"  (t=+1.43256ms)
+    tlogger.go:133: INFO clientconn.go:247 [core] [Channel #20] parsed dial target is: resolver.Target{URL:url.URL{Scheme:"passthrough", Opaque:"", User:(*url.Userinfo)(nil), Host:"", Path:"/127.0.0.1:45855", RawPath:"", OmitHost:false, ForceQuery:false, RawQuery:"", Fragment:"", RawFragment:""}}  (t=+1.47773ms)
+    tlogger.go:133: INFO clientconn.go:248 [core] [Channel #20] Channel authority set to "127.0.0.1:45855"  (t=+1.511901ms)
+    tlogger.go:133: INFO server.go:928 [core] [Server #19 ListenSocket #21] ListenSocket created  (t=+1.598174ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #20] Channel Connectivity change to CONNECTING  (t=+1.678512ms)
+    tlogger.go:133: INFO resolver_wrapper.go:211 [core] [Channel #20] Resolver state updated: {
+          "Addresses": [
+            {
+              "Addr": "127.0.0.1:45855",
+              "ServerName": "",
+              "Attributes": null,
+              "BalancerAttributes": null,
+              "Metadata": null
+            }
+          ],
+          "Endpoints": [
+            {
+              "Addresses": [
+                {
+                  "Addr": "127.0.0.1:45855",
+                  "ServerName": "",
+                  "Attributes": null,
+                  "BalancerAttributes": null,
+                  "Metadata": null
+                }
+              ],
+              "Attributes": null
+            }
+          ],
+          "ServiceConfig": null,
+          "Attributes": null
+        } (resolver returned new addresses)  (t=+1.803103ms)
+    server.go:229: Created new resource snapshot...
+    tlogger.go:133: INFO balancer_wrapper.go:121 [core] [Channel #20] Channel switches to new LB policy "pick_first"  (t=+1.940866ms)
+    logging.go:30: setting snapshot for node be3344bb-1015-418e-81d3-e7cb59d1e4c1
+    tlogger.go:133: INFO clientconn.go:923 [core] [Channel #20 SubChannel #22] Subchannel created  (t=+2.023901ms)
+    server.go:235: Updated snapshot cache with resource snapshot...
+    tlogger.go:133: INFO clientconn.go:1837 [core] original dial target is: "xds:///my-service"  (t=+2.104387ms)
+    tlogger.go:133: INFO clientconn.go:421 [core] [Channel #20] Channel exiting idle mode  (t=+2.13918ms)
+    tlogger.go:133: INFO clientconn.go:516 [core] [Channel #23] Channel created for target "xds:///my-service"  (t=+2.181091ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #20 SubChannel #22] Subchannel Connectivity change to CONNECTING  (t=+2.220752ms)
+    tlogger.go:133: INFO clientconn.go:1471 [core] [Channel #20 SubChannel #22] Subchannel picks a new address "127.0.0.1:45855" to connect  (t=+2.266129ms)
+    tlogger.go:133: INFO clientconn.go:247 [core] [Channel #23] parsed dial target is: resolver.Target{URL:url.URL{Scheme:"xds", Opaque:"", User:(*url.Userinfo)(nil), Host:"", Path:"/my-service", RawPath:"", OmitHost:false, ForceQuery:false, RawQuery:"", Fragment:"", RawFragment:""}}  (t=+2.308388ms)
+    tlogger.go:133: INFO clientconn.go:248 [core] [Channel #23] Channel authority set to "my-service"  (t=+2.343179ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #20 SubChannel #22] Subchannel Connectivity change to READY  (t=+2.575242ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #20] Channel Connectivity change to READY  (t=+2.640608ms)
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:41991]) version "" with version "1" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:41991]
+    logging.go:30: open watch 1 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:41991:{}] from nodeID "be3344bb-1015-418e-81d3-e7cb59d1e4c1", version "1"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "" with version "1" and resources [routeName]
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc0008b2440)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc0008204b0)}  (t=+3.865378ms)
+    logging.go:30: open watch 2 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "be3344bb-1015-418e-81d3-e7cb59d1e4c1", version "1"
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #23] Channel Connectivity change to CONNECTING  (t=+3.962046ms)
+    tlogger.go:133: INFO pool.go:309 [xds] xDS node ID: be3344bb-1015-418e-81d3-e7cb59d1e4c1  (t=+4.388352ms)
+    tlogger.go:133: INFO xds_resolver.go:157 [xds] [xds-resolver 0xc0008b6d80] Creating resolver for target: xds:///my-service  (t=+4.426977ms)
+    tlogger.go:133: INFO clientconn.go:1837 [core] original dial target is: "passthrough:///127.0.0.1:45855"  (t=+4.488144ms)
+    tlogger.go:133: INFO clientconn.go:516 [core] [Channel #26] Channel created for target "passthrough:///127.0.0.1:45855"  (t=+4.536547ms)
+    tlogger.go:133: INFO clientconn.go:247 [core] [Channel #26] parsed dial target is: resolver.Target{URL:url.URL{Scheme:"passthrough", Opaque:"", User:(*url.Userinfo)(nil), Host:"", Path:"/127.0.0.1:45855", RawPath:"", OmitHost:false, ForceQuery:false, RawQuery:"", Fragment:"", RawFragment:""}}  (t=+4.57977ms)
+    tlogger.go:133: INFO clientconn.go:248 [core] [Channel #26] Channel authority set to "127.0.0.1:45855"  (t=+4.610095ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #26] Channel Connectivity change to CONNECTING  (t=+4.726872ms)
+    tlogger.go:133: INFO clientconn.go:421 [core] [Channel #23] Channel exiting idle mode  (t=+4.794639ms)
+    tlogger.go:133: INFO resolver_wrapper.go:211 [core] [Channel #26] Resolver state updated: {
+          "Addresses": [
+            {
+              "Addr": "127.0.0.1:45855",
+              "ServerName": "",
+              "Attributes": null,
+              "BalancerAttributes": null,
+              "Metadata": null
+            }
+          ],
+          "Endpoints": [
+            {
+              "Addresses": [
+                {
+                  "Addr": "127.0.0.1:45855",
+                  "ServerName": "",
+                  "Attributes": null,
+                  "BalancerAttributes": null,
+                  "Metadata": null
+                }
+              ],
+              "Attributes": null
+            }
+          ],
+          "ServiceConfig": null,
+          "Attributes": null
+        } (resolver returned new addresses)  (t=+4.829778ms)
+    tlogger.go:133: INFO balancer_wrapper.go:121 [core] [Channel #26] Channel switches to new LB policy "pick_first"  (t=+4.965593ms)
+    tlogger.go:133: INFO clientconn.go:923 [core] [Channel #26 SubChannel #27] Subchannel created  (t=+5.060065ms)
+    tlogger.go:133: INFO clientconn.go:421 [core] [Channel #26] Channel exiting idle mode  (t=+5.101337ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #26 SubChannel #27] Subchannel Connectivity change to CONNECTING  (t=+5.134294ms)
+    tlogger.go:133: INFO clientconn.go:1471 [core] [Channel #26 SubChannel #27] Subchannel picks a new address "127.0.0.1:45855" to connect  (t=+5.182695ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #26 SubChannel #27] Subchannel Connectivity change to READY  (t=+5.477907ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #26] Channel Connectivity change to READY  (t=+5.559471ms)
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "" with version "1" and resources [my-service]
+    logging.go:30: open watch 3 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "be3344bb-1015-418e-81d3-e7cb59d1e4c1", version "1"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "" with version "1" and resources [route-my-service]
+    logging.go:30: open watch 4 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "be3344bb-1015-418e-81d3-e7cb59d1e4c1", version "1"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "" with version "1" and resources [cluster-my-service]
+    logging.go:30: open watch 5 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "be3344bb-1015-418e-81d3-e7cb59d1e4c1", version "1"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "" with version "1" and resources [endpoints-my-service]
+    tlogger.go:133: INFO resolver_wrapper.go:211 [core] [Channel #23] Resolver state updated: {
+          "Addresses": null,
+          "Endpoints": [],
+          "ServiceConfig": {
+            "Config": {
+              "Config": null,
+              "Methods": {}
+            },
+            "Err": null
+          },
+          "Attributes": {
+            "\u003c%!p(xdsclient.clientKeyType=grpc.xds.internal.client.Client)\u003e": "\u003c0xc0004a0b40\u003e",
+            "\u003c%!p(xdsdepmgr.xdsClusterSubscriberKey={})\u003e": "\u003c0xc000638240\u003e",
+            "\u003c%!p(xdsresource.xdsConfigkey={})\u003e": "\u003c0xc0000ac7e0\u003e",
+            "\u003c%!p(resolver.csKeyType=grpc.internal.resolver.configSelector)\u003e": "\u003c0xc0002a0690\u003e"
+          }
+        } (service config updated)  (t=+8.003126ms)
+    tlogger.go:133: INFO balancer_wrapper.go:121 [core] [Channel #23] Channel switches to new LB policy "xds_cluster_manager_experimental"  (t=+8.122663ms)
+    tlogger.go:133: INFO clustermanager.go:58 [xds] [xds-cluster-manager-lb 0xc000598400] Created  (t=+8.155526ms)
+    tlogger.go:133: INFO balancergroup.go:274 [xds] [xds-cluster-manager-lb 0xc000598400] Adding child policy of type "cds_experimental" for child "cluster:cluster-my-service"  (t=+8.191216ms)
+    tlogger.go:133: INFO balancergroup.go:102 [xds] [xds-cluster-manager-lb 0xc000598400] Creating child policy of type "cds_experimental" for child "cluster:cluster-my-service"  (t=+8.223073ms)
+    tlogger.go:133: INFO cdsbalancer.go:90 [xds] [cds-lb 0xc0005b4c40] Created  (t=+8.251217ms)
+    tlogger.go:133: INFO cdsbalancer.go:167 [xds] [cds-lb 0xc0005b4c40] Received balancer config update: {
+          "LoadBalancingConfig": null,
+          "cluster": "cluster-my-service",
+          "isDynamic": false
+        }  (t=+8.338691ms)
+    logging.go:30: open watch 6 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "be3344bb-1015-418e-81d3-e7cb59d1e4c1", version "1"
+    tlogger.go:133: INFO balancer.go:76 [xds] [priority-lb 0xc0002a0770] Created  (t=+8.437517ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [xds-cluster-manager-lb 0xc000598400] Balancer state update from child cluster:cluster-my-service, new state: {ConnectivityState:CONNECTING Picker:0xc00032ba40}  (t=+8.903337ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:147 [xds] [xds-cluster-manager-lb 0xc000598400] State update from sub-balancer "cluster:cluster-my-service": {ConnectivityState:CONNECTING Picker:0xc00032ba40}  (t=+8.93655ms)
+    tlogger.go:133: INFO balancergroup.go:274 [xds] [priority-lb 0xc0002a0770] Adding child policy of type "outlier_detection_experimental" for child "priority-0-0"  (t=+8.964393ms)
+    tlogger.go:133: INFO balancergroup.go:102 [xds] [priority-lb 0xc0002a0770] Creating child policy of type "outlier_detection_experimental" for child "priority-0-0"  (t=+8.994922ms)
+    tlogger.go:133: INFO balancer.go:94 [xds] [outlier-detection-lb 0xc00018b1d0] Created  (t=+9.02425ms)
+    tlogger.go:133: INFO clusterimpl.go:88 [xds] [xds-cluster-impl-lb 0xc000348b40] Created  (t=+9.079593ms)
+    tlogger.go:133: INFO clusterimpl.go:100 [xds] [xds-cluster-impl-lb 0xc000348b40] xDS credentials in use: false  (t=+9.113795ms)
+    tlogger.go:133: INFO weightedtarget.go:65 [xds] [weighted-target-lb 0xc0005051e0] Created  (t=+9.205259ms)
+    tlogger.go:133: INFO balancer.go:88 [xds] [wrrlocality-lb 0xc00088f410] Created  (t=+9.228598ms)
+    tlogger.go:133: INFO balancergroup.go:274 [xds] [weighted-target-lb 0xc0005051e0] Adding child policy of type "round_robin" for child "{region=\"region-1\", zone=\"zone-1\", sub_zone=\"subzone-1\"}"  (t=+9.315967ms)
+    tlogger.go:133: INFO balancergroup.go:102 [xds] [weighted-target-lb 0xc0005051e0] Creating child policy of type "round_robin" for child "{region=\"region-1\", zone=\"zone-1\", sub_zone=\"subzone-1\"}"  (t=+9.344585ms)
+    tlogger.go:133: INFO roundrobin.go:56 [roundrobin] [0xc00088f740] Created  (t=+9.370634ms)
+    tlogger.go:133: INFO clientconn.go:923 [core] [Channel #23 SubChannel #30] Subchannel created  (t=+9.489379ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [weighted-target-lb 0xc0005051e0] Balancer state update from child {region="region-1", zone="zone-1", sub_zone="subzone-1"}, new state: {ConnectivityState:CONNECTING Picker:0xc0006152c0}  (t=+9.55452ms)
+    tlogger.go:133: INFO aggregator.go:253 [xds] [weighted-target-lb 0xc0005051e0] Child pickers with config: map[{region="region-1", zone="zone-1", sub_zone="subzone-1"}:weight:1,picker:0xc0006152c0,state:CONNECTING,stateToAggregate:CONNECTING]  (t=+9.600715ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [priority-lb 0xc0002a0770] Balancer state update from child priority-0-0, new state: {ConnectivityState:CONNECTING Picker:0xc0002bd878}  (t=+9.662711ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #23 SubChannel #30] Subchannel Connectivity change to CONNECTING  (t=+9.715825ms)
+    tlogger.go:133: INFO clientconn.go:1471 [core] [Channel #23 SubChannel #30] Subchannel picks a new address "127.0.0.1:41991" to connect  (t=+9.779557ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [xds-cluster-manager-lb 0xc000598400] Balancer state update from child cluster:cluster-my-service, new state: {ConnectivityState:CONNECTING Picker:0xc0002bd878}  (t=+9.912866ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:147 [xds] [xds-cluster-manager-lb 0xc000598400] State update from sub-balancer "cluster:cluster-my-service": {ConnectivityState:CONNECTING Picker:0xc0002bd878}  (t=+9.958949ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:191 [xds] [xds-cluster-manager-lb 0xc000598400] Child pickers: map[cluster:cluster-my-service:picker:0xc00032ba40,state:CONNECTING,stateToAggregate:CONNECTING]  (t=+9.987416ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:191 [xds] [xds-cluster-manager-lb 0xc000598400] Child pickers: map[cluster:cluster-my-service:picker:0xc0002bd878,state:CONNECTING,stateToAggregate:CONNECTING]  (t=+10.06156ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #23 SubChannel #30] Subchannel Connectivity change to READY  (t=+10.254525ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [weighted-target-lb 0xc0005051e0] Balancer state update from child {region="region-1", zone="zone-1", sub_zone="subzone-1"}, new state: {ConnectivityState:READY Picker:0xc0004f6580}  (t=+10.356564ms)
+    tlogger.go:133: INFO aggregator.go:253 [xds] [weighted-target-lb 0xc0005051e0] Child pickers with config: map[{region="region-1", zone="zone-1", sub_zone="subzone-1"}:weight:1,picker:0xc0004f6580,state:READY,stateToAggregate:READY]  (t=+10.408515ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [priority-lb 0xc0002a0770] Balancer state update from child priority-0-0, new state: {ConnectivityState:READY Picker:0xc0005974a0}  (t=+10.445464ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [xds-cluster-manager-lb 0xc000598400] Balancer state update from child cluster:cluster-my-service, new state: {ConnectivityState:READY Picker:0xc0005974a0}  (t=+10.483289ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:147 [xds] [xds-cluster-manager-lb 0xc000598400] State update from sub-balancer "cluster:cluster-my-service": {ConnectivityState:READY Picker:0xc0005974a0}  (t=+10.516549ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:191 [xds] [xds-cluster-manager-lb 0xc000598400] Child pickers: map[cluster:cluster-my-service:picker:0xc0005974a0,state:READY,stateToAggregate:READY]  (t=+10.545618ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #23] Channel Connectivity change to READY  (t=+10.584055ms)
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node be3344bb-1015-418e-81d3-e7cb59d1e4c1
+    logging.go:30: respond open watch 1 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:41991] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:41991]) version "1" with version "2" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:41991]
+    logging.go:30: respond open watch 2 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "1" with version "2" and resources [routeName]
+    logging.go:30: respond open watch 3 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "1" with version "2" and resources [my-service]
+    logging.go:30: respond open watch 4 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "1" with version "2" and resources [route-my-service]
+    logging.go:30: respond open watch 5 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "1" with version "2" and resources [cluster-my-service]
+    logging.go:30: respond open watch 6 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "1" with version "2" and resources [endpoints-my-service]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc0008b2cc0)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc0008213b0)}  (t=+11.764179ms)
+    logging.go:30: open watch 7 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:41991:{}] from nodeID "be3344bb-1015-418e-81d3-e7cb59d1e4c1", version "2"
+    logging.go:30: open watch 8 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "be3344bb-1015-418e-81d3-e7cb59d1e4c1", version "2"
+    logging.go:30: open watch 9 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "be3344bb-1015-418e-81d3-e7cb59d1e4c1", version "2"
+    logging.go:30: open watch 10 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "be3344bb-1015-418e-81d3-e7cb59d1e4c1", version "2"
+    logging.go:30: open watch 11 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "be3344bb-1015-418e-81d3-e7cb59d1e4c1", version "2"
+    logging.go:30: open watch 12 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "be3344bb-1015-418e-81d3-e7cb59d1e4c1", version "2"
+    tlogger.go:129: WARNING ads_stream.go:410 [xds] [xds-client 0xc0008ad180] [xds-channel 0xc00059cb90] [ads-stream 0xc0008ad4a0] Sending ADS request for type "type.googleapis.com/envoy.config.route.v3.RouteConfiguration", resources: [], version: "2", nonce: "4" failed: EOF  (t=+31.727303ms)
+    tlogger.go:129: WARNING ads_stream.go:452 [xds] [xds-client 0xc0008ad180] [xds-channel 0xc00059cb90] [ads-stream 0xc0008ad4a0] ADS stream closed: rpc error: code = Canceled desc = context canceled  (t=+31.796461ms)
+    tlogger.go:133: INFO ads_stream.go:165 [xds] [xds-client 0xc0008ad180] [xds-channel 0xc00059cb90] [ads-stream 0xc0008ad4a0] Shutdown ADS stream  (t=+31.829804ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #20] Channel Connectivity change to SHUTDOWN  (t=+31.877242ms)
+    tlogger.go:133: INFO resolver_wrapper.go:112 [core] [Channel #20] Closing the name resolver  (t=+31.914049ms)
+    tlogger.go:133: INFO balancer_wrapper.go:159 [core] [Channel #20] ccBalancerWrapper: closing  (t=+31.964719ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #20 SubChannel #22] Subchannel Connectivity change to SHUTDOWN  (t=+32.070187ms)
+    tlogger.go:133: INFO clientconn.go:1710 [core] [Channel #20 SubChannel #22] Subchannel deleted  (t=+32.115385ms)
+    tlogger.go:133: INFO clientconn.go:1232 [core] [Channel #20] Channel deleted  (t=+32.235603ms)
+    tlogger.go:133: INFO channel.go:143 [xds] [xds-client 0xc0008ad180] [xds-channel 0xc00059cb90] Shutdown  (t=+32.293183ms)
+    tlogger.go:133: INFO server.go:864 [core] [Server #19 ListenSocket #21] ListenSocket deleted  (t=+32.342099ms)
+    tlogger.go:133: INFO xdsclient.go:210 [xds] [xds-client 0xc0008ad180] Shutdown  (t=+32.598396ms)
+    zz_verify_c5_e2e_test.go:252: PROBE event[0] ServerFilter.Build
+    zz_verify_c5_e2e_test.go:252: PROBE event[1] Interceptor#1.Build
+    zz_verify_c5_e2e_test.go:252: PROBE event[2] --- generation 1 serving (RPC OK); sending in-place RDS replacement for "routeName" ---
+    zz_verify_c5_e2e_test.go:252: PROBE event[3] ServerFilter.Close (filter DESTROYED) stack=[server.(*refCountedServerFilter).Close <- server.(*filterChain).constructUsableRouteConfiguration <- server.(*listenerWrapper).handleRDSUpdate <- server.(*rdsWatcher).ResourceChanged]
+    zz_verify_c5_e2e_test.go:252: PROBE event[4] Interceptor#1.Close parentFilterAlreadyDestroyed=true stack=[server.(*interceptorList).Close <- server.(*usableRouteConfiguration).close <- server.(*filterChain).updateUsableRouteConfiguration <- server.(*listenerWrapper).handleRDSUpdate <- server.(*rdsWatcher).ResourceChanged]
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #23 SubChannel #30] Subchannel Connectivity change to IDLE  (t=+32.629732ms)
+    zz_verify_c5_e2e_test.go:252: PROBE event[5] --- replacement observed; stopping server ---
+    zz_verify_c5_e2e_test.go:254: PROBE RESULT after in-place replacement: retired interceptors closed while parent filter still alive=0, closed AFTER parent filter was destroyed=1
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #23] Channel Connectivity change to SHUTDOWN  (t=+32.86762ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [weighted-target-lb 0xc0005051e0] Balancer state update from child {region="region-1", zone="zone-1", sub_zone="subzone-1"}, new state: {ConnectivityState:IDLE Picker:0xc0004af1c0}  (t=+32.895124ms)
+    tlogger.go:133: INFO aggregator.go:253 [xds] [weighted-target-lb 0xc0005051e0] Child pickers with config: map[{region="region-1", zone="zone-1", sub_zone="subzone-1"}:weight:1,picker:0xc0004af1c0,state:IDLE,stateToAggregate:IDLE]  (t=+32.945225ms)
+    tlogger.go:133: INFO resolver_wrapper.go:112 [core] [Channel #23] Closing the name resolver  (t=+32.988743ms)
+    tlogger.go:133: INFO balancer_wrapper.go:159 [core] [Channel #23] ccBalancerWrapper: closing  (t=+33.070401ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [priority-lb 0xc0002a0770] Balancer state update from child priority-0-0, new state: {ConnectivityState:IDLE Picker:0xc0008805b8}  (t=+33.117488ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [weighted-target-lb 0xc0005051e0] Balancer state update from child {region="region-1", zone="zone-1", sub_zone="subzone-1"}, new state: {ConnectivityState:CONNECTING Picker:0xc0004af240}  (t=+33.181179ms)
+    tlogger.go:133: INFO aggregator.go:253 [xds] [weighted-target-lb 0xc0005051e0] Child pickers with config: map[{region="region-1", zone="zone-1", sub_zone="subzone-1"}:weight:1,picker:0xc0004af240,state:CONNECTING,stateToAggregate:CONNECTING]  (t=+33.22829ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #23 SubChannel #30] Subchannel Connectivity change to CONNECTING  (t=+33.301352ms)
+    tlogger.go:133: INFO clientconn.go:1471 [core] [Channel #23 SubChannel #30] Subchannel picks a new address "127.0.0.1:41991" to connect  (t=+33.345414ms)
+    tlogger.go:133: INFO clusterimpl.go:508 [xds] [xds-cluster-impl-lb 0xc000348b40] Shutdown  (t=+33.470228ms)
+    tlogger.go:133: INFO balancergroup.go:351 [xds] [priority-lb 0xc0002a0770] Removing child policy for child "priority-0-0"  (t=+33.522405ms)
+    tlogger.go:133: INFO cdsbalancer.go:416 [xds] [cds-lb 0xc0005b4c40] Shutdown  (t=+33.550972ms)
+    tlogger.go:133: INFO clustermanager.go:192 [xds] [xds-cluster-manager-lb 0xc000598400] Shutdown  (t=+33.582202ms)
+    tlogger.go:129: WARNING ads_stream.go:410 [xds] [xds-client 0xc00074c6e0] [xds-channel 0xc000820820] [ads-stream 0xc00074c780] Sending ADS request for type "type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment", resources: [], version: "2", nonce: "7" failed: EOF  (t=+33.615018ms)
+    tlogger.go:129: WARNING ads_stream.go:452 [xds] [xds-client 0xc00074c6e0] [xds-channel 0xc000820820] [ads-stream 0xc00074c780] ADS stream closed: rpc error: code = Canceled desc = context canceled  (t=+33.67206ms)
+    tlogger.go:133: INFO ads_stream.go:165 [xds] [xds-client 0xc00074c6e0] [xds-channel 0xc000820820] [ads-stream 0xc00074c780] Shutdown ADS stream  (t=+33.703708ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #26] Channel Connectivity change to SHUTDOWN  (t=+33.747241ms)
+    tlogger.go:133: INFO resolver_wrapper.go:112 [core] [Channel #26] Closing the name resolver  (t=+33.79528ms)
+    logging.go:30: open watch 13 for type.googleapis.com/envoy.config.listener.v3.Listener map[] from nodeID "be3344bb-1015-418e-81d3-e7cb59d1e4c1", version "2"
+    tlogger.go:133: INFO balancer_wrapper.go:159 [core] [Channel #26] ccBalancerWrapper: closing  (t=+33.840103ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #26 SubChannel #27] Subchannel Connectivity change to SHUTDOWN  (t=+33.967822ms)
+    tlogger.go:133: INFO clientconn.go:1710 [core] [Channel #26 SubChannel #27] Subchannel deleted  (t=+34.012895ms)
+    tlogger.go:129: WARNING clientconn.go:1534 [core] [Channel #23 SubChannel #30] grpc: addrConn.createTransport failed to connect to {Addr: "127.0.0.1:41991", ServerName: "my-service", Attributes: {"<%!p(xds.hostnameKey={})>": "" , "<%!p(xds.handshakeAttrKey={})>": "<0xc000348bb0>" , "<%!p(xds.handshakeClusterNameKey={})>": "cluster-my-service" }, BalancerAttributes: {"<%!p(weight.attributeKey={})>": "Weight: 2147483648" , "<%!p(wrrlocality.attributeKey={})>": "Locality Weight: 1" , "<%!p(xds.localityKeyType=grpc.xds.internal.address.locality)>": "<%!p(clients.Locality={region-1 zone-1 subzone-1})>" , "<%!p(hierarchy.pathKeyType=grpc.internal.address.hierarchical_path)>": "<0xc000504f20>" }}. Err: connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:41991: connect: connection refused"  (t=+34.088725ms)
+    tlogger.go:133: INFO clientconn.go:1305 [core] [Channel #23 SubChannel #30] Subchannel Connectivity change to TRANSIENT_FAILURE, last error: connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:41991: connect: connection refused"  (t=+34.157185ms)
+    tlogger.go:133: INFO clientconn.go:1232 [core] [Channel #26] Channel deleted  (t=+34.230782ms)
+    tlogger.go:133: INFO channel.go:143 [xds] [xds-client 0xc00074c6e0] [xds-channel 0xc000820820] Shutdown  (t=+34.268323ms)
+    tlogger.go:133: INFO xdsclient.go:210 [xds] [xds-client 0xc00074c6e0] Shutdown  (t=+34.356984ms)
+    tlogger.go:133: INFO xds_resolver.go:295 [xds] [xds-resolver 0xc0008b6d80] Shutdown  (t=+34.39245ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #23 SubChannel #30] Subchannel Connectivity change to SHUTDOWN  (t=+34.463375ms)
+    tlogger.go:133: INFO clientconn.go:1710 [core] [Channel #23 SubChannel #30] Subchannel deleted  (t=+34.504922ms)
+    tlogger.go:133: INFO clientconn.go:1232 [core] [Channel #23] Channel deleted  (t=+34.5398ms)
+    tlogger.go:133: INFO server.go:864 [core] [Server #17 ListenSocket #18] ListenSocket deleted  (t=+34.647465ms)
+--- PASS: Test (0.09s)
+    --- PASS: Test/VerifyC5_AllRoutesDisableFilter (0.05s)
+    --- PASS: Test/VerifyC5_ReplacementWithNoRoutes (0.04s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.115s
+exit=0

@@ -1,0 +1,35 @@
+### control flow between listener creation and cleanup registration (internal/xds/server/listener_wrapper_test.go):
+342-	defer cancel()
+346-	defer httpfilter.UnregisterForTesting(fb.typeURL)
+348-	lis, err := testutils.LocalTCPListener()
+350-		t.Fatalf("testutils.LocalTCPListener() failed: %v", err)
+352-	xdsC := newFakeXDSClient(t)
+353-	lisName, lisUpdate := serverListenerUpdate(t, lis, xdsC.bc, fb.typeURL)
+364-	defer lw.Close()
+### fatal exits inside the helpers called in that span:
+newFakeXDSClient: 11:		t.Fatalf("bootstrap.NewConfigFromContents() failed: %v", err)
+serverListenerUpdate: 5:		t.Fatalf("net.SplitHostPort(%q) failed: %v", lis.Addr().String(), err)
+serverListenerUpdate: 9:		t.Fatalf("strconv.Atoi(%q) failed: %v", portStr, err)
+serverListenerUpdate: 47:		t.Fatalf("anypb.New() failed: %v", err)
+serverListenerUpdate: 51:		t.Fatalf("Failed to decode listener resource: %v", err)
+serverListenerUpdate: 55:		t.Fatalf("Decoded listener resource is not a valid server-side listener: %T", res.Resource)
+### instrumentation (test file only):
++	if verifyC2InjectFatal {
++		t.Fatalf("verify: injected setup-helper failure")
++	}
++	verifyC2WatchListener(t, lis)
+### [helper succeeds] go test -race -count=1 -v -run '^Test$/^ListenerWrapper_RDSUpdateClosesRetiredInterceptors$' ./internal/xds/server/
+    zz_verify_c2_lis_probe_test.go:18: PROBE after test exit: listener is closed (dial error: dial tcp 127.0.0.1:36871: connect: connection refused)
+--- PASS: Test (0.01s)
+    --- PASS: Test/ListenerWrapper_RDSUpdateClosesRetiredInterceptors (0.01s)
+PASS
+ok  	google.golang.org/grpc/internal/xds/server	1.033s
+### [helper fatals]   VERIFY_C2_INJECT_FATAL=1 go test -race -count=1 -v -run '^Test$/^ListenerWrapper_RDSUpdateClosesRetiredInterceptors$' ./internal/xds/server/
+    listener_wrapper_test.go:357: verify: injected setup-helper failure
+    zz_verify_c2_lis_probe_test.go:22: PROBE after test exit: listener 127.0.0.1:34665 is STILL OPEN (dial succeeded; nothing closed it)
+--- FAIL: Test (0.00s)
+    --- FAIL: Test/ListenerWrapper_RDSUpdateClosesRetiredInterceptors (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/xds/server	0.025s
+FAIL
+### restored; git status --short: []

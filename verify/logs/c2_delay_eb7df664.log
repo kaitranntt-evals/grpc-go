@@ -1,0 +1,18 @@
+### branch HEAD: e97654c8 xds/server: close interceptors when replacing route configurations
+### added test/xds tests: ServerSideXDS_FilterStateRetention_AcrossUpdates_RDS
+### [unmodified] go test -race -count=1 -v -run '^Test$/^(ServerSideXDS_FilterStateRetention_AcrossUpdates_RDS)$' ./test/xds/
+--- PASS: Test (0.03s)
+    --- PASS: Test/ServerSideXDS_FilterStateRetention_AcrossUpdates_RDS (0.02s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.056s
+### instrumentation:
+@@ -551,2 +551,3 @@ func (il *interceptorList) AllowRPC(ctx context.Context) error {
++	verifyC2Delay()
+### [close delayed by 300ms] VERIFY_C2_CLOSE_DELAY=300ms go test -race -count=1 -v -run '^Test$/^(ServerSideXDS_FilterStateRetention_AcrossUpdates_RDS)$' ./test/xds/
+    xds_server_filter_state_retention_test.go:731: Created 5 interceptors, want 6
+--- FAIL: Test (1.83s)
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_AcrossUpdates_RDS (1.83s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	1.856s
+FAIL
+### restored; git status --short: []

@@ -1,0 +1,14 @@
+Run (on evalon/grpc-go-xd-1463306c): git apply verify/repro/c6_mutation_handleRDSUpdate_ignore_error.patch   -- applied and reverted automatically by verify/repro/c6_run.sh
+--- a/internal/xds/server/listener_wrapper.go
++++ b/internal/xds/server/listener_wrapper.go
+@@ -218,9 +218,7 @@
+ 				continue
+ 			}
+ 			if rcu.err != nil && rcu.data == nil { // Either NACK before update, or resource not found triggers this conditional.
+-				urc := newUsableRouteConfiguration(nil, rcu.err)
+-				urc.nodeID = l.xdsNodeID
+-				fc.setUsableRouteConfiguration(urc)
++				// VERIFY MUTATION (C6): drop the delivered RDS error; keep serving the old configuration.
+ 				continue
+ 			}
+ 			urc := fc.constructUsableRouteConfiguration(*rcu.data, l.getOrCreateServerFilterLocked)
