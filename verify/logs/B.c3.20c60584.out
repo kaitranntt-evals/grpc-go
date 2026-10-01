@@ -1,0 +1,13 @@
+C3 RouteAndProcess after successful RDS: err=<nil>
+C3 after successful RDS:        filter#1 underlyingCloseCalls=0 interceptorsBuilt=1 interceptorsClosed=0 | LDS cache entry present=true refCnt=2
+C3 RouteAndProcess while in RDS error state: err=rpc error: code = Unavailable desc = error from xDS configuration for matched route configuration: verify: route resource removed
+C3 while serving RDS error:     filter#1 underlyingCloseCalls=0 interceptorsBuilt=1 interceptorsClosed=1 | LDS cache entry present=true refCnt=1
+C3 OBSERVATION: FILTER-LIVE-DURING-ERROR-STATE: retired config's interceptors closed=1/1 but underlying ServerFilter.Close calls=0
+C3 RouteAndProcess after recovery RDS: err=<nil>
+C3 after recovery RDS:          filter#1 underlyingCloseCalls=0 interceptorsBuilt=2 interceptorsClosed=1 | LDS cache entry present=true refCnt=2
+C3 error state again:           filter#1 underlyingCloseCalls=0 interceptorsBuilt=2 interceptorsClosed=2 | LDS cache entry present=true refCnt=1
+C3 after listener Close:        filter#1 underlyingCloseCalls=1 interceptorsBuilt=2 interceptorsClosed=2 | LDS cache entry present=false refCnt=-1
+--- PASS: Test (0.00s)
+    --- PASS: Test/VerifyC3_RDSErrorFilterLiveness (0.00s)
+ok  	google.golang.org/grpc/internal/xds/server	1.026s
+exit=0

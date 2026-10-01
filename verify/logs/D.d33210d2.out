@@ -1,0 +1,6 @@
+branch=d33210d2 tests=ServerSideXDS_FilterStateRetention_RDSUpdatesReleaseInterceptors
+    xds_server_filter_state_retention_test.go:763: Timeout waiting for RPCs to be processed with path "path-0"
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_RDSUpdatesReleaseInterceptors (10.10s)
+exit=1
+worktree dirty files after restore: 0
+leaked goroutines reported: 0

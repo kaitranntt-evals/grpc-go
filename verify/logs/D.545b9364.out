@@ -1,0 +1,6 @@
+branch=545b9364 tests=ServerSideXDS_FilterStateRetention_RDSUpdates
+    xds_server_filter_state_retention_test.go:267: Timeout waiting for streaming RPC to reach interceptor
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_RDSUpdates (10.00s)
+exit=1
+worktree dirty files after restore: 0
+leaked goroutines reported: 0

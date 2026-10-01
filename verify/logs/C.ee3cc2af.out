@@ -1,0 +1,7 @@
+branch=ee3cc2af tests=ServerSideXDS_FilterStateRetention_AcrossRouteConfigurationUpdates mutated-file=test/xds/xds_server_filter_state_retention_test.go
+ok  	google.golang.org/grpc/test/xds	1.157s
+baseline exit=0
+    xds_server_filter_state_retention_test.go:778: After RouteConfiguration update 1: 3 interceptors created, 0 destroyed; got 3 live interceptors, want 2
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_AcrossRouteConfigurationUpdates (1.28s)
+delayed exit=1
+worktree dirty files after restore: 0

@@ -1,0 +1,6 @@
+branch=2c8abc16 tests=ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange
+    xds_server_filter_state_retention_test.go:781: Timeout waiting for interceptor to be invoked
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange (10.05s)
+exit=1
+worktree dirty files after restore: 0
+leaked goroutines reported: 0

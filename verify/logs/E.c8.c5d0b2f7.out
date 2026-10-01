@@ -1,0 +1,2 @@
+internal/xds/server/route_configuration_cleanup_test.go:						if err := r.interceptor.AllowRPC(context.Background()); err != nil {
+exit=1

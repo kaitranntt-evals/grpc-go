@@ -1,0 +1,6 @@
+branch=3d609e1d tests=ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources
+    xds_server_route_config_update_test.go:243: Timeout waiting for interceptor to be invoked with path "path-1"
+    --- FAIL: Test/ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources (10.06s)
+exit=1
+worktree dirty files after restore: 0
+leaked goroutines reported: 0

@@ -1,0 +1,7 @@
+branch=df007aa8 tests=ServerSideXDS_RDSUpdates_ReleaseSupersededInterceptors mutated-file=test/xds/xds_server_filter_state_retention_test.go
+ok  	google.golang.org/grpc/test/xds	1.194s
+baseline exit=0
+    xds_server_rds_update_cleanup_test.go:253: After 1 RDS updates: 3 interceptors live (created: 3, destroyed: 0), want: 2
+    --- FAIL: Test/ServerSideXDS_RDSUpdates_ReleaseSupersededInterceptors (1.28s)
+delayed exit=1
+worktree dirty files after restore: 0

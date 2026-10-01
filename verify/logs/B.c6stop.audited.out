@@ -1,0 +1,7 @@
+C6 before filterChain.stop(): routing state held by the existing connection: err=<nil>
+C6 after  filterChain.stop(): routing state held by the existing connection: err=<nil>
+C6 OBSERVATION: ROUTING-STATE-UNCHANGED-BY-STOP
+--- PASS: Test (0.00s)
+    --- PASS: Test/VerifyC6_StopState (0.00s)
+ok  	google.golang.org/grpc/internal/xds/server	1.026s
+exit=0

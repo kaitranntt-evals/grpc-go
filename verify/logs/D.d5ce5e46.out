@@ -1,0 +1,8 @@
+branch=d5ce5e46 tests=ServerSideXDS_RouteConfigurationUpdates_ReleaseSupersededResources|ServerSideXDS_RouteConfigurationUpdate_InFlightRPCKeepsInterceptor
+    xds_server_rds_update_test.go:313: Timeout waiting for the RPC to reach the interceptor
+    xds_server_rds_update_test.go:217: Timeout waiting for interceptor to be invoked
+    --- FAIL: Test/ServerSideXDS_RouteConfigurationUpdate_InFlightRPCKeepsInterceptor (10.09s)
+    --- FAIL: Test/ServerSideXDS_RouteConfigurationUpdates_ReleaseSupersededResources (10.04s)
+exit=1
+worktree dirty files after restore: 0
+leaked goroutines reported: 0

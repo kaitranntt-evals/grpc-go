@@ -1,0 +1,7 @@
+branch=545b9364 tests=ServerSideXDS_FilterStateRetention_RDSUpdates mutated-file=test/xds/xds_server_filter_state_retention_test.go
+ok  	google.golang.org/grpc/test/xds	1.154s
+baseline exit=0
+    --- PASS: Test/ServerSideXDS_FilterStateRetention_RDSUpdates (3.40s)
+ok  	google.golang.org/grpc/test/xds	4.432s
+delayed exit=0
+worktree dirty files after restore: 0

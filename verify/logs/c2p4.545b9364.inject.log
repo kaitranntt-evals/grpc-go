@@ -1,0 +1,51 @@
+mode=inject mutation lines applied: 1
+=== RUN   Test
+=== RUN   Test/ServerSideXDS_FilterStateRetention_RDSUpdates
+    setup.go:45: Created new snapshot cache...
+    tlogger.go:133: INFO server.go:732 [core] [Server #1] Server created  (t=+413.74µs)
+    setup.go:45: Registered Aggregated Discovery Service (ADS)...
+    setup.go:45: xDS management server serving at: 127.0.0.1:33789...
+    tlogger.go:133: INFO server.go:928 [core] [Server #1 ListenSocket #2] ListenSocket created  (t=+588.083µs)
+    tlogger.go:133: INFO server.go:732 [core] [Server #3] Server created  (t=+891.452µs)
+    tlogger.go:133: INFO pool.go:309 [xds] xDS node ID: 4839370f-c605-4df6-b2da-1b85c5ef1d51  (t=+950.477µs)
+    tlogger.go:133: INFO server.go:118 [xds] [xds-server 0xc0005aa840] Created xds.GRPCServer  (t=+961.164µs)
+    xds_server_filter_state_retention_test.go:201: VERIFY-MUTATION: injected LocalTCPListener failure
+    tlogger.go:133: INFO server.go:864 [core] [Server #1 ListenSocket #2] ListenSocket deleted  (t=+1.044877ms)
+    grpctest.go:45: Leaked goroutine: goroutine 21 [chan receive]:
+        google.golang.org/grpc/internal/xds/clients/internal/syncutil.(*CallbackSerializer).run(0xc0005b2f60, {0x16de358, 0xc0005a79a0})
+        	/home/ubuntu/wt/545b9364/internal/xds/clients/internal/syncutil/callback_serializer.go:88 +0xe5
+        created by google.golang.org/grpc/internal/xds/clients/internal/syncutil.NewCallbackSerializer in goroutine 18
+        	/home/ubuntu/wt/545b9364/internal/xds/clients/internal/syncutil/callback_serializer.go:52 +0x11a
+    grpctest.go:45: Leaked goroutine: goroutine 22 [chan receive]:
+        google.golang.org/grpc/internal/xds/clients/internal/syncutil.(*CallbackSerializer).run(0xc0005b2fa0, {0x16de358, 0xc0005a79f0})
+        	/home/ubuntu/wt/545b9364/internal/xds/clients/internal/syncutil/callback_serializer.go:88 +0xe5
+        created by google.golang.org/grpc/internal/xds/clients/internal/syncutil.NewCallbackSerializer in goroutine 18
+        	/home/ubuntu/wt/545b9364/internal/xds/clients/internal/syncutil/callback_serializer.go:52 +0x11a
+    grpctest.go:77: Goroutine leak check disabled for future tests
+    grpctest.go:45: Found 1 leaked async reporters:
+        --- Leaked Async Reporter Registration ---
+        google.golang.org/grpc/internal/xds/xdsclient.(*metricsReporter).RegisterAsyncReporter
+        	/home/ubuntu/wt/545b9364/internal/xds/xdsclient/clientimpl.go:308
+        google.golang.org/grpc/internal/xds/clients/xdsclient.New
+        	/home/ubuntu/wt/545b9364/internal/xds/clients/xdsclient/xdsclient.go:122
+        google.golang.org/grpc/internal/xds/xdsclient.newClientImpl
+        	/home/ubuntu/wt/545b9364/internal/xds/xdsclient/clientimpl.go:142
+        google.golang.org/grpc/internal/xds/xdsclient.(*Pool).newRefCounted
+        	/home/ubuntu/wt/545b9364/internal/xds/xdsclient/pool.go:299
+        google.golang.org/grpc/internal/xds/xdsclient.(*Pool).NewClient
+        	/home/ubuntu/wt/545b9364/internal/xds/xdsclient/pool.go:118
+        google.golang.org/grpc/xds.NewGRPCServer
+        	/home/ubuntu/wt/545b9364/xds/server.go:100
+        google.golang.org/grpc/test/xds_test.s.TestServerSideXDS_FilterStateRetention_RDSUpdates
+        	/home/ubuntu/wt/545b9364/test/xds/xds_server_filter_state_retention_test.go:187
+        google.golang.org/grpc/internal/grpctest.RunSubTests.func1
+        	/home/ubuntu/wt/545b9364/internal/grpctest/grpctest.go:132
+        testing.tRunner
+        	/usr/local/go/src/testing/testing.go:1934
+--- FAIL: Test (10.05s)
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_RDSUpdates (10.05s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	10.061s
+FAIL
+exit=1
+leaked goroutines reported: 2

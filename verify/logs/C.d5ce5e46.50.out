@@ -1,0 +1,8 @@
+branch=d5ce5e46 tests=ServerSideXDS_RouteConfigurationUpdates_ReleaseSupersededResources|ServerSideXDS_RouteConfigurationUpdate_InFlightRPCKeepsInterceptor mutated-file=test/xds/xds_server_filter_state_retention_test.go
+ok  	google.golang.org/grpc/test/xds	1.197s
+baseline exit=0
+    --- PASS: Test/ServerSideXDS_RouteConfigurationUpdate_InFlightRPCKeepsInterceptor (0.29s)
+    --- PASS: Test/ServerSideXDS_RouteConfigurationUpdates_ReleaseSupersededResources (2.19s)
+ok  	google.golang.org/grpc/test/xds	3.515s
+delayed exit=0
+worktree dirty files after restore: 0

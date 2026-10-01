@@ -1,0 +1,9 @@
+C5/C11 after 1st lookup:  BuildServerFilter calls=1 refCnt=1 underlying Close calls=0
+C5/C11 after last release: refCnt=0 underlying Close calls=1 entry still in cache=true
+C5/C11 after 2nd lookup:  BuildServerFilter calls=1 sameWrapper=true sameUnderlying=true refCnt=1 underlying Close calls=1
+C5/C11 OBSERVATION: CLOSED-WRAPPER-RETURNED: lookup incremented (refCnt 0 -> 1) and returned the wrapper whose underlying filter was already closed
+C5/C11 after releasing 2nd: refCnt=0 underlying Close calls=2
+--- PASS: Test (0.00s)
+    --- PASS: Test/VerifyC5C11_ClosedCacheEntryLookup (0.00s)
+ok  	google.golang.org/grpc/internal/xds/server	1.027s
+exit=0

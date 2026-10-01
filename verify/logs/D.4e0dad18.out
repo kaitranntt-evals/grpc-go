@@ -1,0 +1,6 @@
+branch=4e0dad18 tests=ServerSideXDS_FilterStateRetention_AcrossRDSUpdates_ReleasesSupersededInterceptors
+    xds_server_filter_state_retention_test.go:772: Timeout waiting for route configuration with path "path-0" to be applied
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_AcrossRDSUpdates_ReleasesSupersededInterceptors (10.07s)
+exit=1
+worktree dirty files after restore: 0
+leaked goroutines reported: 0

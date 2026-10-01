@@ -1,0 +1,11 @@
+mutation lines applied: 4
+    xds_server_rds_update_test.go:336: VERIFY-MUTATION: injected failure while the RPC is parked behind releaseCh
+    xds_server_rds_update_test.go:113: VERIFY-TIMING: stopServer returned after 0s
+    grpctest.go:45: Leaked goroutine: goroutine 44 [chan receive]:
+        google.golang.org/grpc/test/xds_test.(*blockingInterceptor).AllowRPC(0xc000627038, {0x16dfe18, 0xc000740780})
+        	/home/ubuntu/wt/d5ce5e46/test/xds/xds_server_rds_update_test.go:295 +0x45
+    grpctest.go:77: Goroutine leak check disabled for future tests
+--- FAIL: Test (10.04s)
+    --- FAIL: Test/ServerSideXDS_RouteConfigurationUpdate_InFlightRPCKeepsInterceptor (10.03s)
+exit=1
+worktree dirty files after restore: 0

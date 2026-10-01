@@ -1,0 +1,7 @@
+branch=2bdc2970 tests=ServerSideXDS_RouteConfigurationUpdates_ReleaseSupersededInterceptors mutated-file=test/xds/xds_server_filter_state_retention_test.go
+ok  	google.golang.org/grpc/test/xds	1.188s
+baseline exit=0
+    xds_server_filter_state_retention_test.go:787: After 1 route configuration updates, 2 interceptors created and 0 destroyed; want exactly 1 live interceptor, got 2
+    --- FAIL: Test/ServerSideXDS_RouteConfigurationUpdates_ReleaseSupersededInterceptors (0.64s)
+delayed exit=1
+worktree dirty files after restore: 0

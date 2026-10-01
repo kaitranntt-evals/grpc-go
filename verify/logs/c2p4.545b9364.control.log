@@ -1,0 +1,21 @@
+mode=control mutation lines applied: 2
+=== RUN   Test
+=== RUN   Test/ServerSideXDS_FilterStateRetention_RDSUpdates
+    setup.go:45: Created new snapshot cache...
+    tlogger.go:133: INFO server.go:732 [core] [Server #1] Server created  (t=+387.637µs)
+    setup.go:45: Registered Aggregated Discovery Service (ADS)...
+    setup.go:45: xDS management server serving at: 127.0.0.1:41603...
+    tlogger.go:133: INFO server.go:928 [core] [Server #1 ListenSocket #2] ListenSocket created  (t=+507.882µs)
+    tlogger.go:133: INFO server.go:732 [core] [Server #3] Server created  (t=+868.786µs)
+    tlogger.go:133: INFO pool.go:309 [xds] xDS node ID: 8e640dc0-5baf-4de0-9721-3e01438e8b04  (t=+921.93µs)
+    tlogger.go:133: INFO server.go:118 [xds] [xds-server 0xc000684740] Created xds.GRPCServer  (t=+932.944µs)
+    xds_server_filter_state_retention_test.go:202: VERIFY-MUTATION: injected LocalTCPListener failure
+    tlogger.go:133: INFO xdsclient.go:210 [xds] [xds-client 0xc0004c2f00] Shutdown  (t=+1.006338ms)
+    tlogger.go:133: INFO server.go:864 [core] [Server #1 ListenSocket #2] ListenSocket deleted  (t=+1.039425ms)
+--- FAIL: Test (0.00s)
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_RDSUpdates (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	0.011s
+FAIL
+exit=1
+leaked goroutines reported: 0

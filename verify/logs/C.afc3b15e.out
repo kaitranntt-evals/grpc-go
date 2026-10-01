@@ -1,0 +1,7 @@
+branch=afc3b15e tests=ServerSideXDS_FilterStateRetention_RDSUpdates mutated-file=test/xds/xds_server_filter_state_retention_test.go
+ok  	google.golang.org/grpc/test/xds	1.059s
+baseline exit=0
+    xds_server_filter_state_retention_test.go:273: After update 1, closed 0 interceptors, want 4
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_RDSUpdates (2.47s)
+delayed exit=1
+worktree dirty files after restore: 0

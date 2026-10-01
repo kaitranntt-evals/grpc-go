@@ -1,0 +1,8 @@
+branch=d5ce5e46 tests=ServerSideXDS_RouteConfigurationUpdates_ReleaseSupersededResources|ServerSideXDS_RouteConfigurationUpdate_InFlightRPCKeepsInterceptor mutated-file=test/xds/xds_server_filter_state_retention_test.go
+ok  	google.golang.org/grpc/test/xds	1.156s
+baseline exit=0
+    xds_server_rds_update_test.go:235: Timeout waiting for interceptor counts; got (created: 36, destroyed: 33), want (created: 36, destroyed: 34)
+    --- PASS: Test/ServerSideXDS_RouteConfigurationUpdate_InFlightRPCKeepsInterceptor (1.30s)
+    --- FAIL: Test/ServerSideXDS_RouteConfigurationUpdates_ReleaseSupersededResources (10.88s)
+delayed exit=1
+worktree dirty files after restore: 0

@@ -1,0 +1,77 @@
+---- event log: after disable-on-every-route replacement ----
+  [00] FILTER F#1 BUILT (BuildServerFilter)
+  [01] INTERCEPTOR F#1/i1[gen1] BUILT from FILTER F#1 filterClosed=false
+  [02] INTERCEPTOR F#1/i1[gen1] AllowRPC selfClosed=false filterClosed=false
+  [03] TEST: >>> publishing RDS with F disabled on every route
+  [04] INTERCEPTOR F#1/i1[gen1] AllowRPC selfClosed=false filterClosed=false
+  [05] INTERCEPTOR F#1/i1[gen1] CLOSE-START filterClosed=false via (*interceptorList).Close < virtualHostWithInterceptors.close < (*filterChain).updateRoutingConfig.(*usableRouteConfiguration).close.func1 < (*usableRouteConfiguration).close < (*filterChain).updateRoutingConfig
+  [06] INTERCEPTOR F#1/i1[gen1] CLOSE-END filterClosed=false
+  [07] FILTER F#1 CLOSED (underlying ServerFilter.Close ran) via (*refCountedServerFilter).Close < (*filterChain).updateRoutingConfig.(*usableRouteConfiguration).close.func1 < (*usableRouteConfiguration).close < (*filterChain).updateRoutingConfig < (*listenerWrapper).handleRDSUpdate
+  [08] TEST: RPC served by the replacement (F disabled) config
+OBSERVATION(C1/C9 replacement): INTERCEPTOR-CLOSED-BEFORE-FILTER-RELEASE: retired interceptor CLOSE-END at [06] precedes underlying filter Close at [07]
+---- event log: after re-enable ----
+  [00] FILTER F#1 BUILT (BuildServerFilter)
+  [01] INTERCEPTOR F#1/i1[gen1] BUILT from FILTER F#1 filterClosed=false
+  [02] INTERCEPTOR F#1/i1[gen1] AllowRPC selfClosed=false filterClosed=false
+  [03] TEST: >>> publishing RDS with F disabled on every route
+  [04] INTERCEPTOR F#1/i1[gen1] AllowRPC selfClosed=false filterClosed=false
+  [05] INTERCEPTOR F#1/i1[gen1] CLOSE-START filterClosed=false via (*interceptorList).Close < virtualHostWithInterceptors.close < (*filterChain).updateRoutingConfig.(*usableRouteConfiguration).close.func1 < (*usableRouteConfiguration).close < (*filterChain).updateRoutingConfig
+  [06] INTERCEPTOR F#1/i1[gen1] CLOSE-END filterClosed=false
+  [07] FILTER F#1 CLOSED (underlying ServerFilter.Close ran) via (*refCountedServerFilter).Close < (*filterChain).updateRoutingConfig.(*usableRouteConfiguration).close.func1 < (*usableRouteConfiguration).close < (*filterChain).updateRoutingConfig < (*listenerWrapper).handleRDSUpdate
+  [08] TEST: RPC served by the replacement (F disabled) config
+  [09] TEST: >>> publishing RDS with F re-enabled (gen3)
+  [10] FILTER F#2 BUILT (BuildServerFilter)
+  [11] INTERCEPTOR F#2/i1[gen3] BUILT from FILTER F#2 filterClosed=false
+  [12] INTERCEPTOR F#2/i1[gen3] AllowRPC selfClosed=false filterClosed=false
+OBSERVATION(C5/C11 re-enable): BuildServerFilter calls=2; "INTERCEPTOR F#2/i1[gen3] BUILT from FILTER F#2 filterClosed=false"; "INTERCEPTOR F#2/i1[gen3] AllowRPC selfClosed=false filterClosed=false"
+OBSERVATION(C5/C11 re-enable): LIVE-FILTER-USED: re-enabled interceptor was built from a live filter instance
+---- event log: after server Stop ----
+  [00] FILTER F#1 BUILT (BuildServerFilter)
+  [01] INTERCEPTOR F#1/i1[gen1] BUILT from FILTER F#1 filterClosed=false
+  [02] INTERCEPTOR F#1/i1[gen1] AllowRPC selfClosed=false filterClosed=false
+  [03] TEST: >>> publishing RDS with F disabled on every route
+  [04] INTERCEPTOR F#1/i1[gen1] AllowRPC selfClosed=false filterClosed=false
+  [05] INTERCEPTOR F#1/i1[gen1] CLOSE-START filterClosed=false via (*interceptorList).Close < virtualHostWithInterceptors.close < (*filterChain).updateRoutingConfig.(*usableRouteConfiguration).close.func1 < (*usableRouteConfiguration).close < (*filterChain).updateRoutingConfig
+  [06] INTERCEPTOR F#1/i1[gen1] CLOSE-END filterClosed=false
+  [07] FILTER F#1 CLOSED (underlying ServerFilter.Close ran) via (*refCountedServerFilter).Close < (*filterChain).updateRoutingConfig.(*usableRouteConfiguration).close.func1 < (*usableRouteConfiguration).close < (*filterChain).updateRoutingConfig < (*listenerWrapper).handleRDSUpdate
+  [08] TEST: RPC served by the replacement (F disabled) config
+  [09] TEST: >>> publishing RDS with F re-enabled (gen3)
+  [10] FILTER F#2 BUILT (BuildServerFilter)
+  [11] INTERCEPTOR F#2/i1[gen3] BUILT from FILTER F#2 filterClosed=false
+  [12] INTERCEPTOR F#2/i1[gen3] AllowRPC selfClosed=false filterClosed=false
+  [13] INTERCEPTOR F#2/i1[gen3] CLOSE-START filterClosed=false via (*interceptorList).Close < virtualHostWithInterceptors.close < (*filterChain).stop.(*usableRouteConfiguration).close.func1 < (*usableRouteConfiguration).close < (*filterChain).stop
+  [14] INTERCEPTOR F#2/i1[gen3] CLOSE-END filterClosed=false
+  [15] FILTER F#2 CLOSED (underlying ServerFilter.Close ran) via (*refCountedServerFilter).Close < (*filterChain).stop.(*usableRouteConfiguration).close.func1 < (*usableRouteConfiguration).close < (*filterChain).stop < (*filterChainManager).stop
+---- event log: paused request across replacement ----
+  [00] FILTER A#1 BUILT (BuildServerFilter)
+  [01] INTERCEPTOR A#1/i1[gen1] BUILT from FILTER A#1 filterClosed=false
+  [02] FILTER B#1 BUILT (BuildServerFilter)
+  [03] INTERCEPTOR B#1/i1[gen1] BUILT from FILTER B#1 filterClosed=false
+  [04] INTERCEPTOR A#1/i1[gen1] AllowRPC selfClosed=false filterClosed=false
+  [05] TEST: request admitted and paused inside A[gen1].AllowRPC (B[gen1].AllowRPC not yet invoked)
+  [06] TEST: >>> publishing replacement RDS (gen2) through the management server
+  [07] INTERCEPTOR A#1/i2[gen2] BUILT from FILTER A#1 filterClosed=false
+  [08] INTERCEPTOR B#1/i2[gen2] BUILT from FILTER B#1 filterClosed=false
+  [09] TEST: B[gen1] Close finished while request still paused = false; resuming request
+  [10] INTERCEPTOR B#1/i1[gen1] AllowRPC selfClosed=false filterClosed=false
+  [11] INTERCEPTOR A#1/i1[gen1] CLOSE-START filterClosed=false via (*interceptorList).Close < virtualHostWithInterceptors.close < (*filterChain).updateRoutingConfig.(*usableRouteConfiguration).close.func1 < (*usableRouteConfiguration).close < (*filterChain).updateRoutingConfig
+  [12] INTERCEPTOR A#1/i1[gen1] CLOSE-END filterClosed=false
+  [13] INTERCEPTOR B#1/i1[gen1] CLOSE-START filterClosed=false via (*interceptorList).Close < virtualHostWithInterceptors.close < (*filterChain).updateRoutingConfig.(*usableRouteConfiguration).close.func1 < (*usableRouteConfiguration).close < (*filterChain).updateRoutingConfig
+  [14] INTERCEPTOR B#1/i1[gen1] CLOSE-END filterClosed=false
+  [15] TEST: paused RPC returned err=<nil>
+OBSERVATION(C4/C10): LIVE-INTERCEPTOR-INVOKED: INTERCEPTOR B#1/i1[gen1] AllowRPC selfClosed=false filterClosed=false (closedWhilePaused=false)
+---- event log: after server Stop ----
+  [00] FILTER F#1 BUILT (BuildServerFilter)
+  [01] INTERCEPTOR F#1/i1[gen1] BUILT from FILTER F#1 filterClosed=false
+  [02] INTERCEPTOR F#1/i1[gen1] AllowRPC selfClosed=false filterClosed=false
+  [03] TEST: >>> stopping server
+  [04] INTERCEPTOR F#1/i1[gen1] CLOSE-START filterClosed=false via (*interceptorList).Close < virtualHostWithInterceptors.close < (*filterChain).stop.(*usableRouteConfiguration).close.func1 < (*usableRouteConfiguration).close < (*filterChain).stop
+  [05] INTERCEPTOR F#1/i1[gen1] CLOSE-END filterClosed=false
+  [06] FILTER F#1 CLOSED (underlying ServerFilter.Close ran) via (*refCountedServerFilter).Close < (*filterChain).stop.(*usableRouteConfiguration).close.func1 < (*usableRouteConfiguration).close < (*filterChain).stop < (*filterChainManager).stop
+OBSERVATION(C1 shutdown): INTERCEPTOR-CLOSED-BEFORE-FILTER-RELEASE: interceptor CLOSE-END [05] < filter Close [06]
+--- PASS: Test (4.60s)
+    --- PASS: Test/VerifyH_DisableThenReenable (0.77s)
+    --- PASS: Test/VerifyH_PausedRequestReplacement (3.32s)
+    --- PASS: Test/VerifyH_ShutdownOrder (0.52s)
+ok  	google.golang.org/grpc/test/xds	5.631s
+exit=0

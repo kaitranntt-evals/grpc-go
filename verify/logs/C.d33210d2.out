@@ -1,0 +1,7 @@
+branch=d33210d2 tests=ServerSideXDS_FilterStateRetention_RDSUpdatesReleaseInterceptors mutated-file=test/xds/xds_server_filter_state_retention_test.go
+ok  	google.golang.org/grpc/test/xds	1.162s
+baseline exit=0
+    xds_server_filter_state_retention_test.go:779: After 1 RouteConfiguration updates, 2 interceptors are open (created: 2, destroyed: 0), want 1
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_RDSUpdatesReleaseInterceptors (0.68s)
+delayed exit=1
+worktree dirty files after restore: 0

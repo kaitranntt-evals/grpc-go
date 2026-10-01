@@ -1,0 +1,17 @@
+mode=inject mutation lines applied: 1
+    xds_server_filter_state_retention_test.go:201: VERIFY-MUTATION: injected LocalTCPListener failure
+    grpctest.go:45: Leaked goroutine: goroutine 21 [chan receive]:
+    grpctest.go:45: Leaked goroutine: goroutine 22 [chan receive]:
+    grpctest.go:45: Found 1 leaked async reporters:
+        --- Leaked Async Reporter Registration ---
+--- FAIL: Test (10.05s)
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_RDSUpdates (10.05s)
+exit=1
+leaked goroutines reported: 2
+mode=control mutation lines applied: 2
+    xds_server_filter_state_retention_test.go:202: VERIFY-MUTATION: injected LocalTCPListener failure
+--- FAIL: Test (0.00s)
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_RDSUpdates (0.00s)
+exit=1
+leaked goroutines reported: 0
+worktree dirty files after restore: 0

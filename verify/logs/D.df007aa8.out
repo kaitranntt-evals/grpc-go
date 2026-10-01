@@ -1,0 +1,6 @@
+branch=df007aa8 tests=ServerSideXDS_RDSUpdates_ReleaseSupersededInterceptors
+    xds_server_rds_update_cleanup_test.go:230: Timeout waiting for route configuration with path "path-0" to be applied
+    --- FAIL: Test/ServerSideXDS_RDSUpdates_ReleaseSupersededInterceptors (10.06s)
+exit=1
+worktree dirty files after restore: 0
+leaked goroutines reported: 0

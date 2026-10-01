@@ -1,0 +1,32 @@
+---- event log: admitted RPC across LDS replacement ----
+  [00] TEST: warm-up RPC ok on existing connection
+  [01] TEST: RPC admitted on the existing connection (client 127.0.0.1:46556); server stream parked before the routing interceptor
+  [02] TEST: >>> publishing replacement Listener (LDS) through the management server
+  [03] FILTER F#1 BUILT (BuildServerFilter)
+  [04] INTERCEPTOR F#1/i1[lds2] BUILT from FILTER F#1 filterClosed=false
+  [05] TEST: replacement Listener active; letting the admitted RPC proceed to routing
+  [06] TEST: admitted RPC returned code=OK err=<nil>
+  [07] INTERCEPTOR F#1/i1[lds2] AllowRPC selfClosed=false filterClosed=false
+  [08] TEST: follow-up RPC ok
+OBSERVATION(C6 withFilter=false): ADMITTED-RPC-OK: the admitted RPC on the existing connection completed successfully across the LDS replacement
+---- event log: admitted RPC across LDS replacement ----
+  [00] FILTER F#1 BUILT (BuildServerFilter)
+  [01] INTERCEPTOR F#1/i1[lds1] BUILT from FILTER F#1 filterClosed=false
+  [02] INTERCEPTOR F#1/i1[lds1] AllowRPC selfClosed=false filterClosed=false
+  [03] TEST: warm-up RPC ok on existing connection
+  [04] TEST: RPC admitted on the existing connection (client 127.0.0.1:36788); server stream parked before the routing interceptor
+  [05] TEST: >>> publishing replacement Listener (LDS) through the management server
+  [06] INTERCEPTOR F#1/i2[lds2] BUILT from FILTER F#1 filterClosed=false
+  [07] INTERCEPTOR F#1/i1[lds1] CLOSE-START filterClosed=false via (*interceptorList).Close < (*usableRouteConfiguration).stop < (*filterChainManager).stop < (*listenerWrapper).maybeUpdateFilterChains < (*ldsWatcher).ResourceChanged
+  [08] INTERCEPTOR F#1/i1[lds1] CLOSE-END filterClosed=false
+  [09] TEST: replacement Listener active; letting the admitted RPC proceed to routing
+  [10] INTERCEPTOR F#1/i1[lds1] AllowRPC selfClosed=true filterClosed=false
+  [11] TEST: admitted RPC returned code=OK err=<nil>
+  [12] INTERCEPTOR F#1/i2[lds2] AllowRPC selfClosed=false filterClosed=false
+  [13] TEST: follow-up RPC ok
+OBSERVATION(C6 withFilter=true): ADMITTED-RPC-OK: the admitted RPC on the existing connection completed successfully across the LDS replacement
+--- PASS: Test (0.67s)
+    --- PASS: Test/VerifyC6_AdmittedRPCAcrossLDSReplacement_RouterOnly (0.34s)
+    --- PASS: Test/VerifyC6_AdmittedRPCAcrossLDSReplacement_WithFilter (0.33s)
+ok  	google.golang.org/grpc/test/xds	1.697s
+exit=0

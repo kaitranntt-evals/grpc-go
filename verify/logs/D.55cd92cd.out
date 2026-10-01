@@ -1,0 +1,11 @@
+branch=55cd92cd tests=ServerSideXDS_FilterStateRetention_AcrossRDSUpdates
+panic: test timed out after 35s
+exit=1
+worktree dirty files after restore: 0
+leaked goroutines reported: 0
+google.golang.org/grpc/test/xds_test.s.TestServerSideXDS_FilterStateRetention_AcrossRDSUpdates({{}}, 0xc000002000)
+	/home/ubuntu/wt/55cd92cd/test/xds/xds_server_filter_state_retention_test.go:236 +0x1025
+control=ServerSideXDS_FilterStateRetention_AcrossUpdates_FilterConfigChange
+    xds_server_filter_state_retention_test.go:433: Timeout waiting for interceptor to be invoked
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_AcrossUpdates_FilterConfigChange (10.10s)
+exit=1

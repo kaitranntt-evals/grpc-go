@@ -1,0 +1,21 @@
+STACK (listener teardown):
+STACK (routing call):
+---- event log: forceful Stop with cancellation-waiting interceptor ----
+  [00] FILTER F#1 BUILT (BuildServerFilter)
+  [01] INTERCEPTOR F#1/i1[gen1] BUILT from FILTER F#1 filterClosed=false
+  [02] INTERCEPTOR F#1/i1[gen1] AllowRPC selfClosed=false filterClosed=false
+  [03] TEST: RPC is inside AllowRPC, waiting for its context to be canceled
+  [04] TEST: >>> calling forceful Stop()
+  [05] TEST: Stop() has NOT returned after 8s; AllowRPC released=false
+  [06] TEST: canceling the RPC from the client side to break the wait
+  [07] INTERCEPTOR F#1/i1[gen1] AllowRPC released by RPC context cancellation: context canceled
+  [08] INTERCEPTOR F#1/i1[gen1] CLOSE-START filterClosed=false via (*interceptorList).Close < virtualHostWithInterceptors.close < (*filterChain).stop.(*usableRouteConfiguration).close.func1 < (*usableRouteConfiguration).close < (*filterChain).stop
+  [09] INTERCEPTOR F#1/i1[gen1] CLOSE-END filterClosed=false
+  [10] FILTER F#1 CLOSED (underlying ServerFilter.Close ran) via (*refCountedServerFilter).Close < (*filterChain).stop.(*usableRouteConfiguration).close.func1 < (*usableRouteConfiguration).close < (*filterChain).stop < (*filterChainManager).stop
+  [11] TEST: Stop() returned only after the client-side cancel (total 8.039s)
+OBSERVATION(C7): STOP-BLOCKED: forceful Stop() did not return within 8s while AllowRPC waited for cancellation
+client RPC result: rpc error: code = Canceled desc = context canceled
+--- PASS: Test (8.13s)
+    --- PASS: Test/VerifyC7_ForcefulStopWithCancellationWaitingInterceptor (8.12s)
+ok  	google.golang.org/grpc/test/xds	9.156s
+exit=0

@@ -1,0 +1,7 @@
+branch=c47f6009 tests=ServerSideXDS_RouteConfigUpdate_ReleasesSupersededInterceptors mutated-file=test/xds/xds_server_filter_state_retention_test.go
+ok  	google.golang.org/grpc/test/xds	1.127s
+baseline exit=0
+    xds_server_route_config_update_test.go:255: After update 1: destroyed 0 interceptor instances, want: 1
+    --- FAIL: Test/ServerSideXDS_RouteConfigUpdate_ReleasesSupersededInterceptors (0.64s)
+delayed exit=1
+worktree dirty files after restore: 0

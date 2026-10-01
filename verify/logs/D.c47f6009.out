@@ -1,0 +1,6 @@
+branch=c47f6009 tests=ServerSideXDS_RouteConfigUpdate_ReleasesSupersededInterceptors
+    xds_server_route_config_update_test.go:206: Timeout waiting for interceptor to be invoked
+    --- FAIL: Test/ServerSideXDS_RouteConfigUpdate_ReleasesSupersededInterceptors (10.05s)
+exit=1
+worktree dirty files after restore: 0
+leaked goroutines reported: 0
