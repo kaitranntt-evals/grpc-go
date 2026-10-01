@@ -1,0 +1,26 @@
+diff --git a/internal/transport/transport_test.go b/internal/transport/transport_test.go
+index 67a812e5..5243e920 100644
+--- a/internal/transport/transport_test.go
++++ b/internal/transport/transport_test.go
+@@ -28,6 +28,7 @@ import (
+ 	"math"
+ 	"net"
+ 	"os"
++	"path/filepath"
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+@@ -568,7 +569,13 @@ func (s *server) stop() {
+ 	}
+ 	s.conns = nil
+ 	s.mu.Unlock()
++	// verify (C2): report every arrival at the completion-channel receive and who called stop().
++	_, verifyFile, verifyLine, _ := runtime.Caller(1)
++	verifyStart := time.Now()
++	fmt.Fprintf(os.Stderr, "VERIFY-C2 server.stop() called from %s:%d: entering bare receive <-s.servingTasksDone\n", filepath.Base(verifyFile), verifyLine)
+ 	<-s.servingTasksDone
++	verifyWaited := time.Since(verifyStart)
++	fmt.Fprintf(os.Stderr, "VERIFY-C2 server.stop() called from %s:%d: receive completed after %v (us=%d)\n", filepath.Base(verifyFile), verifyLine, verifyWaited, verifyWaited.Microseconds())
+ }
+ 
+ func (s *server) addr() string {

@@ -1,0 +1,11 @@
+--- a/internal/transport/recv_buffer_test.go	2026-10-01 00:37:05.555584226 +0000
++++ b/internal/transport/recv_buffer_test.go	2026-10-01 00:37:05.565584253 +0000
+@@ -178,7 +178,7 @@
+ 			ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+ 			defer cancel()
+ 			pool := &countingPool{} // verify: same pool, kept in a variable so it can be inspected
+-			st := newRecvBufferTestStream(ctx, pool)
++			st := newRecvBufferTestStream(ctx, mem.DefaultBufferPool()) // verify (counterfactual): the pool grpctest's leak checker tracks
+ 			// verify: runs after the subtest body and its defers have completed.
+ 			t.Cleanup(func() {
+ 				outstanding, gotBytes := pool.stats()

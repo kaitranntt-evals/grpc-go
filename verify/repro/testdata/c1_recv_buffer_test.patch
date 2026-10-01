@@ -1,0 +1,19 @@
+diff --git a/internal/transport/recv_buffer_test.go b/internal/transport/recv_buffer_test.go
+index d8ef132d..a19c8ba4 100644
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -177,7 +177,13 @@ func (s) TestRecvBuffer_SmallBuffersHeapUsage(t *testing.T) {
+ 			testutils.SetEnvConfig(t, &envconfig.EnableReceiveBufferCompaction, enabled)
+ 			ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+ 			defer cancel()
+-			st := newRecvBufferTestStream(ctx, &countingPool{})
++			pool := &countingPool{} // verify: same pool, kept in a variable so it can be inspected
++			st := newRecvBufferTestStream(ctx, pool)
++			// verify: runs after the subtest body and its defers have completed.
++			t.Cleanup(func() {
++				outstanding, gotBytes := pool.stats()
++				t.Logf("VERIFY-C1 at subtest teardown: pool.Get calls not matched by pool.Put = %d (bytes handed out by pool = %d)", outstanding, gotBytes)
++			})
+ 
+ 			var before, after runtime.MemStats
+ 			// Run GC twice to also clear objects cached in sync.Pools.
