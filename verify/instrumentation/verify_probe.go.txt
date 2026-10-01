@@ -1,0 +1,37 @@
+// Audit scheduling probes (run v-a332a9ce). Copied to internal/xds/server/verify_probe.go by apply_sched_probes.sh.
+// With VERIFY_CLOSE_DELAY and VERIFY_CONSTRUCT_DELAY unset the production behavior is unchanged.
+
+package server
+
+import (
+	"os"
+	"time"
+)
+
+var verifyCloseDelay = func() time.Duration {
+	d, _ := time.ParseDuration(os.Getenv("VERIFY_CLOSE_DELAY"))
+	return d
+}()
+
+// verifyDelayClose sleeps for VERIFY_CLOSE_DELAY before an interceptor list is
+// closed. It only changes *when* a retired interceptor finishes closing, never
+// whether it does.
+func verifyDelayClose() {
+	if verifyCloseDelay > 0 {
+		time.Sleep(verifyCloseDelay)
+	}
+}
+
+var verifyConstructDelay = func() time.Duration {
+	d, _ := time.ParseDuration(os.Getenv("VERIFY_CONSTRUCT_DELAY"))
+	return d
+}()
+
+// verifyDelayConstruct sleeps for VERIFY_CONSTRUCT_DELAY before a filter chain
+// starts constructing a usable route configuration. It only changes *when* a
+// filter chain is updated, never whether it is.
+func verifyDelayConstruct() {
+	if verifyConstructDelay > 0 {
+		time.Sleep(verifyConstructDelay)
+	}
+}

@@ -1,0 +1,15 @@
+// Audit instrumentation (run v-a332a9ce). Copied to internal/xds/server/verify_trace.go by apply_trace.sh.
+// It only exposes a hook; with the hook unset the production behavior is unchanged.
+
+package server
+
+// VerifyTrace, when non-nil, is invoked on every reference acquire/release of
+// a ref-counted server filter. filter is the wrapped httpfilter.ServerFilter
+// and refCnt is the reference count observed *before* the operation.
+var VerifyTrace func(event string, filter any, refCnt int32)
+
+func verifyTrace(event string, filter any, refCnt int32) {
+	if f := VerifyTrace; f != nil {
+		f(event, filter, refCnt)
+	}
+}
