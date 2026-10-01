@@ -1,0 +1,13 @@
+--- a/internal/transport/eval_recv_buffer_compaction_test.go
++++ b/internal/transport/eval_recv_buffer_compaction_test.go
+@@ -15,7 +15,9 @@
+ 
+ func initRecvBufferForTest(b *recvBuffer, pool mem.BufferPool) {
+ 	compactionEnabled := !strings.EqualFold(os.Getenv("GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION"), "false")
+-	if bi, ok := any(b).(interface{ init(mem.BufferPool) }); ok {
++	if bi, ok := any(b).(interface{ initWithPool(mem.BufferPool) }); ok {
++		bi.initWithPool(pool) // verify: the initializer this branch's transports call
++	} else if bi, ok := any(b).(interface{ init(mem.BufferPool) }); ok {
+ 		bi.init(pool)
+ 	} else if bi, ok := any(b).(interface{ init(bool, mem.BufferPool) }); ok {
+ 		bi.init(compactionEnabled, pool)

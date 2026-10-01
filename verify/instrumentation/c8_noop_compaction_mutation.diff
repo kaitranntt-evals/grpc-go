@@ -1,0 +1,13 @@
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index 9c310c18..66452a0e 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -99,7 +99,7 @@ const (
+ // is embedded in another struct.
+ func (b *recvBuffer) init() {
+ 	b.c = make(chan recvMsg, 1)
+-	b.compact = envconfig.EnableReceiveBufferCompaction
++	b.compact = false && envconfig.EnableReceiveBufferCompaction // MUTATION (verify C8)
+ }
+ 
+ func (b *recvBuffer) put(r recvMsg) {
