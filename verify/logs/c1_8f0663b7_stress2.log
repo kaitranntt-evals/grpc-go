@@ -1,0 +1,14 @@
+>> branch evalon/grpc-go-xd-8f0663b7 @ 05bb602b, test Test/ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources
+
+>> step 1: natural stress (unmodified): 24 concurrent processes x 500 runs each of the -race test binary
+passes: 11969  failures: 31
+failure messages (count, message):
+      5 xds_server_route_config_update_test.go:271: Update 2: created 3 interceptor instances, want: 4
+      2 xds_server_route_config_update_test.go:271: Update 3: created 5 interceptor instances, want: 6
+      2 xds_server_route_config_update_test.go:271: Update 4: created 7 interceptor instances, want: 8
+      4 xds_server_route_config_update_test.go:271: Update 5: created 9 interceptor instances, want: 10
+      8 xds_server_route_config_update_test.go:274: Update 2: destroyed 1 interceptor instances, want: 2
+      3 xds_server_route_config_update_test.go:274: Update 3: destroyed 3 interceptor instances, want: 4
+      3 xds_server_route_config_update_test.go:274: Update 4: destroyed 5 interceptor instances, want: 6
+      4 xds_server_route_config_update_test.go:274: Update 5: destroyed 7 interceptor instances, want: 8
+(worktree restored to branch head)

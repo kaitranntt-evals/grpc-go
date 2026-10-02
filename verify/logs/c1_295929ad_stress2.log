@@ -1,0 +1,10 @@
+>> branch evalon/grpc-go-xd-295929ad @ 52eff9ad, test Test/ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange
+
+>> step 1: natural stress (unmodified): 24 concurrent processes x 500 runs each of the -race test binary
+passes: 11994  failures: 6
+failure messages (count, message):
+      3 xds_server_filter_state_retention_test.go:817: Update 1: destroyed 0 interceptor instances, want: 1
+      1 xds_server_filter_state_retention_test.go:817: Update 2: destroyed 1 interceptor instances, want: 2
+      1 xds_server_filter_state_retention_test.go:817: Update 3: destroyed 2 interceptor instances, want: 3
+      1 xds_server_filter_state_retention_test.go:817: Update 4: destroyed 3 interceptor instances, want: 4
+(worktree restored to branch head)

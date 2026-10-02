@@ -1,0 +1,17 @@
+=== RUN   Test
+=== RUN   Test/Eval_ServerSideXDS_InterceptorBeforeFilterCloseOrder
+=== RUN   Test/Eval_ServerSideXDS_InterceptorLeak_MultiGenerationRDSUpdate
+=== RUN   Test/Eval_ServerSideXDS_InterceptorLeak_RDSUpdate
+=== RUN   Test/Eval_ServerSideXDS_InterceptorSwapOrder
+=== RUN   Test/Eval_ServerSideXDS_PartialRouteFailure_ClosesInterceptors
+=== RUN   Test/Eval_ServerSideXDS_PartialVirtualHostFailure_ClosesInterceptors
+--- PASS: Test (0.27s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorBeforeFilterCloseOrder (0.11s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_MultiGenerationRDSUpdate (0.04s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_RDSUpdate (0.03s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorSwapOrder (0.02s)
+    --- PASS: Test/Eval_ServerSideXDS_PartialRouteFailure_ClosesInterceptors (0.03s)
+    --- PASS: Test/Eval_ServerSideXDS_PartialVirtualHostFailure_ClosesInterceptors (0.03s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.305s
+exit=0

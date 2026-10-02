@@ -1,0 +1,130 @@
+=== RUN   Test
+=== RUN   Test/Verify_C2_StopWithAllowRPCAwaitingContextCancel
+    xds_server_integration_test.go:61: Serving mode for listener "127.0.0.1:34641" changed to "SERVING", err: <nil>
+    verify_c2_c3_routing_lock_test.go:319: [t+ 0.020s] AllowRPC entered; it is now waiting for its RPC context to be cancelled
+    verify_c2_c3_routing_lock_test.go:326: [t+ 0.021s] calling Stop() once
+    verify_c2_c3_routing_lock_test.go:347: [t+30.021s] OBSERVATION: Stop() still blocked 30s after it was called; RPC context cancelled by server = false; interceptor Close calls so far = []
+    verify_c2_c3_routing_lock_test.go:348: goroutines on the xDS routing / shutdown paths while Stop() is blocked:
+        goroutine 83 [chan receive]:
+        google.golang.org/grpc/test/xds_test.s.TestVerify_C2_StopWithAllowRPCAwaitingContextCancel.func1({0x1f907f0, 0xc0006c8450}, {0xc0003e5f40?, 0xc0003e5f4f?})
+        	/home/ubuntu/wt/423f7ef0/test/xds/verify_c2_c3_routing_lock_test.go:295 +0x6b
+        google.golang.org/grpc/test/xds_test.(*verifyInterceptor).AllowRPC(0xc00022b410, {0x1f907f0, 0xc0006c8450})
+        	/home/ubuntu/wt/423f7ef0/test/xds/verify_c2_c3_routing_lock_test.go:131 +0x94
+        google.golang.org/grpc/internal/xds/server.(*interceptorList).AllowRPC(0xc00022b440, {0x1f907f0, 0xc0006c8450})
+        	/home/ubuntu/wt/423f7ef0/internal/xds/server/filter_chain_manager.go:536 +0xa2
+        google.golang.org/grpc/internal/xds/server.RouteAndProcess({0x1f907f0, 0xc0006c8450})
+        	/home/ubuntu/wt/423f7ef0/internal/xds/server/routing.go:98 +0xbb7
+        google.golang.org/grpc/xds.xdsUnaryInterceptor({0x1f907f0, 0xc0006c8450}, {0x1bbcdc0, 0xc0006c8480}, 0xc0006c8450?, 0xc0004b5050)
+        	/home/ubuntu/wt/423f7ef0/xds/server.go:236 +0x47
+        google.golang.org/grpc/interop/grpc_testing._TestService_EmptyCall_Handler({0x1cea900, 0xc0000fc0c0}, {0x1f907f0, 0xc0006c8450}, 0xc0004ce800, 0x1de77e8)
+        	/home/ubuntu/wt/423f7ef0/interop/grpc_testing/test_grpc.pb.go:293 +0x1e7
+        google.golang.org/grpc.(*Server).processUnaryRPC(0xc00012cfc8, {0x1f907f0, 0xc000750c00}, 0xc00027a000, 0xc0003c4ba0, 0x2b38ce0, 0x0)
+        	/home/ubuntu/wt/423f7ef0/server.go:1441 +0x1a6a
+        google.golang.org/grpc.(*Server).handleStream(0xc00012cfc8, {0x1f957d8, 0xc00069c820}, 0xc00027a000)
+        	/home/ubuntu/wt/423f7ef0/server.go:1850 +0x10b3
+        google.golang.org/grpc.(*Server).serveStreams.func2.1()
+        	/home/ubuntu/wt/423f7ef0/server.go:1076 +0x14a
+        created by google.golang.org/grpc.(*Server).serveStreams.func2 in goroutine 132
+        	/home/ubuntu/wt/423f7ef0/server.go:1087 +0x213
+        goroutine 133 [sync.RWMutex.Lock]:
+        sync.runtime_SemacquireRWMutex(0xc00017aab4?, 0x1?, 0x1499d05?)
+        	/usr/local/go/src/runtime/sema.go:105 +0x25
+        sync.(*RWMutex).Lock(0xc00017aaa0)
+        	/usr/local/go/src/sync/rwmutex.go:155 +0x89
+        google.golang.org/grpc/internal/xds/server.(*routingConfiguration).close(0xc00017aaa0)
+        	/home/ubuntu/wt/423f7ef0/internal/xds/server/filter_chain_manager.go:179 +0x31
+        google.golang.org/grpc/internal/xds/server.(*filterChainManager).stop(...)
+        	/home/ubuntu/wt/423f7ef0/internal/xds/server/filter_chain_manager.go:125
+        google.golang.org/grpc/internal/xds/server.(*listenerWrapper).Close(0xc0000fc240)
+        	/home/ubuntu/wt/423f7ef0/internal/xds/server/listener_wrapper.go:361 +0x1a5
+        google.golang.org/grpc.(*listenSocket).Close(0xc00011e870)
+        	/home/ubuntu/wt/423f7ef0/server.go:862 +0x4b
+        google.golang.org/grpc.(*Server).closeListenersLocked(...)
+        	/home/ubuntu/wt/423f7ef0/server.go:2014
+        google.golang.org/grpc.(*Server).stop(0xc00012cfc8, 0x0)
+        	/home/ubuntu/wt/423f7ef0/server.go:1952 +0x25a
+        google.golang.org/grpc.(*Server).Stop(0xc00012cfc8)
+        	/home/ubuntu/wt/423f7ef0/server.go:1936 +0x29
+        google.golang.org/grpc/xds.(*GRPCServer).Stop(0xc000473080)
+        	/home/ubuntu/wt/423f7ef0/xds/server.go:216 +0x8f
+        google.golang.org/grpc/test/xds_test.setupGRPCServer.func4()
+        	/home/ubuntu/wt/423f7ef0/test/xds/xds_server_integration_test.go:147 +0x48
+        sync.(*Once).doSlow(0xc00015d044, 0xc00056b340)
+        	/usr/local/go/src/sync/once.go:78 +0xd2
+        sync.(*Once).Do(0xc00015d044, 0xc00056b340)
+        	/usr/local/go/src/sync/once.go:69 +0x45
+        google.golang.org/grpc/test/xds_test.verifySetup.func3()
+        	/home/ubuntu/wt/423f7ef0/test/xds/verify_c2_c3_routing_lock_test.go:269 +0x39
+        google.golang.org/grpc/test/xds_test.s.TestVerify_C2_StopWithAllowRPCAwaitingContextCancel.func5()
+        	/home/ubuntu/wt/423f7ef0/test/xds/verify_c2_c3_routing_lock_test.go:328 +0x48
+        created by google.golang.org/grpc/test/xds_test.s.TestVerify_C2_StopWithAllowRPCAwaitingContextCancel in goroutine 8
+        	/home/ubuntu/wt/423f7ef0/test/xds/verify_c2_c3_routing_lock_test.go:327 +0x8fd
+    verify_c2_c3_routing_lock_test.go:354: [t+30.023s] cancelling the RPC from the client side to break the wait cycle
+    verify_c2_c3_routing_lock_test.go:358: [t+30.024s] Stop() returned only after the client cancelled the RPC (30.003s after Stop() was called)
+    verify_c2_c3_routing_lock_test.go:365: [t+30.024s] in-flight RPC finished with: rpc error: code = Canceled desc = context canceled
+    verify_c2_c3_routing_lock_test.go:371: [t+30.024s] server-side RPC context was cancelled
+    verify_c2_c3_routing_lock_test.go:376: Stop() did not return within 30s while AllowRPC was waiting for RPC context cancellation (Close returns immediately)
+=== RUN   Test/Verify_C3_ReplacementRPCWhileRetiredCloseBlocked
+    xds_server_integration_test.go:61: Serving mode for listener "127.0.0.1:43603" changed to "SERVING", err: <nil>
+    verify_c2_c3_routing_lock_test.go:423: [t+ 0.009s] RPC on original route OK, served by interceptor(s) [path1]
+    verify_c2_c3_routing_lock_test.go:429: [t+ 0.010s] retired interceptor (path1) Close() entered and is now held on a channel
+    verify_c2_c3_routing_lock_test.go:451: [t+15.035s] RPC still pending 15s after it was issued; goroutines on the xDS routing / retirement paths:
+        goroutine 123 [sync.RWMutex.RLock]:
+        sync.runtime_SemacquireRWMutexR(0xc00012e510?, 0x1?, 0xc0009b7170?)
+        	/usr/local/go/src/runtime/sema.go:100 +0x25
+        sync.(*RWMutex).RLock(0xc00012e500)
+        	/usr/local/go/src/sync/rwmutex.go:74 +0x5b
+        google.golang.org/grpc/internal/xds/server.RouteAndProcess({0x1f907f0, 0xc000c9e930})
+        	/home/ubuntu/wt/423f7ef0/internal/xds/server/routing.go:47 +0xc6
+        google.golang.org/grpc/xds.xdsUnaryInterceptor({0x1f907f0, 0xc000c9e930}, {0x1bbcdc0, 0xc000c9e960}, 0xc000c9e930?, 0xc0009d8bd0)
+        	/home/ubuntu/wt/423f7ef0/xds/server.go:236 +0x47
+        google.golang.org/grpc/interop/grpc_testing._TestService_EmptyCall_Handler({0x1cea900, 0xc0000fc0c0}, {0x1f907f0, 0xc000c9e930}, 0xc00060d100, 0x1de77e8)
+        	/home/ubuntu/wt/423f7ef0/interop/grpc_testing/test_grpc.pb.go:293 +0x1e7
+        google.golang.org/grpc.(*Server).processUnaryRPC(0xc00012cfc8, {0x1f907f0, 0xc00080d200}, 0xc0000ec820, 0xc00047bdd0, 0x2b38ce0, 0x0)
+        	/home/ubuntu/wt/423f7ef0/server.go:1441 +0x1a6a
+        google.golang.org/grpc.(*Server).handleStream(0xc00012cfc8, {0x1f957d8, 0xc0009821a0}, 0xc0000ec820)
+        	/home/ubuntu/wt/423f7ef0/server.go:1850 +0x10b3
+        google.golang.org/grpc.(*Server).serveStreams.func2.1()
+        	/home/ubuntu/wt/423f7ef0/server.go:1076 +0x14a
+        created by google.golang.org/grpc.(*Server).serveStreams.func2 in goroutine 197
+        	/home/ubuntu/wt/423f7ef0/server.go:1087 +0x213
+        goroutine 180 [chan receive]:
+        google.golang.org/grpc/test/xds_test.s.TestVerify_C3_ReplacementRPCWhileRetiredCloseBlocked.func3({0xc00038adab, 0x5})
+        	/home/ubuntu/wt/423f7ef0/test/xds/verify_c2_c3_routing_lock_test.go:404 +0x78
+        google.golang.org/grpc/test/xds_test.(*verifyInterceptor).Close(0xc00011e270)
+        	/home/ubuntu/wt/423f7ef0/test/xds/verify_c2_c3_routing_lock_test.go:132 +0x82
+        google.golang.org/grpc/internal/xds/server.(*interceptorList).Close(0xc00011e2a0)
+        	/home/ubuntu/wt/423f7ef0/internal/xds/server/filter_chain_manager.go:545 +0x79
+        google.golang.org/grpc/internal/xds/server.(*filterChain).updateRouteConfiguration.(*usableRouteConfiguration).close.func1()
+        	/home/ubuntu/wt/423f7ef0/internal/xds/server/filter_chain_manager.go:397 +0x182
+        sync.(*Once).doSlow(0xc0005849d8, 0xc00015bbd0)
+        	/usr/local/go/src/sync/once.go:78 +0xd2
+        sync.(*Once).Do(0xc0005849d8, 0xc00015bbd0)
+        	/usr/local/go/src/sync/once.go:69 +0x45
+        google.golang.org/grpc/internal/xds/server.(*usableRouteConfiguration).close(...)
+        	/home/ubuntu/wt/423f7ef0/internal/xds/server/filter_chain_manager.go:393
+        google.golang.org/grpc/internal/xds/server.(*filterChain).updateRouteConfiguration(0xc0006a1d80, 0xc000611c80)
+        	/home/ubuntu/wt/423f7ef0/internal/xds/server/filter_chain_manager.go:417 +0x14a
+        google.golang.org/grpc/internal/xds/server.(*listenerWrapper).handleRDSUpdate(0xc000710180, {0xc00038ad87, 0x9}, {0xc000703c80?, {0x0?, 0x0?}})
+        	/home/ubuntu/wt/423f7ef0/internal/xds/server/listener_wrapper.go:220 +0x4f6
+        google.golang.org/grpc/internal/xds/server.(*rdsWatcher).ResourceChanged(0xc00062f830, 0xc000703c80, 0xc000013308)
+        	/home/ubuntu/wt/423f7ef0/internal/xds/server/rds_handler.go:153 +0x2fe
+        google.golang.org/grpc/internal/xds/xdsclient/xdsresource.(*delegatingRouteConfigWatcher).ResourceChanged(0xc00020b1e0, {0x1f8d560, 0xc000703c80}, 0xc000013308)
+        	/home/ubuntu/wt/423f7ef0/internal/xds/xdsclient/xdsresource/route_config_resource_type.go:106 +0x77
+        google.golang.org/grpc/internal/xds/clients/xdsclient.(*authority).handleADSResourceUpdate.func5({0xc00047b170?, 0xc00013f360?})
+        	/home/ubuntu/wt/423f7ef0/internal/xds/clients/xdsclient/authority.go:420 +0x67
+        google.golang.org/grpc/internal/xds/clients/internal/syncutil.(*CallbackSerializer).run(0xc00056af90, {0x1f90828, 0xc00013f360})
+        	/home/ubuntu/wt/423f7ef0/internal/xds/clients/internal/syncutil/callback_serializer.go:90 +0x1cf
+        created by google.golang.org/grpc/internal/xds/clients/internal/syncutil.NewCallbackSerializer in goroutine 162
+        	/home/ubuntu/wt/423f7ef0/internal/xds/clients/internal/syncutil/callback_serializer.go:52 +0x205
+    verify_c2_c3_routing_lock_test.go:455: [t+30.035s] OBSERVATION: RPC issued while retired Close is blocked: err = rpc error: code = DeadlineExceeded desc = context deadline exceeded, elapsed = 30.024s (deadline 30s), served by interceptor(s) []
+    verify_c2_c3_routing_lock_test.go:459: [t+30.035s] released the retired interceptor's Close()
+    verify_c2_c3_routing_lock_test.go:464: [t+30.035s] RPC after releasing Close: err = <nil>, elapsed = 1ms, served by interceptor(s) [path2 path2]
+    verify_c2_c3_routing_lock_test.go:467: RPC on the published replacement route failed while the retired interceptor's Close was blocked: code = DeadlineExceeded, err = rpc error: code = DeadlineExceeded desc = context deadline exceeded
+--- FAIL: Test (60.09s)
+    --- FAIL: Test/Verify_C2_StopWithAllowRPCAwaitingContextCancel (30.04s)
+    --- FAIL: Test/Verify_C3_ReplacementRPCWhileRetiredCloseBlocked (30.04s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	60.119s
+FAIL
+exit=1

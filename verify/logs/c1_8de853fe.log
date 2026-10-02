@@ -1,0 +1,68 @@
+>> branch evalon/grpc-go-xd-8de853fe @ 57f508e0, test Test/ServerSideXDS_FilterStateRetention_RepeatedRouteConfigUpdates
+
+>> step 0: baseline (unmodified)
+$ go test -run '^Test$/^ServerSideXDS_FilterStateRetention_RepeatedRouteConfigUpdates$' ./test/xds -race -count=1
+--- PASS: Test (0.17s)
+    --- PASS: Test/ServerSideXDS_FilterStateRetention_RepeatedRouteConfigUpdates (0.16s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.205s
+$ go test -run '^Test$/^Eval_' ./test/xds -race -count=1   # eval fixture, unmodified branch (reference for step 2)
+--- FAIL: Test (4.27s)
+    --- FAIL: Test/Eval_ServerSideXDS_InterceptorBeforeFilterCloseOrder (0.05s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_MultiGenerationRDSUpdate (0.04s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_RDSUpdate (0.03s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorSwapOrder (0.03s)
+    --- FAIL: Test/Eval_ServerSideXDS_PartialRouteFailure_ClosesInterceptors (2.07s)
+    --- FAIL: Test/Eval_ServerSideXDS_PartialVirtualHostFailure_ClosesInterceptors (2.02s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	4.300s
+FAIL
+
+>> step 1: natural stress (unmodified): 24 concurrent processes x 125 runs each of the -race test binary
+$ go test -race -c -o /tmp/xds_8de853fe.test ./test/xds && (cd test/xds && for i in $(seq 24); do /tmp/xds_8de853fe.test -test.run '^Test$/^ServerSideXDS_FilterStateRetention_RepeatedRouteConfigUpdates$' -test.count=125 -test.v > /tmp/c1_stress_8de853fe_$i.log 2>&1 & done; wait)
+passes: 2996  failures: 4
+failure messages (count, message):
+      1 xds_server_filter_state_retention_test.go:787: After 1 route configuration updates, 2 live interceptor instances, want: 1
+      1 xds_server_filter_state_retention_test.go:787: After 4 route configuration updates, 2 live interceptor instances, want: 1
+      1 xds_server_filter_state_retention_test.go:787: After 5 route configuration updates, 2 live interceptor instances, want: 1
+      1 xds_server_filter_state_retention_test.go:787: After 8 route configuration updates, 2 live interceptor instances, want: 1
+
+>> step 2: mutation B (production: 100ms sleep between Swap() and closing the retired interceptors)
+ internal/xds/server/filter_chain_manager.go | 2 ++
+ 1 file changed, 2 insertions(+)
++	"time"
++		time.Sleep(100 * time.Millisecond) // VERIFY mutation B: scheduling delay only
+$ go test -run '^Test$/^ServerSideXDS_FilterStateRetention_RepeatedRouteConfigUpdates$' ./test/xds -race -count=1   # branch's own test
+    xds_server_filter_state_retention_test.go:787: After 1 route configuration updates, 2 live interceptor instances, want: 1
+--- FAIL: Test (0.23s)
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_RepeatedRouteConfigUpdates (0.22s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	0.258s
+FAIL
+$ go test -run '^Test$/^Eval_' ./test/xds -race -count=1   # eval fixture (polls the destruction counter), same mutation
+--- FAIL: Test (5.95s)
+    --- FAIL: Test/Eval_ServerSideXDS_InterceptorBeforeFilterCloseOrder (0.23s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_MultiGenerationRDSUpdate (0.63s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_RDSUpdate (0.43s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorSwapOrder (0.41s)
+    --- FAIL: Test/Eval_ServerSideXDS_PartialRouteFailure_ClosesInterceptors (2.12s)
+    --- FAIL: Test/Eval_ServerSideXDS_PartialVirtualHostFailure_ClosesInterceptors (2.13s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	5.984s
+FAIL
+
+>> step 3: mutation A (test double only: trackingInterceptor.Close sleeps 100ms before counting itself destroyed)
+ test/xds/xds_server_filter_state_retention_test.go | 1 +
+ 1 file changed, 1 insertion(+)
++	time.Sleep(100 * time.Millisecond) // VERIFY mutation A: slow Close
+$ go test -run '^Test$/^ServerSideXDS_FilterStateRetention_RepeatedRouteConfigUpdates$' ./test/xds -race -count=1
+    xds_server_filter_state_retention_test.go:788: After 1 route configuration updates, 2 live interceptor instances, want: 1
+--- FAIL: Test (0.24s)
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_RepeatedRouteConfigUpdates (0.24s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	0.275s
+FAIL
+
+>> step 4: mutation A2 (test double only: every 2nd trackingInterceptor.Close -- the last one of each two-filter-chain update -- sleeps 100ms before counting itself destroyed)
+(not applicable: this branch's test uses a single filter chain, so mutation A already isolates the destruction assertion)
+(worktree restored to branch head)

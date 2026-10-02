@@ -1,0 +1,21 @@
+=== RUN   Test
+=== RUN   Test/Verify_C2_StopWithAllowRPCAwaitingContextCancel
+    xds_server_integration_test.go:61: Serving mode for listener "127.0.0.1:36987" changed to "SERVING", err: <nil>
+    verify_c2_c3_routing_lock_test.go:319: [t+ 0.016s] AllowRPC entered; it is now waiting for its RPC context to be cancelled
+    verify_c2_c3_routing_lock_test.go:326: [t+ 0.016s] calling Stop() once
+    verify_c2_c3_routing_lock_test.go:335: [t+ 0.017s] Stop() returned after 1ms
+    verify_c2_c3_routing_lock_test.go:365: [t+ 0.017s] in-flight RPC finished with: rpc error: code = Unavailable desc = error reading from server: EOF
+    verify_c2_c3_routing_lock_test.go:371: [t+ 0.017s] server-side RPC context was cancelled
+=== RUN   Test/Verify_C3_ReplacementRPCWhileRetiredCloseBlocked
+    xds_server_integration_test.go:61: Serving mode for listener "127.0.0.1:39507" changed to "SERVING", err: <nil>
+    verify_c2_c3_routing_lock_test.go:423: [t+ 0.008s] RPC on original route OK, served by interceptor(s) [path1]
+    verify_c2_c3_routing_lock_test.go:429: [t+ 0.010s] retired interceptor (path1) Close() entered and is now held on a channel
+    verify_c2_c3_routing_lock_test.go:455: [t+ 0.011s] OBSERVATION: RPC issued while retired Close is blocked: err = <nil>, elapsed = 1ms (deadline 3s), served by interceptor(s) [path2]
+    verify_c2_c3_routing_lock_test.go:459: [t+ 0.011s] released the retired interceptor's Close()
+    verify_c2_c3_routing_lock_test.go:464: [t+ 0.011s] RPC after releasing Close: err = <nil>, elapsed = 0s, served by interceptor(s) [path2]
+--- PASS: Test (0.05s)
+    --- PASS: Test/Verify_C2_StopWithAllowRPCAwaitingContextCancel (0.03s)
+    --- PASS: Test/Verify_C3_ReplacementRPCWhileRetiredCloseBlocked (0.02s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.084s
+exit=0

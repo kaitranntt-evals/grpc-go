@@ -1,0 +1,67 @@
+>> branch evalon/grpc-go-xd-295929ad @ 52eff9ad, test Test/ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange
+
+>> step 0: baseline (unmodified)
+$ go test -run '^Test$/^ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange$' ./test/xds -race -count=1
+--- PASS: Test (0.09s)
+    --- PASS: Test/ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange (0.09s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.128s
+$ go test -run '^Test$/^Eval_' ./test/xds -race -count=1   # eval fixture, unmodified branch (reference for step 2)
+--- FAIL: Test (2.18s)
+    --- FAIL: Test/Eval_ServerSideXDS_InterceptorBeforeFilterCloseOrder (0.04s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_MultiGenerationRDSUpdate (0.03s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_RDSUpdate (0.03s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorSwapOrder (0.03s)
+    --- FAIL: Test/Eval_ServerSideXDS_PartialRouteFailure_ClosesInterceptors (2.03s)
+    --- PASS: Test/Eval_ServerSideXDS_PartialVirtualHostFailure_ClosesInterceptors (0.03s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	2.219s
+FAIL
+
+>> step 1: natural stress (unmodified): 24 concurrent processes x 125 runs each of the -race test binary
+$ go test -race -c -o /tmp/xds_295929ad.test ./test/xds && (cd test/xds && for i in $(seq 24); do /tmp/xds_295929ad.test -test.run '^Test$/^ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange$' -test.count=125 -test.v > /tmp/c1_stress_295929ad_$i.log 2>&1 & done; wait)
+passes: 3000  failures: 0
+failure messages (count, message):
+
+>> step 2: mutation B (production: 100ms sleep between Swap() and closing the retired interceptors)
+ internal/xds/server/filter_chain_manager.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
++	"time"
+-	fc.usableRouteConfiguration.Swap(urc).close()
++	old := fc.usableRouteConfiguration.Swap(urc)
++	time.Sleep(100 * time.Millisecond) // VERIFY mutation B: scheduling delay only
++	old.close()
+$ go test -run '^Test$/^ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange$' ./test/xds -race -count=1   # branch's own test
+    xds_server_filter_state_retention_test.go:817: Update 1: destroyed 0 interceptor instances, want: 1
+--- FAIL: Test (0.23s)
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange (0.22s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	0.259s
+FAIL
+$ go test -run '^Test$/^Eval_' ./test/xds -race -count=1   # eval fixture (polls the destruction counter), same mutation
+--- FAIL: Test (4.04s)
+    --- FAIL: Test/Eval_ServerSideXDS_InterceptorBeforeFilterCloseOrder (0.23s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_MultiGenerationRDSUpdate (0.62s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_RDSUpdate (0.42s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorSwapOrder (0.42s)
+    --- FAIL: Test/Eval_ServerSideXDS_PartialRouteFailure_ClosesInterceptors (2.12s)
+    --- PASS: Test/Eval_ServerSideXDS_PartialVirtualHostFailure_ClosesInterceptors (0.22s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	4.068s
+FAIL
+
+>> step 3: mutation A (test double only: trackingInterceptor.Close sleeps 100ms before counting itself destroyed)
+ test/xds/xds_server_filter_state_retention_test.go | 1 +
+ 1 file changed, 1 insertion(+)
++	time.Sleep(100 * time.Millisecond) // VERIFY mutation A: slow Close
+$ go test -run '^Test$/^ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange$' ./test/xds -race -count=1
+    xds_server_filter_state_retention_test.go:818: Update 1: destroyed 0 interceptor instances, want: 1
+--- FAIL: Test (0.24s)
+    --- FAIL: Test/ServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange (0.23s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	0.273s
+FAIL
+
+>> step 4: mutation A2 (test double only: every 2nd trackingInterceptor.Close -- the last one of each two-filter-chain update -- sleeps 100ms before counting itself destroyed)
+(not applicable: this branch's test uses a single filter chain, so mutation A already isolates the destruction assertion)
+(worktree restored to branch head)

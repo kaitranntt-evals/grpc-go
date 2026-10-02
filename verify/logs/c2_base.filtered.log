@@ -1,0 +1,13 @@
+=== RUN   Test
+=== RUN   Test/Verify_C2_StopWithAllowRPCAwaitingContextCancel
+    xds_server_integration_test.go:61: Serving mode for listener "127.0.0.1:33379" changed to "SERVING", err: <nil>
+    verify_c2_c3_routing_lock_test.go:319: [t+ 0.016s] AllowRPC entered; it is now waiting for its RPC context to be cancelled
+    verify_c2_c3_routing_lock_test.go:326: [t+ 0.016s] calling Stop() once
+    verify_c2_c3_routing_lock_test.go:335: [t+ 0.017s] Stop() returned after 1ms
+    verify_c2_c3_routing_lock_test.go:365: [t+ 0.018s] in-flight RPC finished with: rpc error: code = Unavailable desc = error reading from server: EOF
+    verify_c2_c3_routing_lock_test.go:371: [t+ 0.018s] server-side RPC context was cancelled
+--- PASS: Test (0.04s)
+    --- PASS: Test/Verify_C2_StopWithAllowRPCAwaitingContextCancel (0.03s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.070s
+exit=0

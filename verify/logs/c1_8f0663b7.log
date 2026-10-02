@@ -1,0 +1,92 @@
+>> branch evalon/grpc-go-xd-8f0663b7 @ 05bb602b, test Test/ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources
+
+>> step 0: baseline (unmodified)
+$ go test -run '^Test$/^ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources$' ./test/xds -race -count=1
+--- PASS: Test (0.08s)
+    --- PASS: Test/ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources (0.07s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.111s
+$ go test -run '^Test$/^Eval_' ./test/xds -race -count=1   # eval fixture, unmodified branch (reference for step 2)
+--- FAIL: Test (4.15s)
+    --- FAIL: Test/Eval_ServerSideXDS_InterceptorBeforeFilterCloseOrder (0.04s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_MultiGenerationRDSUpdate (0.02s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_RDSUpdate (0.03s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorSwapOrder (0.02s)
+    --- FAIL: Test/Eval_ServerSideXDS_PartialRouteFailure_ClosesInterceptors (2.02s)
+    --- FAIL: Test/Eval_ServerSideXDS_PartialVirtualHostFailure_ClosesInterceptors (2.02s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	4.185s
+FAIL
+
+>> step 1: natural stress (unmodified): 24 concurrent processes x 125 runs each of the -race test binary
+$ go test -race -c -o /tmp/xds_8f0663b7.test ./test/xds && (cd test/xds && for i in $(seq 24); do /tmp/xds_8f0663b7.test -test.run '^Test$/^ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources$' -test.count=125 -test.v > /tmp/c1_stress_8f0663b7_$i.log 2>&1 & done; wait)
+passes: 3000  failures: 0
+failure messages (count, message):
+
+>> step 2: mutation B (production: 100ms sleep between Swap() and closing the retired interceptors)
+ internal/xds/server/filter_chain_manager.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
++	"time"
+-	fc.usableRouteConfiguration.Swap(urc).close()
++	old := fc.usableRouteConfiguration.Swap(urc)
++	time.Sleep(100 * time.Millisecond) // VERIFY mutation B: scheduling delay only
++	old.close()
+$ go test -run '^Test$/^ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources$' ./test/xds -race -count=1   # branch's own test
+    xds_server_route_config_update_test.go:271: Update 2: created 3 interceptor instances, want: 4
+--- FAIL: Test (0.43s)
+    --- FAIL: Test/ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources (0.42s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	0.465s
+FAIL
+$ go test -run '^Test$/^Eval_' ./test/xds -race -count=1   # eval fixture (polls the destruction counter), same mutation
+--- FAIL: Test (5.92s)
+    --- FAIL: Test/Eval_ServerSideXDS_InterceptorBeforeFilterCloseOrder (0.23s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_MultiGenerationRDSUpdate (0.62s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_RDSUpdate (0.42s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorSwapOrder (0.41s)
+    --- FAIL: Test/Eval_ServerSideXDS_PartialRouteFailure_ClosesInterceptors (2.12s)
+    --- FAIL: Test/Eval_ServerSideXDS_PartialVirtualHostFailure_ClosesInterceptors (2.11s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	5.956s
+FAIL
+
+>> step 3: mutation A (test double only: trackingInterceptor.Close sleeps 100ms before counting itself destroyed)
+ test/xds/xds_server_filter_state_retention_test.go | 1 +
+ 1 file changed, 1 insertion(+)
++	time.Sleep(100 * time.Millisecond) // VERIFY mutation A: slow Close
+$ go test -run '^Test$/^ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources$' ./test/xds -race -count=1
+    xds_server_route_config_update_test.go:271: Update 2: created 3 interceptor instances, want: 4
+--- FAIL: Test (0.44s)
+    --- FAIL: Test/ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources (0.44s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	0.475s
+FAIL
+
+>> step 4: mutation A2 (test double only: every 2nd trackingInterceptor.Close -- the last one of each two-filter-chain update -- sleeps 100ms before counting itself destroyed)
+ test/xds/xds_server_filter_state_retention_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)
++var verifyCloseCalls atomic.Int32
++
++	if verifyCloseCalls.Add(1)%2 == 0 {
++		time.Sleep(100 * time.Millisecond) // VERIFY mutation A2: last Close of the update is slow
++	}
+$ go test -run '^Test$/^ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources$' ./test/xds -race -count=5
+    xds_server_route_config_update_test.go:274: Update 2: destroyed 1 interceptor instances, want: 2
+--- FAIL: Test (0.24s)
+    --- FAIL: Test/ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources (0.23s)
+    xds_server_route_config_update_test.go:274: Update 2: destroyed 1 interceptor instances, want: 2
+--- FAIL: Test (0.23s)
+    --- FAIL: Test/ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources (0.22s)
+    xds_server_route_config_update_test.go:274: Update 2: destroyed 1 interceptor instances, want: 2
+--- FAIL: Test (0.22s)
+    --- FAIL: Test/ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources (0.22s)
+    xds_server_route_config_update_test.go:274: Update 2: destroyed 1 interceptor instances, want: 2
+--- FAIL: Test (0.23s)
+    --- FAIL: Test/ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources (0.22s)
+    xds_server_route_config_update_test.go:274: Update 2: destroyed 1 interceptor instances, want: 2
+--- FAIL: Test (0.23s)
+    --- FAIL: Test/ServerSideXDS_RouteConfigUpdate_ReleasesSupersededResources (0.22s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	1.181s
+FAIL
+(worktree restored to branch head)
