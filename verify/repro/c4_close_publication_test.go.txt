@@ -1,0 +1,108 @@
+// Run: sh verify/repro/c4_run.sh  (copies this file to balancer/endpointsharding/audit_c4_close_publication_test.go in a throwaway worktree of evalon/grpc-go-en-c60230da and runs
+//   go test ./balancer/endpointsharding -run "Test/AuditC4" -race -count=1 -v ). FAIL = parent notified during/after Close.
+
+package endpointsharding_test
+
+import (
+	"sync/atomic"
+	"testing"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/balancer/base"
+	"google.golang.org/grpc/balancer/endpointsharding"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/resolver"
+)
+
+// auditCountingCC counts aggregate-state notifications delivered to the parent.
+type auditCountingCC struct {
+	balancer.ClientConn
+	updates atomic.Int32
+	last    atomic.Value // connectivity.State
+}
+
+func (c *auditCountingCC) UpdateState(s balancer.State) {
+	c.updates.Add(1)
+	c.last.Store(s.ConnectivityState)
+}
+
+// auditC4Child reports a state from Close when updateInClose is set, and
+// exposes its ClientConn so the test can report states at any time.
+type auditC4Child struct {
+	cc            balancer.ClientConn
+	updateInClose bool
+}
+
+func (c *auditC4Child) UpdateClientConnState(balancer.ClientConnState) error {
+	c.cc.UpdateState(balancer.State{ConnectivityState: connectivity.Connecting, Picker: base.NewErrPicker(balancer.ErrNoSubConnAvailable)})
+	return nil
+}
+func (c *auditC4Child) ResolverError(error)                                        {}
+func (c *auditC4Child) UpdateSubConnState(balancer.SubConn, balancer.SubConnState) {}
+func (c *auditC4Child) ExitIdle()                                                  {}
+func (c *auditC4Child) Close() {
+	if c.updateInClose {
+		c.cc.UpdateState(balancer.State{ConnectivityState: connectivity.TransientFailure, Picker: base.NewErrPicker(balancer.ErrTransientFailure)})
+	}
+}
+
+func auditC4Setup(t *testing.T, updateInClose bool) (*auditCountingCC, balancer.Balancer, []*auditC4Child) {
+	t.Helper()
+	parent := &auditCountingCC{}
+	var children []*auditC4Child
+	builder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+		c := &auditC4Child{cc: cc, updateInClose: updateInClose}
+		children = append(children, c)
+		return c
+	}
+	b := endpointsharding.NewBalancer(parent, balancer.BuildOptions{}, builder, endpointsharding.Options{DisableAutoReconnect: true})
+	if err := b.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: []resolver.Endpoint{
+		{Addresses: []resolver.Address{{Addr: "a"}}},
+		{Addresses: []resolver.Address{{Addr: "b"}}},
+	}}}); err != nil {
+		t.Fatalf("UpdateClientConnState() failed: %v", err)
+	}
+	if got := parent.updates.Load(); got != 1 {
+		t.Fatalf("parent notifications after initial update = %d, want 1", got)
+	}
+	return parent, b, children
+}
+
+// Phase 0 (precondition): with inhibition disabled and the balancer open, a
+// child UpdateState callback publishes an aggregate state to the parent.
+func (s) TestAuditC4CallbackPublishesWhenNotInhibited(t *testing.T) {
+	parent, b, children := auditC4Setup(t, false)
+	defer b.Close()
+	before := parent.updates.Load()
+	children[0].cc.UpdateState(balancer.State{ConnectivityState: connectivity.Ready, Picker: base.NewErrPicker(balancer.ErrNoSubConnAvailable)})
+	got := parent.updates.Load() - before
+	t.Logf("OBSERVED: parent notifications caused by one child callback while open = %d (last aggregate state %v)", got, parent.last.Load())
+	if got != 1 {
+		t.Errorf("child callback while open produced %d parent notifications, want 1", got)
+	}
+}
+
+// Phase 1: children call UpdateState synchronously from Close.
+func (s) TestAuditC4CallbackDuringClose(t *testing.T) {
+	parent, b, _ := auditC4Setup(t, true)
+	before := parent.updates.Load()
+	b.Close()
+	got := parent.updates.Load() - before
+	t.Logf("OBSERVED: parent notifications produced while Close was closing 2 children = %d (last aggregate state %v)", got, parent.last.Load())
+	if got != 0 {
+		t.Errorf("Close published %d aggregate-state notifications to the parent, want 0 (suppressed)", got)
+	}
+}
+
+// Phase 2: a child calls UpdateState after Close has returned.
+func (s) TestAuditC4CallbackAfterClose(t *testing.T) {
+	parent, b, children := auditC4Setup(t, false)
+	b.Close()
+	before := parent.updates.Load()
+	children[0].cc.UpdateState(balancer.State{ConnectivityState: connectivity.Ready, Picker: base.NewErrPicker(balancer.ErrNoSubConnAvailable)})
+	got := parent.updates.Load() - before
+	t.Logf("OBSERVED: parent notifications produced by a child callback after Close returned = %d (last aggregate state %v)", got, parent.last.Load())
+	if got != 0 {
+		t.Errorf("post-Close child callback published %d aggregate-state notifications to the parent, want 0 (suppressed)", got)
+	}
+}

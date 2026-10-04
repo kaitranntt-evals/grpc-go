@@ -1,0 +1,189 @@
+// Audit instrumentation for claim C2 (not production code). Installed by
+// verify/repro/c2_lockcheck.sh into a throwaway worktree of the claim branch.
+// It records, per goroutine, which endpointsharding mutexes are held, and
+// checks every assertion made by the synchronization comments at runtime.
+
+package endpointsharding
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"runtime"
+	"sort"
+	"strconv"
+	"sync"
+
+	"google.golang.org/grpc/balancer"
+)
+
+type auditHeld struct {
+	kind string
+	p    any
+}
+
+var audit = struct {
+	mu         sync.Mutex
+	held       map[uint64][]auditHeld
+	checks     map[string]int
+	violations map[string]int
+}{held: map[uint64][]auditHeld{}, checks: map[string]int{}, violations: map[string]int{}}
+
+func auditGoid() uint64 {
+	var buf [64]byte
+	b := buf[:runtime.Stack(buf[:], false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+	id, _ := strconv.ParseUint(string(b), 10, 64)
+	return id
+}
+
+// auditHolds reports whether the calling goroutine holds a mutex of the given
+// kind (the specific mutex p if non-nil, any of that kind otherwise).
+func auditHolds(kind string, p any) bool {
+	g := auditGoid()
+	audit.mu.Lock()
+	defer audit.mu.Unlock()
+	for _, h := range audit.held[g] {
+		if h.kind == kind && (p == nil || h.p == p) {
+			return true
+		}
+	}
+	return false
+}
+
+func auditCheck(rule string, ok bool) {
+	audit.mu.Lock()
+	audit.checks[rule]++
+	if !ok {
+		audit.violations[rule]++
+	}
+	first := !ok && audit.violations[rule] == 1
+	audit.mu.Unlock()
+	if first {
+		buf := make([]byte, 4096)
+		buf = buf[:runtime.Stack(buf, false)]
+		fmt.Fprintf(os.Stderr, "AUDIT-C2 VIOLATION: %s\n%s\n", rule, buf)
+	}
+}
+
+func auditBeforeLock(kind string) {
+	switch kind {
+	case "bw.mu":
+		auditCheck("R1 order: balancerWrapper.mu is not acquired while holding es.mu", !auditHolds("es.mu", nil))
+	case "updateMu":
+		auditCheck("R4 order: updateMu is not acquired while holding any balancerWrapper.mu (single-child operation)", !auditHolds("bw.mu", nil))
+		auditCheck("R4b order: updateMu is not acquired while holding es.mu", !auditHolds("es.mu", nil))
+	case "es.mu":
+		auditCheck("R0 es.mu acquisitions observed (bw.mu -> es.mu and updateMu -> es.mu are the permitted orders)", true)
+		if auditHolds("bw.mu", nil) {
+			auditCheck("R0b es.mu acquired while holding balancerWrapper.mu (synchronous child callback; permitted order exercised)", true)
+		}
+	}
+}
+
+func auditAfterLock(kind string, p any) {
+	g := auditGoid()
+	audit.mu.Lock()
+	audit.held[g] = append(audit.held[g], auditHeld{kind, p})
+	audit.mu.Unlock()
+}
+
+func auditBeforeUnlock(kind string, p any) {
+	g := auditGoid()
+	audit.mu.Lock()
+	hs := audit.held[g]
+	found := false
+	for i := len(hs) - 1; i >= 0; i-- {
+		if hs[i].kind == kind && hs[i].p == p {
+			hs = append(hs[:i], hs[i+1:]...)
+			found = true
+			break
+		}
+	}
+	if len(hs) == 0 {
+		delete(audit.held, g)
+	} else {
+		audit.held[g] = hs
+	}
+	audit.mu.Unlock()
+	auditCheck("R9 ownership: "+kind+" is unlocked by the goroutine that locked it", found)
+}
+
+type auditUpdateMu struct{ m sync.Mutex }
+
+func (a *auditUpdateMu) Lock() {
+	auditBeforeLock("updateMu")
+	a.m.Lock()
+	auditAfterLock("updateMu", a)
+}
+func (a *auditUpdateMu) Unlock() { auditBeforeUnlock("updateMu", a); a.m.Unlock() }
+
+type auditEsMu struct{ m sync.Mutex }
+
+func (a *auditEsMu) Lock()   { auditBeforeLock("es.mu"); a.m.Lock(); auditAfterLock("es.mu", a) }
+func (a *auditEsMu) Unlock() { auditBeforeUnlock("es.mu", a); a.m.Unlock() }
+
+type auditBwMu struct{ m sync.Mutex }
+
+func (a *auditBwMu) Lock()   { auditBeforeLock("bw.mu"); a.m.Lock(); auditAfterLock("bw.mu", a) }
+func (a *auditBwMu) Unlock() { auditBeforeUnlock("bw.mu", a); a.m.Unlock() }
+
+// auditBwData is called before every access to balancerWrapper.child and
+// balancerWrapper.isClosed.
+func auditBwData(bw *balancerWrapper) {
+	auditCheck("R5 data: balancerWrapper.child/isClosed accessed with that wrapper's mu held", auditHolds("bw.mu", &bw.mu))
+}
+
+// auditEsData is called before every access to a published
+// balancerWrapper.childState.
+func auditEsData(es *endpointSharding) {
+	auditCheck("R6 data: published balancerWrapper.childState accessed with es.mu held", auditHolds("es.mu", &es.mu))
+}
+
+// auditChildCall is called on entry to every call into a child balancer.
+func auditChildCall(bw *balancerWrapper, method string) {
+	auditCheck("R3 ownership: call into child ("+method+") made with that child's balancerWrapper.mu held", auditHolds("bw.mu", &bw.mu))
+	auditCheck("R2 ownership: es.mu is not held during a call into a child ("+method+")", !auditHolds("es.mu", nil))
+	switch method {
+	case "UpdateClientConnState", "ResolverError", "Close", "Build":
+		auditCheck("R7 ownership: all-children operation ("+method+") reaches the child with updateMu held", auditHolds("updateMu", &bw.es.updateMu))
+	case "ExitIdle":
+		auditCheck("R8 ownership: single-child ExitIdle reaches the child without updateMu held", !auditHolds("updateMu", nil))
+	}
+}
+
+type auditChild struct {
+	balancer.Balancer
+	bw *balancerWrapper
+}
+
+func (c *auditChild) UpdateClientConnState(s balancer.ClientConnState) error {
+	auditChildCall(c.bw, "UpdateClientConnState")
+	return c.Balancer.UpdateClientConnState(s)
+}
+func (c *auditChild) ResolverError(err error) {
+	auditChildCall(c.bw, "ResolverError")
+	c.Balancer.ResolverError(err)
+}
+func (c *auditChild) Close()    { auditChildCall(c.bw, "Close"); c.Balancer.Close() }
+func (c *auditChild) ExitIdle() { auditChildCall(c.bw, "ExitIdle"); c.Balancer.ExitIdle() }
+
+// AuditSummary returns the per-rule check and violation counts.
+func AuditSummary() string {
+	audit.mu.Lock()
+	defer audit.mu.Unlock()
+	var rules []string
+	for r := range audit.checks {
+		rules = append(rules, r)
+	}
+	sort.Strings(rules)
+	var b bytes.Buffer
+	total := 0
+	for _, r := range rules {
+		fmt.Fprintf(&b, "AUDIT-C2 checks=%-6d violations=%-4d %s\n", audit.checks[r], audit.violations[r], r)
+		total += audit.violations[r]
+	}
+	fmt.Fprintf(&b, "AUDIT-C2 TOTAL VIOLATIONS: %d\n", total)
+	return b.String()
+}

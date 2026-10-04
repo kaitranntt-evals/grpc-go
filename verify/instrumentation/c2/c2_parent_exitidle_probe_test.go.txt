@@ -1,0 +1,54 @@
+// Audit probe for claim C2 (out-of-scope observation): does the parent's
+// synchronous ExitIdle reach child B while child A is blocked in an update?
+// Uses the helpers the claim branch added to endpointsharding_ext_test.go.
+
+package endpointsharding_test
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/balancer/endpointsharding"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/internal/testutils"
+)
+
+func (s) TestAuditC2ParentExitIdleWhileChildBlocked(t *testing.T) {
+	const trials = 20
+	reached := 0
+	for i := 0; i < trials; i++ {
+		func() {
+			ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+			defer cancel()
+			const addrA, addrB = "addr-a", "addr-b"
+			bt := newBlockingChildTracker(connectivity.Idle)
+			tcc := testutils.NewBalancerClientConn(t)
+			es := endpointsharding.NewBalancer(tcc, balancer.BuildOptions{}, bt.build, endpointsharding.Options{DisableAutoReconnect: true})
+			_, unblock, errCh := startBlockedUpdate(ctx, t, es, tcc, bt, addrA, addrB)
+			done := make(chan struct{})
+			go func() { es.ExitIdle(); close(done) }()
+			select {
+			case addr := <-bt.exitIdleCh:
+				if addr == addrB {
+					reached++
+				}
+			case <-time.After(200 * time.Millisecond):
+			}
+			unblock()
+			select {
+			case <-errCh:
+			case <-ctx.Done():
+				t.Fatal("update did not finish")
+			}
+			select {
+			case <-done:
+			case <-ctx.Done():
+				t.Fatal("ExitIdle did not finish")
+			}
+			es.Close()
+		}()
+	}
+	t.Logf("OBSERVED: parent ExitIdle() delivered ExitIdle to child B within 200ms while child A's update was blocked in %d of %d trials", reached, trials)
+}

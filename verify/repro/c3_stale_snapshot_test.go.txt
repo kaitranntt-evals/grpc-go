@@ -1,0 +1,100 @@
+// Run: sh verify/repro/c3_run.sh  (copies this file to balancer/ringhash/audit_c3_stale_snapshot_test.go in a throwaway worktree of evalon/grpc-go-en-cb3ba169 and runs
+//   go test ./balancer/ringhash -run "Test/AuditC3StaleChildStateSnapshot$" -race -count=1 -v ). FAIL = stale snapshot retained.
+
+package ringhash
+
+import (
+	"context"
+	"testing"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/balancer/endpointsharding"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/experimental/balancer/weight"
+	iringhash "google.golang.org/grpc/internal/ringhash"
+	"google.golang.org/grpc/resolver"
+)
+
+// Drives two successive child-state updates for one endpoint (IDLE ->
+// CONNECTING -> READY, then a resolver update that changes the endpoint's
+// weight attribute) and compares what endpointState.balancer (the
+// reconnection handle) references with endpointState.state (the current
+// state).
+func (s) TestAuditC3StaleChildStateSnapshot(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	defer cancel()
+	addr := resolver.Address{Addr: testBackendAddrStrs[0]}
+	ep1 := weight.Set(resolver.Endpoint{Addresses: []resolver.Address{addr}}, weight.EndpointInfo{Weight: 1})
+	cc, b, p0 := setupTest(t, []resolver.Endpoint{ep1})
+	rb := b.(*ringhashBalancer)
+
+	snapshot := func(label string) (endpointsharding.ChildState, balancer.State, bool) {
+		rb.mu.Lock()
+		defer rb.mu.Unlock()
+		for _, es := range rb.endpointStates.Values() {
+			cs, ok := es.balancer.(endpointsharding.ChildState)
+			t.Logf("[%s] handle dynamic type=%T", label, es.balancer)
+			if !ok {
+				return endpointsharding.ChildState{}, es.state, false
+			}
+			t.Logf("[%s] handle snapshot: State.ConnectivityState=%v State.Picker=%p weight=%d | current es.state: ConnectivityState=%v Picker=%p es.weight=%d",
+				label, cs.State.ConnectivityState, cs.State.Picker, getWeightAttribute(cs.Endpoint), es.state.ConnectivityState, es.state.Picker, es.weight)
+			return cs, es.state, true
+		}
+		t.Fatal("no endpoint state")
+		return endpointsharding.ChildState{}, balancer.State{}, false
+	}
+
+	cs0, cur0, isSnapshot := snapshot("after initial update")
+	if !isSnapshot {
+		t.Logf("RESULT: reconnection handle is not an endpointsharding.ChildState value; no snapshot retained")
+		return
+	}
+	if cs0.State.Picker != cur0.Picker {
+		t.Fatalf("unexpected: handle and current state differ right after creation")
+	}
+
+	// Child-state update #1: connect the endpoint and take it to READY.
+	testHash := p0.(*picker).ring.items[0].hash - 1
+	if _, err := p0.Pick(balancer.PickInfo{Ctx: iringhash.SetXDSRequestHash(ctx, testHash)}); err != balancer.ErrNoSubConnAvailable {
+		t.Fatalf("first pick returned err %v, want %v", err, balancer.ErrNoSubConnAvailable)
+	}
+	sc0 := <-cc.NewSubConnCh
+	<-sc0.ConnectCh
+	sc0.UpdateState(balancer.SubConnState{ConnectivityState: connectivity.Connecting})
+	sc0.UpdateState(balancer.SubConnState{ConnectivityState: connectivity.Ready})
+	if err := cc.WaitForConnectivityState(ctx, connectivity.Ready); err != nil {
+		t.Fatal(err)
+	}
+	cs1, cur1, _ := snapshot("after child went READY")
+
+	// Child-state update #2: resolver update changing the endpoint weight.
+	ep2 := weight.Set(resolver.Endpoint{Addresses: []resolver.Address{addr}}, weight.EndpointInfo{Weight: 7})
+	if err := b.UpdateClientConnState(balancer.ClientConnState{
+		ResolverState:  resolver.State{Endpoints: []resolver.Endpoint{ep2}},
+		BalancerConfig: testConfig,
+	}); err != nil {
+		t.Fatalf("UpdateClientConnState returned err: %v", err)
+	}
+	cs2, cur2, _ := snapshot("after weight 1 -> 7 resolver update")
+
+	stale := false
+	if cs1.State.ConnectivityState != cur1.ConnectivityState || cs1.State.Picker != cur1.Picker {
+		stale = true
+		t.Logf("STALE: after READY, handle still references State{%v, picker %p}; current is State{%v, picker %p}",
+			cs1.State.ConnectivityState, cs1.State.Picker, cur1.ConnectivityState, cur1.Picker)
+	}
+	if got, cur := getWeightAttribute(cs2.Endpoint), uint32(7); got != cur {
+		stale = true
+		t.Logf("STALE: after resolver update, handle still references Endpoint with weight %d; current weight is %d", got, cur)
+	}
+	if cs2.State.Picker != cur2.Picker {
+		stale = true
+		t.Logf("STALE: after resolver update, handle picker %p != current picker %p", cs2.State.Picker, cur2.Picker)
+	}
+	if stale {
+		t.Errorf("RESULT: reconnection handle retains a superseded endpointsharding.ChildState snapshot")
+	} else {
+		t.Logf("RESULT: reconnection handle tracks the current ChildState")
+	}
+}

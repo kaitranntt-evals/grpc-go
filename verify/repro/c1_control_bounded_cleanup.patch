@@ -1,0 +1,39 @@
+diff --git a/balancer/endpointsharding/endpointsharding_ext_test.go b/balancer/endpointsharding/endpointsharding_ext_test.go
+index fc36fb19..0cc1a016 100644
+--- a/balancer/endpointsharding/endpointsharding_ext_test.go
++++ b/balancer/endpointsharding/endpointsharding_ext_test.go
+@@ -407,7 +407,16 @@ func (s) TestChildExitIdleWhileAnotherChildIsBlocked(t *testing.T) {
+ 				return balancer.Get(name).Build(cc, opts)
+ 			}
+ 			b := endpointsharding.NewBalancer(cc, balancer.BuildOptions{}, builder, endpointsharding.Options{DisableAutoReconnect: true})
+-			defer b.Close()
++			// CONTROL (audit C1): bounded Close, since Close also queues behind a stuck worker.
++			defer func() {
++				closed := make(chan struct{})
++				go func() { b.Close(); close(closed) }()
++				select {
++				case <-closed:
++				case <-time.After(defaultTestTimeout):
++					t.Errorf("Close did not return within %v", defaultTestTimeout)
++				}
++			}()
+ 			endpoints := []resolver.Endpoint{
+ 				{Addresses: []resolver.Address{{Addr: "blocked"}}},
+ 				{Addresses: []resolver.Address{{Addr: "idle"}}},
+@@ -452,8 +461,14 @@ func (s) TestChildExitIdleWhileAnotherChildIsBlocked(t *testing.T) {
+ 			defer func() {
+ 				armed.Store(false)
+ 				close(release)
+-				if err := <-operationDone; err != nil {
+-					t.Errorf("%s failed: %v", operation, err)
++				// CONTROL (audit C1): bounded join instead of an untimed receive.
++				select {
++				case err := <-operationDone:
++					if err != nil {
++						t.Errorf("%s failed: %v", operation, err)
++					}
++				case <-time.After(defaultTestTimeout):
++					t.Errorf("%s worker did not finish within %v of release", operation, defaultTestTimeout)
+ 				}
+ 			}()
+ 

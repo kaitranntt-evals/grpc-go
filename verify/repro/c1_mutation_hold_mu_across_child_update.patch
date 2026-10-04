@@ -1,0 +1,33 @@
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index c5819fa4..6a916a79 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -152,7 +152,6 @@ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState
+ 			// Endpoint attributes may have changed, update the stored endpoint.
+ 			es.mu.Lock()
+ 			childBalancer.childState.Endpoint = endpoint
+-			es.mu.Unlock()
+ 		} else {
+ 			childBalancer = &balancerWrapper{
+ 				childState: ChildState{Endpoint: endpoint},
+@@ -162,13 +161,18 @@ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState
+ 			childBalancer.childState.ExitIdle = childBalancer.ExitIdle
+ 		}
+ 		newChildren.Set(endpoint, childBalancer)
+-		if err := childBalancer.updateClientConnState(balancer.ClientConnState{
++		err := childBalancer.updateClientConnState(balancer.ClientConnState{
+ 			BalancerConfig: state.BalancerConfig,
+ 			ResolverState: resolver.State{
+ 				Endpoints:  []resolver.Endpoint{endpoint},
+ 				Attributes: state.ResolverState.Attributes,
+ 			},
+-		}); err != nil && ret == nil {
++		})
++		if ok {
++			// MUTATION (audit C1): es.mu is held across the call into the child.
++			es.mu.Unlock()
++		}
++		if err != nil && ret == nil {
+ 			// Return first error found, and always commit full processing of
+ 			// updating children. If desired to process more specific errors
+ 			// across all endpoints, caller should make these specific
