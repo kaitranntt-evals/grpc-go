@@ -1160,7 +1160,7 @@ So on this schedule the fix makes receive memory ~16,000x worse than the behavio
 --- PASS: TestC7_EndToEndMessageAssembly (0.03s)
 ```
 
-The trigger therefore needs the reader to stay about one frame behind the peer for >= ~15 consecutive frames without ever fully catching up (after that every further frame costs 16 KiB until a direct hand-off happens). I reproduced that deterministically at the `recvBuffer`/`Stream.read` level with production-constructed streams, not with free-running socket timing.
+The trigger therefore needs the reader to stay about one frame behind the peer for roughly 17 consecutive frames without ever fully catching up (the trace above reaches 16,384 at put #19) (after that every further frame costs 16 KiB until a direct hand-off happens). I reproduced that deterministically at the `recvBuffer`/`Stream.read` level with production-constructed streams, not with free-running socket timing.
 
 **The eval fixture does not see it.** Its `IncrementalMessageAssembly` schedule (put 3, read 3) lets the first `put` of every cycle go straight to the channel, which resets `nextPendingCap`:
 
