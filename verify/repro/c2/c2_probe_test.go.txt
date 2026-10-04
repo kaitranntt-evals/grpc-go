@@ -1,0 +1,35 @@
+// Run: verify/repro/c2/run.sh ~/wt/1ee92409   (copies this file to internal/transport/zz_c2_probe_test.go on branch evalon/grpc-go-tr-1ee92409)
+// Shows that the stream built by the branch's own helper newTestRecvStream() (used by
+// TestRecvBuffer_CompactionPreservesData and TestRecvBuffer_CompactionReducesMemory) has no deadline or
+// cancellation on its reads: a read for one more byte than was queued is still blocked after 3s.
+package transport
+
+import (
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/mem"
+)
+
+func TestC2Probe_HelperStreamReadHasNoDeadline(t *testing.T) {
+	st := newTestRecvStream()
+	r := &st.trReader.reader
+	_, hasDeadline := r.ctx.Deadline()
+	t.Logf("reader ctx=%v hasDeadline=%v ctx.Done()==nil:%v reader.ctxDone==nil:%v", r.ctx, hasDeadline, r.ctx.Done() == nil, r.ctxDone == nil)
+	for i := 0; i < 3; i++ {
+		st.buf.put(recvMsg{buffer: mem.SliceBuffer([]byte{byte(i)})})
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := st.readTo(make([]byte, 4)) // one more byte than queued: data "stops arriving"
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		t.Fatalf("readTo returned (err=%v): the read was interrupted", err)
+	case <-time.After(3 * time.Second):
+		t.Logf("readTo still blocked after 3s with nothing able to interrupt it")
+	}
+	st.buf.put(recvMsg{buffer: mem.SliceBuffer([]byte{9})}) // unblock so the goroutine exits
+	<-done
+}

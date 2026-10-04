@@ -1,0 +1,32 @@
+// Helper injected by verify/repro/c1/run.sh (copied to internal/transport/zz_c1_ballast_test.go).
+// It keeps a large allocation live while the "before" heap snapshot is taken in
+// compaction-enabled mode and drops it right after, so the measured enabled-mode
+// heap delta is genuinely nonpositive when read through runtime.ReadMemStats.
+package transport
+
+import (
+	"runtime"
+
+	"google.golang.org/grpc/internal/envconfig"
+)
+
+var c1Ballast []byte
+
+func c1Arm() {
+	if envconfig.EnableReceiveBufferCompaction {
+		c1Ballast = make([]byte, 512<<20)
+	}
+}
+
+func c1ReadBefore(ms *runtime.MemStats) {
+	c1Arm()
+	runtime.ReadMemStats(ms)
+	c1Ballast = nil
+}
+
+func c1Before[T int64 | uint64](f func() T) T {
+	c1Arm()
+	v := f()
+	c1Ballast = nil
+	return v
+}

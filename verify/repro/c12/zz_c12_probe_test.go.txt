@@ -1,0 +1,74 @@
+// Run: PROBE_FILE=../c12/zz_c12_probe_test.go.txt verify/repro/probes/run.sh ~/wt/3e360711 '^TestProbeC12_'   (branch evalon/grpc-go-tr-3e360711)
+// C12: three-byte receive/drain cycles on a production-constructed client stream, delivered buffers retained.
+package transport
+
+import (
+	"context"
+	"fmt"
+	"sort"
+	"testing"
+	"time"
+	"unsafe"
+
+	"google.golang.org/grpc/mem"
+)
+
+func TestProbeC12_ThreeByteCycles(t *testing.T) {
+	pool := mem.DefaultBufferPool()
+	client := &http2Client{bufferPool: pool}
+	b := &client.newStream(context.Background(), &CallHdr{}, nil).buf
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	reader := &recvBufferReader{ctx: ctx, ctxDone: ctx.Done(), recv: b}
+	var retained mem.BufferSlice
+	report := func(cycles int) {
+		hist := map[string]int{}
+		seen := map[uintptr]bool{}
+		total := 0
+		for _, buf := range retained {
+			d := buf.ReadOnlyData()
+			ptr := uintptr(unsafe.Pointer(&d[0]))
+			if !seen[ptr] {
+				seen[ptr] = true
+				hist[fmt.Sprintf("len=%d,cap=%d", len(d), cap(d))]++
+				total += cap(d)
+			}
+		}
+		var keys []string
+		for k := range hist {
+			keys = append(keys, fmt.Sprintf("%s:%d", k, hist[k]))
+		}
+		sort.Strings(keys)
+		limit := 4*3*cycles + 64*1024
+		t.Logf("after %d cycles (%d payload bytes): %d delivered buffers retained; distinct backing arrays %v; total backing capacity=%d bytes; 4*payload+64KiB=%d; exceeds 90112: %v",
+			cycles, 3*cycles, len(retained), keys, total, limit, total > 90112)
+	}
+	for i := 0; i < 2048; i++ {
+		var srcPtrs [3]uintptr
+		for j := 0; j < 3; j++ {
+			in := mem.Copy([]byte{byte((i*7+j)%251 + 1)}, pool)
+			srcPtrs[j] = uintptr(unsafe.Pointer(&in.ReadOnlyData()[0]))
+			b.put(recvMsg{buffer: in})
+			if i == 0 {
+				t.Logf("cycle 0 after put #%d: len(chan)=%d len(backlog)=%d compacted(len=%d,cap=%d)", j+1, len(b.c), len(b.backlog), len(b.compacted), cap(b.compacted))
+			}
+		}
+		for remaining := 3; remaining > 0; {
+			buf, err := reader.Read(remaining)
+			if err != nil {
+				t.Fatalf("cycle %d: %v", i, err)
+			}
+			if i == 0 {
+				d := buf.ReadOnlyData()
+				p := uintptr(unsafe.Pointer(&d[0]))
+				t.Logf("cycle 0 read: len=%d cap=%d isInputBuffer#1=%v isInputBuffer#2=%v isInputBuffer#3=%v", len(d), cap(d), p == srcPtrs[0], p == srcPtrs[1], p == srcPtrs[2])
+			}
+			remaining -= buf.Len()
+			retained = append(retained, buf)
+		}
+		if i == 0 || i == 1023 || i == 2047 {
+			report(i + 1)
+		}
+	}
+	retained.Free()
+}

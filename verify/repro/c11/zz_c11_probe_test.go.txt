@@ -1,0 +1,185 @@
+// Run: verify/repro/c11/run.sh   (audited branch; copies this file to internal/transport/zz_c11_probe_test.go, runs TestProbeC11_, removes it)
+// C11: (a) what compactBacklogLocked's estimate says for one-byte slices of 16 KiB allocations;
+//      (b) serverHandlerTransport.HandleStreams with a request body that yields one byte per Read.
+package transport
+
+import (
+	"context"
+	"io"
+	"net/http"
+	"net/url"
+	"sync"
+	"testing"
+	"time"
+	"unsafe"
+
+	"google.golang.org/grpc/mem"
+)
+
+type c11Pool struct {
+	mu          sync.Mutex
+	out         map[uintptr]int
+	gets        map[int]int
+	puts        int
+	peakOut     int
+	peakOutCaps int
+}
+
+func newC11Pool() *c11Pool { return &c11Pool{out: map[uintptr]int{}, gets: map[int]int{}} }
+
+func (p *c11Pool) Get(n int) *[]byte {
+	b := make([]byte, n)
+	p.mu.Lock()
+	p.out[uintptr(unsafe.Pointer(unsafe.SliceData(b)))] = cap(b)
+	p.gets[n]++
+	if len(p.out) > p.peakOut {
+		p.peakOut = len(p.out)
+	}
+	p.mu.Unlock()
+	return &b
+}
+
+func (p *c11Pool) Put(b *[]byte) {
+	p.mu.Lock()
+	delete(p.out, uintptr(unsafe.Pointer(unsafe.SliceData(*b))))
+	p.puts++
+	p.mu.Unlock()
+}
+
+func (p *c11Pool) snapshot() (n, capSum int, gets map[int]int, puts int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	gets = map[int]int{}
+	for k, v := range p.gets {
+		gets[k] = v
+	}
+	for _, c := range p.out {
+		capSum += c
+	}
+	return len(p.out), capSum, gets, p.puts
+}
+
+func c11Backlog(b *recvBuffer) (entries, lenSum, capSum, cap16k int, estimate int) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for _, m := range b.backlog {
+		if m.buffer == nil {
+			continue
+		}
+		d := m.buffer.ReadOnlyData()
+		entries++
+		lenSum += len(d)
+		capSum += cap(d)
+		if cap(d) == http2MaxFrameLen {
+			cap16k++
+		}
+	}
+	return entries, lenSum, capSum, cap16k, b.uncompactedSuffixLen*recvMsgSize + b.uncompactedBytes
+}
+
+// (a) accounting: 600 one-byte messages, each a [:1] slice of its own 16 KiB pool allocation (what HandleStreams queues).
+func TestProbeC11_Accounting(t *testing.T) {
+	pool := newC11Pool()
+	var b recvBuffer
+	b.init(pool)
+	t.Logf("recvMsgSize=%d compactionThreshold=%d", recvMsgSize, compactionThreshold)
+	for i := 1; i <= 1100; i++ {
+		buf := pool.Get(http2MaxFrameLen)
+		*buf = (*buf)[:1]
+		b.put(recvMsg{buffer: mem.NewBuffer(buf, pool)})
+		if i == 2 || i == 600 || i == 1024 || i == 1025 || i == 1100 {
+			entries, lenSum, capSum, cap16k, est := c11Backlog(&b)
+			out, outCap, _, _ := pool.snapshot()
+			t.Logf("after %4d puts: backlog entries=%d payload len sum=%d backing cap sum=%d (%d entries with cap 16384) | compactBacklogLocked estimate=%d (threshold %d, compacts when estimate > threshold: %v) | pool buffers outstanding=%d (%d bytes)",
+				i, entries, lenSum, capSum, cap16k, est, compactionThreshold, est > compactionThreshold, out, outCap)
+		}
+	}
+}
+
+type c11OneByteBody struct {
+	reads   chan struct{} // one token per permitted Read
+	maxLen  int
+	nReads  int
+	closed  chan struct{}
+	closeMu sync.Once
+}
+
+func (r *c11OneByteBody) Read(p []byte) (int, error) {
+	select {
+	case <-r.reads:
+	case <-r.closed:
+		return 0, io.EOF
+	}
+	if len(p) > r.maxLen {
+		r.maxLen = len(p)
+	}
+	r.nReads++
+	p[0] = 'x'
+	return 1, nil
+}
+
+func (r *c11OneByteBody) Close() error { r.closeMu.Do(func() { close(r.closed) }); return nil }
+
+// (b) the real handler transport: NewServerHandlerTransport + HandleStreams; the RPC handler does not read.
+func TestProbeC11_HandlerShortReads(t *testing.T) {
+	pool := newC11Pool()
+	body := &c11OneByteBody{reads: make(chan struct{}, 2000), closed: make(chan struct{})}
+	req := &http.Request{
+		ProtoMajor: 2,
+		Method:     "POST",
+		Header:     http.Header{"Content-Type": {"application/grpc"}},
+		URL:        &url.URL{Path: "/service/foo.bar"},
+		Body:       body,
+	}
+	rw := newTestHandlerResponseWriter().(testHandlerResponseWriter)
+	tr, err := NewServerHandlerTransport(rw, req, nil, pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ht := tr.(*serverHandlerTransport)
+	streamCh := make(chan *ServerStream, 1)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ht.HandleStreams(context.Background(), func(s *ServerStream) { streamCh <- s })
+	}()
+	s := <-streamCh
+	waitQueued := func(n int) {
+		deadline := time.Now().Add(10 * time.Second)
+		for time.Now().Before(deadline) {
+			s.buf.mu.Lock()
+			q := len(s.buf.backlog) + len(s.buf.c)
+			s.buf.mu.Unlock()
+			_, _, gets, _ := pool.snapshot()
+			if gets[http2MaxFrameLen] >= n+1 { // n completed reads + the buffer acquired for the pending Read
+				_ = q
+				return
+			}
+			time.Sleep(time.Millisecond)
+		}
+		t.Fatalf("timed out waiting for %d reads", n)
+	}
+	report := func(n int) {
+		entries, lenSum, capSum, cap16k, est := c11Backlog(&s.buf)
+		out, outCap, gets, puts := pool.snapshot()
+		g16 := gets[http2MaxFrameLen]
+		t.Logf("after %4d one-byte body reads (Read was offered len(p)=%d): backlog entries=%d (+%d in channel) payload=%d bytes backing cap sum=%d (%d entries with cap 16384) | estimate=%d threshold=%d | pool: Get(16384) calls=%d other Gets=%v Put calls=%d outstanding=%d buffers (%d bytes)",
+			n, body.maxLen, entries, len(s.buf.c), lenSum, capSum, cap16k, est, compactionThreshold, g16, withoutKey(gets, http2MaxFrameLen), puts, out, outCap)
+	}
+	total := 0
+	for _, n := range []int{600, 1024, 1025, 1100} {
+		for ; total < n; total++ {
+			body.reads <- struct{}{}
+		}
+		waitQueued(n)
+		report(n)
+	}
+	ht.Close(io.EOF)
+	body.Close()
+	<-done
+}
+
+func withoutKey(m map[int]int, k int) map[int]int {
+	delete(m, k)
+	return m
+}

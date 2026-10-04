@@ -1,0 +1,440 @@
+// Run: verify/repro/probes/run.sh <worktree> <TestRegexp> [ENV=VAL]   (copies this file to internal/transport/zz_probe_test.go, runs it, removes it)
+// Probes for C3-C9 on the claim branches. They only use recvBuffer.put/load/c/backlog and the
+// production stream constructors (NewHTTP2Client via the package's setUp helper, or http2Client.newStream),
+// so the same file compiles on evalon/grpc-go-tr-136a5793 and evalon/grpc-go-tr-5d2a316b.
+package transport
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"sort"
+	"sync"
+	"testing"
+	"time"
+	"unsafe"
+
+	"google.golang.org/grpc/mem"
+)
+
+// probeProdBuf returns the recvBuffer of a client stream created by a transport that was itself built by the
+// production constructor NewHTTP2Client (through the package's own setUp test helper) and ct.NewStream.
+func probeProdBuf(t *testing.T) *recvBuffer {
+	t.Helper()
+	server, ct, cancel := setUp(t, 0, suspended)
+	t.Cleanup(func() { cancel(); ct.Close(errors.New("probe done")); server.stop() })
+	ctx, c := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(c)
+	s, err := ct.NewStream(ctx, &CallHdr{Host: "localhost", Method: "foo.Small"}, nil)
+	if err != nil {
+		t.Fatalf("NewStream: %v", err)
+	}
+	return &s.buf
+}
+
+type probeOut struct {
+	len, cap int
+	ptr      uintptr
+	err      error
+}
+
+// probeDrain empties channel+backlog (+any open tail, via load) without blocking and reports every delivered message.
+func probeDrain(b *recvBuffer, onMsg func(recvMsg)) (outs []probeOut, data []byte) {
+	for {
+		select {
+		case m := <-b.c:
+			if onMsg != nil {
+				onMsg(m)
+			}
+			o := probeOut{err: m.err}
+			if m.buffer != nil {
+				d := m.buffer.ReadOnlyData()
+				o.len, o.cap = len(d), cap(d)
+				if len(d) > 0 {
+					o.ptr = uintptr(unsafe.Pointer(&d[0]))
+				}
+				data = append(data, d...)
+				m.buffer.Free()
+			}
+			outs = append(outs, o)
+			b.load()
+		default:
+			b.load()
+			if len(b.c) == 0 {
+				return
+			}
+		}
+	}
+}
+
+func probeHist(v []int) map[int]int {
+	h := map[int]int{}
+	for _, x := range v {
+		h[x]++
+	}
+	return h
+}
+
+func probeLens(outs []probeOut) string {
+	var s []string
+	for i := 0; i < len(outs); {
+		j := i
+		for j < len(outs) && outs[j].len == outs[i].len && (outs[j].err == nil) == (outs[i].err == nil) {
+			j++
+		}
+		if outs[i].err != nil {
+			s = append(s, fmt.Sprintf("ERR(%v)", outs[i].err))
+		} else if j-i > 1 {
+			s = append(s, fmt.Sprintf("%dx%d", j-i, outs[i].len))
+		} else {
+			s = append(s, fmt.Sprint(outs[i].len))
+		}
+		i = j
+	}
+	return fmt.Sprint(s)
+}
+
+// C5: burst of 1,025 one-byte frames through the production-constructed transport.
+func TestProbeC5_Burst1025(t *testing.T) {
+	b := probeProdBuf(t)
+	pool := mem.DefaultBufferPool()
+	var want []byte
+	for i := 0; i < 1025; i++ {
+		p := []byte{byte(i%251 + 1)}
+		want = append(want, p...)
+		b.put(recvMsg{buffer: mem.Copy(p, pool)})
+	}
+	t.Logf("env=%q after 1025 one-byte puts: len(backlog)=%d len(chan)=%d", os.Getenv("GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION"), len(b.backlog), len(b.c))
+	outs, got := probeDrain(b, nil)
+	t.Logf("drained %d message buffers for 1025 payload bytes; lengths in delivery order: %s", len(outs), probeLens(outs))
+	t.Logf("drained bytes == input bytes: %v", bytes.Equal(got, want))
+}
+
+// C6: mixed-size frames. (a) the fixture's 1..7-byte mix; (b) small frames interleaved with 2 KiB / 20 KiB / 300 KiB frames.
+func TestProbeC6_Mixed(t *testing.T) {
+	pool := mem.DefaultBufferPool()
+	run := func(name string, sizes []int) {
+		b := probeProdBuf(t)
+		var want []byte
+		small := 0
+		for i, n := range sizes {
+			p := make([]byte, n)
+			for j := range p {
+				p[j] = byte((i*13+j)%251 + 1)
+			}
+			if n <= 64 {
+				small++
+			}
+			want = append(want, p...)
+			b.put(recvMsg{buffer: mem.Copy(p, pool)})
+		}
+		t.Logf("%s: put %d frames (%d of them <=64 bytes, %d bytes total): len(backlog)=%d len(chan)=%d", name, len(sizes), small, len(want), len(b.backlog), len(b.c))
+		outs, got := probeDrain(b, nil)
+		t.Logf("%s: drained %d message buffers; lengths in delivery order: %s", name, len(outs), probeLens(outs))
+		t.Logf("%s: drained byte sequence == concatenated input: %v (%d vs %d bytes)", name, bytes.Equal(got, want), len(got), len(want))
+	}
+	var a []int
+	for i := 0; i < 1074; i++ {
+		a = append(a, i%7+1)
+	}
+	run("a/1..7-byte-mix", a)
+	var m []int
+	for i := 0; i < 300; i++ {
+		m = append(m, 1, 3, 7)
+		switch i % 100 {
+		case 20:
+			m = append(m, 2048)
+		case 50:
+			m = append(m, 20000)
+		case 80:
+			m = append(m, 300000)
+		}
+	}
+	run("b/small+2KiB+20KiB+300KiB", m)
+}
+
+// C8: run with GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION=false (and, for contrast, without).
+func TestProbeC8_EnvDisabled(t *testing.T) {
+	b := probeProdBuf(t)
+	pool := mem.DefaultBufferPool()
+	const n = 1026
+	ptrs := make([]uintptr, n)
+	for i := 0; i < n; i++ {
+		buf := mem.Copy([]byte{byte(i%251 + 1)}, pool)
+		ptrs[i] = uintptr(unsafe.Pointer(&buf.ReadOnlyData()[0]))
+		b.put(recvMsg{buffer: buf})
+	}
+	t.Logf("env=%q after %d one-byte puts: len(backlog)=%d len(chan)=%d", os.Getenv("GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION"), n, len(b.backlog), len(b.c))
+	outs, _ := probeDrain(b, nil)
+	same := 0
+	for i, o := range outs {
+		if i < n && o.len == 1 && o.ptr == ptrs[i] {
+			same++
+		}
+	}
+	t.Logf("drained %d message buffers; %d of them are the original input buffer at the same FIFO position; lengths: %s", len(outs), same, probeLens(outs))
+}
+
+// ---- probes below use http2Client.newStream directly so that the configured pool is observed in isolation ----
+
+type probePool struct {
+	inner    mem.BufferPool
+	mu       sync.Mutex
+	out      map[uintptr]int
+	gets     []int
+	puts     int
+	foreign  int
+	dupOrBad int
+}
+
+func (p *probePool) Get(n int) *[]byte {
+	b := p.inner.Get(n)
+	p.mu.Lock()
+	p.out[uintptr(unsafe.Pointer(unsafe.SliceData(*b)))] = cap(*b)
+	p.gets = append(p.gets, n)
+	p.mu.Unlock()
+	return b
+}
+
+func (p *probePool) Put(b *[]byte) {
+	ptr := uintptr(unsafe.Pointer(unsafe.SliceData(*b)))
+	p.mu.Lock()
+	c, ok := p.out[ptr]
+	if ok {
+		delete(p.out, ptr)
+		p.puts++
+		if cap(*b) != c {
+			p.dupOrBad++
+		}
+	} else {
+		p.foreign++
+	}
+	p.mu.Unlock()
+	if ok {
+		p.inner.Put(b)
+	}
+}
+
+func (p *probePool) outstanding(ptr uintptr) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	_, ok := p.out[ptr]
+	return ok
+}
+
+func newProbePool(t *testing.T) *probePool {
+	inner, err := mem.NewBinaryTieredBufferPool(8, 12, 14, 15, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &probePool{inner: inner, out: map[uintptr]int{}}
+}
+
+func probeLiteralBuf(pool mem.BufferPool) *recvBuffer {
+	client := &http2Client{bufferPool: pool}
+	return &client.newStream(context.Background(), &CallHdr{}, nil).buf
+}
+
+// C3: repeated three-byte receive/drain cycles, delivered outputs retained.
+func TestProbeC3_ThreeByteCycles(t *testing.T) {
+	for _, mk := range []struct {
+		name string
+		b    *recvBuffer
+	}{{"NewHTTP2Client+NewStream", probeProdBuf(t)}, {"http2Client.newStream", probeLiteralBuf(mem.DefaultBufferPool())}} {
+		b := mk.b
+		pool := mem.DefaultBufferPool()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		reader := &recvBufferReader{ctx: ctx, ctxDone: ctx.Done(), recv: b}
+		var retained mem.BufferSlice
+		const cycles = 1024
+		for i := 0; i < cycles; i++ {
+			for j := 0; j < 3; j++ {
+				b.put(recvMsg{buffer: mem.Copy([]byte{byte((i*7+j)%251 + 1)}, pool)})
+			}
+			for remaining := 3; remaining > 0; {
+				buf, err := reader.Read(remaining)
+				if err != nil {
+					t.Fatalf("cycle %d: %v", i, err)
+				}
+				remaining -= buf.Len()
+				retained = append(retained, buf)
+			}
+		}
+		cancel()
+		hist := map[int]int{}
+		seen := map[uintptr]bool{}
+		total := 0
+		for _, buf := range retained {
+			d := buf.ReadOnlyData()
+			ptr := uintptr(unsafe.Pointer(&d[0]))
+			if !seen[ptr] {
+				seen[ptr] = true
+				hist[cap(d)]++
+				total += cap(d)
+			}
+		}
+		var caps []int
+		for c := range hist {
+			caps = append(caps, c)
+		}
+		sort.Ints(caps)
+		s := ""
+		for _, c := range caps {
+			s += fmt.Sprintf(" cap=%d:%d", c, hist[c])
+		}
+		t.Logf("%s: %d cycles x 3 one-byte frames (%d payload bytes), %d delivered buffers retained; distinct backing arrays by capacity:%s; total retained capacity=%d bytes", mk.name, cycles, cycles*3, len(retained), s, total)
+		retained.Free()
+	}
+}
+
+// C4: unpooled (mem.SliceBuffer) one-byte inputs with an observable configured pool.
+func TestProbeC4_UnpooledConsolidation(t *testing.T) {
+	for _, n := range []int{1026, 1033, 6000} {
+		pool := newProbePool(t)
+		b := probeLiteralBuf(pool)
+		for i := 0; i < n; i++ {
+			b.put(recvMsg{buffer: mem.SliceBuffer([]byte{byte(i%251 + 1)})})
+		}
+		lb := len(b.backlog)
+		outs, _ := probeDrain(b, nil)
+		t.Logf("n=%d unpooled one-byte puts: len(backlog)=%d, delivered %d buffers with lengths %s; configured-pool Get calls=%d sizes=%v", n, lb, len(outs), probeLens(outs), len(pool.gets), pool.gets)
+	}
+}
+
+// C7: payload followed by EOF / terminal error.
+func TestProbeC7_Terminal(t *testing.T) {
+	pool := mem.DefaultBufferPool()
+	termErr := errors.New("probe terminal error")
+	for _, tc := range []struct {
+		n   int
+		err error
+	}{{1, io.EOF}, {2, io.EOF}, {3, io.EOF}, {300, io.EOF}, {1074, io.EOF}, {5000, io.EOF}, {3, termErr}, {1074, termErr}, {5000, termErr}} {
+		// (1) raw channel order
+		b := probeLiteralBuf(pool)
+		var want []byte
+		for i := 0; i < tc.n; i++ {
+			p := []byte{byte(i%251 + 1)}
+			want = append(want, p...)
+			b.put(recvMsg{buffer: mem.Copy(p, pool)})
+		}
+		b.put(recvMsg{err: tc.err})
+		outs, got := probeDrain(b, nil)
+		errIdx, bytesBeforeErr, seen := -1, 0, 0
+		for i, o := range outs {
+			if o.err != nil && errIdx < 0 {
+				errIdx, bytesBeforeErr = i, seen
+			}
+			seen += o.len
+		}
+		// (2) through the stream reader used by production reads
+		b2 := probeLiteralBuf(pool)
+		for i := 0; i < tc.n; i++ {
+			b2.put(recvMsg{buffer: mem.Copy([]byte{byte(i%251 + 1)}, pool)})
+		}
+		b2.put(recvMsg{err: tc.err})
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		r := &recvBufferReader{ctx: ctx, ctxDone: ctx.Done(), recv: b2}
+		var got2 []byte
+		var rerr error
+		for {
+			buf, err := r.Read(7)
+			if err != nil {
+				rerr = err
+				break
+			}
+			got2 = append(got2, buf.ReadOnlyData()...)
+			buf.Free()
+		}
+		cancel()
+		t.Logf("n=%d term=%v | channel: terminal is message %d of %d, payload bytes delivered before it=%d/%d, equal=%v | reader: %d/%d bytes (equal=%v) then err=%v",
+			tc.n, tc.err, errIdx+1, len(outs), bytesBeforeErr, tc.n, bytes.Equal(got, want), len(got2), tc.n, bytes.Equal(got2, want), rerr)
+	}
+}
+
+// C9 part 1: 16 KiB / 64 KiB / 1 MiB inputs arriving behind queued small data.
+func TestProbeC9_LargePreserved(t *testing.T) {
+	pool := mem.DefaultBufferPool()
+	for _, smallBefore := range []int{2, 1025} {
+		for _, size := range []int{16384, 65536, 1 << 20} {
+			b := probeLiteralBuf(pool)
+			for i := 0; i < smallBefore; i++ {
+				b.put(recvMsg{buffer: mem.Copy([]byte{1}, pool)})
+			}
+			p := make([]byte, size)
+			for i := range p {
+				p[i] = byte(i%251 + 1)
+			}
+			orig := mem.Copy(p, pool)
+			origPtr := uintptr(unsafe.Pointer(&orig.ReadOnlyData()[0]))
+			b.put(recvMsg{buffer: orig})
+			b.put(recvMsg{buffer: mem.Copy([]byte{2}, pool)})
+			found := false
+			var same, intact bool
+			probeDrain(b, func(m recvMsg) {
+				if m.buffer != nil && m.buffer.Len() == size {
+					found = true
+					same = m.buffer == orig && uintptr(unsafe.Pointer(&m.buffer.ReadOnlyData()[0])) == origPtr
+					intact = bytes.Equal(m.buffer.ReadOnlyData(), p)
+				}
+			})
+			t.Logf("%d small frames queued, then %d-byte buffer: delivered as one %d-byte message=%v, same mem.Buffer and backing pointer=%v, contents intact=%v", smallBefore, size, size, found, same, intact)
+		}
+	}
+}
+
+// C9 part 2: destination growth with a pool that records every Get/Put.
+func TestProbeC9_GrowthOwnership(t *testing.T) {
+	for _, wl := range []string{"6000x1B", "occupy+8KiB+5x1B", "20000 mixed 1..700B", "3000x1B then terminal error (undrained)"} {
+		pool := newProbePool(t)
+		b := probeLiteralBuf(pool)
+		var want []byte
+		put := func(p []byte) {
+			want = append(want, p...)
+			b.put(recvMsg{buffer: mem.Copy(p, pool)})
+		}
+		switch wl {
+		case "6000x1B":
+			for i := 0; i < 6000; i++ {
+				put([]byte{byte(i%251 + 1)})
+			}
+		case "occupy+8KiB+5x1B":
+			put([]byte("occupy"))
+			put(bytes.Repeat([]byte{7}, 8192))
+			for i := 0; i < 5; i++ {
+				put([]byte{2})
+			}
+		case "20000 mixed 1..700B":
+			for i := 0; i < 20000; i++ {
+				put(bytes.Repeat([]byte{byte(i%251 + 1)}, i%700+1))
+			}
+		default:
+			for i := 0; i < 3000; i++ {
+				put([]byte{byte(i%251 + 1)})
+			}
+			b.put(recvMsg{err: errors.New("stream reset")})
+		}
+		getsBeforeDrain := len(pool.gets)
+		premature := 0
+		outs, got := probeDrain(b, func(m recvMsg) {
+			if m.buffer == nil || m.buffer.Len() == 0 {
+				return
+			}
+			d := m.buffer.ReadOnlyData()
+			// A delivered buffer whose storage came from the pool must still be checked out while the reader holds it.
+			base := uintptr(unsafe.Pointer(unsafe.SliceData(d)))
+			pool.mu.Lock()
+			_, isOut := pool.out[base]
+			pool.mu.Unlock()
+			if !mem.IsBelowBufferPoolingThreshold(cap(d)) && !isOut {
+				premature++
+			}
+		})
+		pool.mu.Lock()
+		t.Logf("%s: Get calls=%d (size:count %v) Put calls=%d outstanding after all delivered buffers freed=%d foreign puts=%d cap-mismatched puts=%d delivered-while-already-returned=%d; %d buffers delivered, bytes equal=%v",
+			wl, getsBeforeDrain, probeHist(pool.gets), pool.puts, len(pool.out), pool.foreign, pool.dupOrBad, premature, len(outs), bytes.Equal(got, want))
+		pool.mu.Unlock()
+	}
+}
