@@ -1,0 +1,14 @@
+// Installed by verify/repro/c1_lockorder.sh, which explains how to run it.
+
+package endpointsharding_test
+
+import (
+	"testing"
+
+	"google.golang.org/grpc/balancer/endpointsharding"
+)
+
+// TestZZVerifyC1_LockOrderAllTests is the last test of the test binary
+// (external package, last file); it prints the lock orders seen across every
+// test that ran before it.
+func TestZZVerifyC1_LockOrderAllTests(t *testing.T) { endpointsharding.VerifyLODump(t) }

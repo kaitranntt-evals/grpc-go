@@ -1,0 +1,108 @@
+// Instrumentation only (not production code). Installed by verify/repro/c1_lockorder.sh, which explains how to run it.
+
+package endpointsharding
+
+import (
+	"bytes"
+	"fmt"
+	"runtime"
+	"sort"
+	"strconv"
+	"sync"
+)
+
+type verifyHeldLock struct {
+	kind string
+	m    *sync.Mutex
+}
+
+var verifyTrack = struct {
+	mu    sync.Mutex
+	held  map[uint64][]verifyHeldLock
+	edges map[string]int
+}{held: map[uint64][]verifyHeldLock{}, edges: map[string]int{}}
+
+func verifyGID() uint64 {
+	var buf [64]byte
+	b := buf[:runtime.Stack(buf[:], false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+	n, _ := strconv.ParseUint(string(b), 10, 64)
+	return n
+}
+
+// verifyLock records, before blocking, every (already held -> being acquired)
+// pair for the calling goroutine.
+func verifyLock(kind string, m *sync.Mutex) {
+	gid := verifyGID()
+	verifyTrack.mu.Lock()
+	for _, h := range verifyTrack.held[gid] {
+		edge := h.kind + " -> " + kind
+		if h.kind == kind {
+			if h.m == m {
+				edge += " (same instance)"
+			} else {
+				edge += " (different instance)"
+			}
+		}
+		verifyTrack.edges[edge]++
+	}
+	verifyTrack.mu.Unlock()
+	m.Lock()
+	verifyTrack.mu.Lock()
+	verifyTrack.held[gid] = append(verifyTrack.held[gid], verifyHeldLock{kind, m})
+	verifyTrack.mu.Unlock()
+}
+
+func verifyUnlock(m *sync.Mutex) {
+	gid := verifyGID()
+	verifyTrack.mu.Lock()
+	hs := verifyTrack.held[gid]
+	for i := len(hs) - 1; i >= 0; i-- {
+		if hs[i].m == m {
+			hs = append(hs[:i], hs[i+1:]...)
+			break
+		}
+	}
+	if len(hs) == 0 {
+		delete(verifyTrack.held, gid)
+	} else {
+		verifyTrack.held[gid] = hs
+	}
+	verifyTrack.mu.Unlock()
+	m.Unlock()
+}
+
+// verifyHeldKinds returns the instrumented locks held by the calling goroutine.
+func verifyHeldKinds() string {
+	gid := verifyGID()
+	verifyTrack.mu.Lock()
+	defer verifyTrack.mu.Unlock()
+	var ks []string
+	for _, h := range verifyTrack.held[gid] {
+		ks = append(ks, h.kind)
+	}
+	return fmt.Sprint(ks)
+}
+
+func verifyEdges() []string {
+	verifyTrack.mu.Lock()
+	defer verifyTrack.mu.Unlock()
+	var out []string
+	for e, n := range verifyTrack.edges {
+		out = append(out, fmt.Sprintf("%s  x%d", e, n))
+	}
+	sort.Strings(out)
+	return out
+}
+
+// esMutex replaces endpointSharding.mu; bwMutex replaces balancerWrapper.mu.
+type esMutex struct{ m sync.Mutex }
+
+func (e *esMutex) Lock()   { verifyLock("es.mu", &e.m) }
+func (e *esMutex) Unlock() { verifyUnlock(&e.m) }
+
+type bwMutex struct{ m sync.Mutex }
+
+func (b *bwMutex) Lock()   { verifyLock("bw.mu", &b.m) }
+func (b *bwMutex) Unlock() { verifyUnlock(&b.m) }

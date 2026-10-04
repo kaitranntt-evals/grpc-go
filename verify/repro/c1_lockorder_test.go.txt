@@ -1,0 +1,173 @@
+// Installed by verify/repro/c1_lockorder.sh, which explains how to run it.
+
+package endpointsharding
+
+import (
+	"errors"
+	"sort"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/attributes"
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/resolver"
+)
+
+type verifyLOPicker struct{}
+
+func (verifyLOPicker) Pick(balancer.PickInfo) (balancer.PickResult, error) {
+	return balancer.PickResult{}, balancer.ErrNoSubConnAvailable
+}
+
+type verifyLOParent struct {
+	balancer.ClientConn
+	mu      sync.Mutex
+	entries map[string]int
+	last    balancer.State
+}
+
+func (p *verifyLOParent) UpdateState(s balancer.State) {
+	held := verifyHeldKinds()
+	p.mu.Lock()
+	p.entries[held]++
+	p.last = s
+	p.mu.Unlock()
+}
+
+type verifyLOChild struct {
+	cc        balancer.ClientConn
+	exitIdles *atomic.Int32
+	callbacks *sync.Map // "<where>: held=<locks>" -> true
+}
+
+func (c *verifyLOChild) cb(where string, st connectivity.State) {
+	c.callbacks.Store("child calls cc.UpdateState synchronously from "+where+" with held="+verifyHeldKinds(), true)
+	c.cc.UpdateState(balancer.State{ConnectivityState: st, Picker: verifyLOPicker{}})
+}
+func (c *verifyLOChild) UpdateClientConnState(balancer.ClientConnState) error {
+	c.cb("UpdateClientConnState", connectivity.Connecting)
+	return nil
+}
+func (c *verifyLOChild) ResolverError(error)                                        { c.cb("ResolverError", connectivity.TransientFailure) }
+func (c *verifyLOChild) UpdateSubConnState(balancer.SubConn, balancer.SubConnState) {}
+func (c *verifyLOChild) Close()                                                     {}
+func (c *verifyLOChild) ExitIdle() {
+	c.cb("ExitIdle", connectivity.Connecting)
+	c.exitIdles.Add(1)
+}
+
+func verifyLOWait(t *testing.T, n *atomic.Int32, want int32) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for n.Load() < want {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %d ExitIdle calls, got %d", want, n.Load())
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+// TestVerifyC1_LockOrder drives every path into and out of the children
+// (construction-time callback, batch update, auto/explicit/parent ExitIdle,
+// resolver error, attribute change, removal, async callback, Close) with
+// children that synchronously call back into the parent, and prints every
+// observed lock-acquisition order plus the locks held on each entry into the
+// parent ClientConn.
+func TestVerifyC1_LockOrder(t *testing.T) {
+	var exitIdles atomic.Int32
+	var callbacks sync.Map
+	var ccMu sync.Mutex
+	var childCCs []balancer.ClientConn
+	builder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+		c := &verifyLOChild{cc: cc, exitIdles: &exitIdles, callbacks: &callbacks}
+		ccMu.Lock()
+		childCCs = append(childCCs, cc)
+		ccMu.Unlock()
+		c.cb("Build", connectivity.Idle) // construction-time IDLE => auto ExitIdle goroutine
+		return c
+	}
+	parent := &verifyLOParent{entries: map[string]int{}}
+	lb := NewBalancer(parent, balancer.BuildOptions{}, builder, Options{})
+
+	ep := func(a, attr string) resolver.Endpoint {
+		return resolver.Endpoint{Addresses: []resolver.Address{{Addr: a}}, Attributes: attributes.New("k", attr)}
+	}
+	if err := lb.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep("a", "1"), ep("b", "1"), ep("c", "1")}}}); err != nil {
+		t.Fatal(err)
+	}
+	verifyLOWait(t, &exitIdles, 3) // auto ExitIdle from construction-time IDLE
+
+	parent.mu.Lock()
+	states := ChildStatesFromPicker(parent.last.Picker)
+	parent.mu.Unlock()
+	if len(states) != 3 {
+		t.Fatalf("got %d child states, want 3", len(states))
+	}
+	for _, cs := range states {
+		cs.ExitIdle() // ChildState.ExitIdle
+	}
+	verifyLOWait(t, &exitIdles, 6)
+	lb.(balancer.ExitIdler).ExitIdle() // parent-wide synchronous ExitIdle
+	verifyLOWait(t, &exitIdles, 9)
+	lb.ResolverError(errors.New("verify"))
+	// Attribute change on existing children + removal of "c".
+	if err := lb.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: []resolver.Endpoint{ep("a", "2"), ep("b", "2")}}}); err != nil {
+		t.Fatal(err)
+	}
+	// Asynchronous child callbacks (no lock held by the caller), IDLE => auto ExitIdle.
+	ccMu.Lock()
+	ccs := append([]balancer.ClientConn(nil), childCCs...)
+	ccMu.Unlock()
+	before := exitIdles.Load()
+	for _, cc := range ccs {
+		cc.UpdateState(balancer.State{ConnectivityState: connectivity.Idle, Picker: verifyLOPicker{}})
+	}
+	verifyLOWait(t, &exitIdles, before+2) // removed child must not exit idle
+	for _, cs := range states {
+		cs.ExitIdle()
+	}
+	verifyLOWait(t, &exitIdles, before+4)
+	lb.Close()
+
+	var cbs []string
+	callbacks.Range(func(k, _ any) bool { cbs = append(cbs, k.(string)); return true })
+	sort.Strings(cbs)
+	for _, c := range cbs {
+		t.Log(c)
+	}
+	parent.mu.Lock()
+	var ents []string
+	for k := range parent.entries {
+		ents = append(ents, k)
+	}
+	sort.Strings(ents)
+	for _, k := range ents {
+		t.Logf("parent cc.UpdateState entered with held=%s  x%d", k, parent.entries[k])
+	}
+	parent.mu.Unlock()
+	verifyLODump(t)
+}
+
+// VerifyLODump is exported (test binary only) for the external-package dump
+// test in zz_verify_lockorder_ext_test.go, which runs after every other test.
+var VerifyLODump = verifyLODump
+
+func verifyLODump(t *testing.T) {
+	edges := verifyEdges()
+	t.Logf("observed lock-acquisition orders (held -> acquiring): %d distinct", len(edges))
+	for _, e := range edges {
+		t.Logf("  %s", e)
+	}
+	for _, e := range edges {
+		if strings.HasPrefix(e, "es.mu -> bw.mu") {
+			t.Errorf("ORDER VIOLATION: es.mu held while acquiring a child mutex: %s", e)
+		}
+		if strings.HasPrefix(e, "bw.mu -> bw.mu") || strings.HasPrefix(e, "es.mu -> es.mu") {
+			t.Errorf("unexpected nested acquisition: %s", e)
+		}
+	}
+}

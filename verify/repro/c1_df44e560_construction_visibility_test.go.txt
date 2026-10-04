@@ -1,0 +1,92 @@
+// Run: cp verify/repro/c1_df44e560_construction_visibility_test.go.txt <worktree of evalon/grpc-go-en-df44e560>/balancer/endpointsharding/verify_c1_test.go && go test ./balancer/endpointsharding -run '^TestVerifyC1_ConstructionVisibility$' -race -count=1 -v
+
+package endpointsharding
+
+import (
+	"bytes"
+	"runtime"
+	"strings"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/resolver"
+)
+
+type verifyC1Picker struct{}
+
+func (verifyC1Picker) Pick(balancer.PickInfo) (balancer.PickResult, error) {
+	return balancer.PickResult{}, balancer.ErrNoSubConnAvailable
+}
+
+type verifyC1Child struct{ exitIdle chan string }
+
+func (c *verifyC1Child) UpdateClientConnState(balancer.ClientConnState) error       { return nil }
+func (c *verifyC1Child) ResolverError(error)                                        {}
+func (c *verifyC1Child) UpdateSubConnState(balancer.SubConn, balancer.SubConnState) {}
+func (c *verifyC1Child) Close()                                                     {}
+func (c *verifyC1Child) ExitIdle()                                                  { c.exitIdle <- verifyC1Header() }
+func (verifyC1ParentCC) UpdateState(balancer.State)                                 {}
+
+type verifyC1ParentCC struct{ balancer.ClientConn }
+
+func verifyC1Header() string {
+	var buf [64]byte
+	b := buf[:runtime.Stack(buf[:], false)]
+	return string(b[:bytes.IndexByte(b, '[')])
+}
+
+// TestVerifyC1_ConstructionVisibility checks the newChild comment "The
+// returned wrapper is not yet visible to other goroutines, so no locking is
+// required" (and the field comment "child ... is set once, before the wrapper
+// is published") against a child whose Build synchronously reports IDLE.
+func TestVerifyC1_ConstructionVisibility(t *testing.T) {
+	exitIdle := make(chan string, 1)
+	var workerStack string
+	var childNilWhileVisible bool
+	builder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+		bw := cc.(*balancerWrapper)
+		t.Logf("Build running on %s; newChild has not returned", verifyC1Header())
+		cc.UpdateState(balancer.State{ConnectivityState: connectivity.Idle, Picker: verifyC1Picker{}})
+		// Look for another goroutine that is already operating on this wrapper.
+		deadline := time.Now().Add(3 * time.Second)
+		for workerStack == "" && time.Now().Before(deadline) {
+			buf := make([]byte, 1<<20)
+			for _, g := range strings.Split(string(buf[:runtime.Stack(buf, true)]), "\n\n") {
+				if strings.Contains(g, "(*balancerWrapper).exitIdleSync") {
+					workerStack = g
+				}
+			}
+			time.Sleep(time.Millisecond)
+		}
+		childNilWhileVisible = bw.child == nil // builder goroutine holds bw.mu here
+		return &verifyC1Child{exitIdle: exitIdle}
+	}
+	lb := NewBalancer(verifyC1ParentCC{}, balancer.BuildOptions{}, builder, Options{})
+	if err := lb.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{
+		Endpoints: []resolver.Endpoint{{Addresses: []resolver.Address{{Addr: "10.0.0.1"}}}},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	defer lb.Close()
+
+	if workerStack == "" {
+		t.Log("no other goroutine touched the wrapper before Build returned")
+	} else {
+		lines := strings.Split(workerStack, "\n")
+		if len(lines) > 13 {
+			lines = lines[:13]
+		}
+		t.Logf("while Build was still running (bw.child == nil: %v), another goroutine was already inside the wrapper:\n%s", childNilWhileVisible, strings.Join(lines, "\n"))
+	}
+	select {
+	case g := <-exitIdle:
+		t.Logf("child.ExitIdle() was then delivered on %s", g)
+	case <-time.After(3 * time.Second):
+		t.Log("child.ExitIdle() was not delivered within 3s")
+	}
+	if workerStack != "" {
+		t.Errorf("PROBLEM REPRODUCED: wrapper was visible to (and locked on by) another goroutine before newChild returned; the bw.mu lock in newChild is what keeps it safe")
+	}
+}

@@ -1,0 +1,35 @@
+# Run: on a worktree of evalon/grpc-go-en-904ab4c7: git apply verify/repro/c2_unjoined_worker_close.patch && go test ./balancer/endpointsharding -run 'Test/ChildOperationsIndependent/UpdateClientConnState/ChildState$' -race -count=1 -v -timeout 40s
+diff --git a/balancer/endpointsharding/endpointsharding_ext_test.go b/balancer/endpointsharding/endpointsharding_ext_test.go
+index 2e658658..4e8f4d72 100644
+--- a/balancer/endpointsharding/endpointsharding_ext_test.go
++++ b/balancer/endpointsharding/endpointsharding_ext_test.go
+@@ -368,6 +368,7 @@ func (s) TestChildOperationsIndependent(t *testing.T) {
+ 				block := func() {
+ 					notifyStarted()
+ 					<-release
++					select {} // VERIFY C2: simulate a worker that never completes after release
+ 				}
+ 				exitedIdle := make(chan string, 2)
+ 				childCCs := make(map[string]balancer.ClientConn)
+@@ -420,9 +421,11 @@ func (s) TestChildOperationsIndependent(t *testing.T) {
+ 				// when the test fails, and wait for all child calls to finish.
+ 				defer func() {
+ 					close(release)
++					workerJoined := false // VERIFY C2
+ 					if operationDone != nil {
+ 						select {
+ 						case err := <-operationDone:
++							workerJoined = true // VERIFY C2
+ 							if err != nil {
+ 								t.Errorf("%s failed: %v", operation, err)
+ 							}
+@@ -430,7 +433,9 @@ func (s) TestChildOperationsIndependent(t *testing.T) {
+ 							t.Errorf("Timed out waiting for %s to finish", operation)
+ 						}
+ 					}
++					t.Logf("VERIFY C2: cleanup now calling b.Close(); workerJoined=%v", workerJoined)
+ 					b.Close()
++					t.Logf("VERIFY C2: b.Close() returned")
+ 				}()
+ 				slow := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "slow"}}}
+ 				fast := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "fast"}}}

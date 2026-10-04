@@ -1,0 +1,16 @@
+# Run: on a worktree of evalon/grpc-go-en-df44e560: git apply verify/repro/c1_df44e560_no_lock_mutation.patch && cp <eval_tests>/tests/eval_endpointsharding_test.go balancer/endpointsharding/ && go test ./balancer/endpointsharding -run '^TestEval_ConstructionIdleCallbackSafety$' -race -count=1 -v
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 5b332757..a5657aac 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -246,9 +246,7 @@ func (es *endpointSharding) newChild(endpoint resolver.Endpoint) *balancerWrappe
+ 	bw.childState.balancer = bw
+ 	// Hold the child's mutex while building it so that any synchronous call
+ 	// back into the wrapper during Build observes a consistent wrapper.
+-	bw.mu.Lock()
+-	bw.child = es.childBuilder(bw, es.bOpts)
+-	bw.mu.Unlock()
++	bw.child = es.childBuilder(bw, es.bOpts) // VERIFY C1 mutation: "no locking is required"
+ 	return bw
+ }
+ 

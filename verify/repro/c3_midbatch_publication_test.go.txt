@@ -1,0 +1,131 @@
+// Run: cp verify/repro/c3_midbatch_publication_test.go.txt <worktree of evalon/grpc-go-en-79fc04cb>/balancer/endpointsharding/verify_c3_test.go && go test ./balancer/endpointsharding -run '^TestVerifyC3' -race -count=5 -v
+
+package endpointsharding
+
+import (
+	"sync"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/resolver"
+)
+
+type verifyC3CC struct {
+	balancer.ClientConn
+	mu     sync.Mutex
+	states []balancer.State
+}
+
+func (c *verifyC3CC) UpdateState(s balancer.State) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.states = append(c.states, s)
+}
+
+func (c *verifyC3CC) snapshot() []balancer.State {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]balancer.State(nil), c.states...)
+}
+
+type verifyC3Child struct {
+	cc      balancer.ClientConn
+	onFirst func(addr string, cc balancer.ClientConn)
+}
+
+func (c *verifyC3Child) UpdateClientConnState(ccs balancer.ClientConnState) error {
+	c.onFirst(ccs.ResolverState.Endpoints[0].Addresses[0].Addr, c.cc)
+	return nil
+}
+func (c *verifyC3Child) ResolverError(error)                                        {}
+func (c *verifyC3Child) UpdateSubConnState(balancer.SubConn, balancer.SubConnState) {}
+func (c *verifyC3Child) Close()                                                     {}
+func (c *verifyC3Child) ExitIdle()                                                  {}
+
+// TestVerifyC3_MidBatchCallbackPublishes holds the LAST child of a 3-endpoint
+// batch inside UpdateClientConnState and, from the test goroutine, delivers a
+// state callback from a DIFFERENT, already-updated child.
+func TestVerifyC3_MidBatchCallbackPublishes(t *testing.T) {
+	var (
+		mu       sync.Mutex
+		order    []string
+		childCCs = map[string]balancer.ClientConn{}
+		blocked  = make(chan string, 1)
+		release  = make(chan struct{})
+	)
+	builder := func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+		return &verifyC3Child{cc: cc, onFirst: func(addr string, cc balancer.ClientConn) {
+			mu.Lock()
+			order = append(order, addr)
+			n := len(order)
+			childCCs[addr] = cc
+			mu.Unlock()
+			cc.UpdateState(balancer.State{ConnectivityState: connectivity.Connecting})
+			if n == 3 {
+				blocked <- addr
+				<-release
+			}
+		}}
+	}
+	parent := &verifyC3CC{}
+	lb := NewBalancer(parent, balancer.BuildOptions{}, builder, Options{DisableAutoReconnect: true})
+	es := lb.(*endpointSharding)
+
+	eps := []resolver.Endpoint{
+		{Addresses: []resolver.Address{{Addr: "10.0.0.1"}}},
+		{Addresses: []resolver.Address{{Addr: "10.0.0.2"}}},
+		{Addresses: []resolver.Address{{Addr: "10.0.0.3"}}},
+	}
+	done := make(chan error, 1)
+	go func() {
+		done <- lb.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: eps}})
+	}()
+
+	var blockedAddr string
+	select {
+	case blockedAddr = <-blocked:
+	case <-time.After(5 * time.Second):
+		t.Fatal("third child never blocked")
+	}
+	mu.Lock()
+	firstAddr := order[0]
+	firstCC := childCCs[firstAddr]
+	mu.Unlock()
+	t.Logf("update order=%v; blocked child=%s; callback source=%s (distinct=%v)", order, blockedAddr, firstAddr, blockedAddr != firstAddr)
+
+	// Part suppression_lifetime: suppression flag of the already-updated child
+	// vs. installation of the batch's endpoint map.
+	firstBW := firstCC.(*balancerWrapper)
+	t.Logf("suppression_lifetime: already-updated child %s inhibitUpdates=%v while installed endpoint map has Len()=%d (batch has %d endpoints)",
+		firstAddr, firstBW.inhibitUpdates.Load(), es.children.Load().Len(), len(eps))
+	t.Logf("parent updates before mid-batch callback: %d", len(parent.snapshot()))
+
+	// Part callback_trigger.
+	firstCC.UpdateState(balancer.State{ConnectivityState: connectivity.Ready})
+	mid := parent.snapshot()
+	t.Logf("callback_trigger: parent updates after mid-batch callback from %s, with %s still blocked: %d", firstAddr, blockedAddr, len(mid))
+	for i, s := range mid {
+		_, err := s.Picker.Pick(balancer.PickInfo{})
+		t.Logf("  mid-batch published state[%d]: ConnectivityState=%v childStates=%d pickErr=%v", i, s.ConnectivityState, len(ChildStatesFromPicker(s.Picker)), err)
+	}
+	select {
+	case err := <-done:
+		t.Fatalf("batch finished early: %v", err)
+	default:
+		t.Log("batch UpdateClientConnState still in flight (not returned)")
+	}
+
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatalf("UpdateClientConnState: %v", err)
+	}
+	final := parent.snapshot()
+	t.Logf("parent updates after batch completion: %d; final state=%v childStates=%d", len(final), final[len(final)-1].ConnectivityState, len(ChildStatesFromPicker(final[len(final)-1].Picker)))
+
+	if len(mid) != 0 {
+		t.Errorf("PROBLEM REPRODUCED: %d parent publication(s) leaked mid-batch before the complete endpoint map was installed", len(mid))
+	}
+	lb.Close()
+}

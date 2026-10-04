@@ -1,0 +1,125 @@
+// Run: cp verify/repro/c5_stale_snapshot_test.go.txt <worktree of evalon/grpc-go-en-8e58d9ff>/balancer/ringhash/verify_c5_test.go && go test ./balancer/ringhash -run '^TestVerifyC5' -race -count=1 -v
+
+package ringhash
+
+import (
+	"fmt"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/attributes"
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/balancer/endpointsharding"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/internal/testutils"
+	"google.golang.org/grpc/resolver"
+)
+
+type verifyC5Key struct{}
+
+func TestVerifyC5_StaleChildStateSnapshot(t *testing.T) {
+	addr := resolver.Address{Addr: testBackendAddrStrs[0]}
+	epV1 := resolver.Endpoint{Addresses: []resolver.Address{addr}, Attributes: attributes.New(verifyC5Key{}, "attrs-v1")}
+	epV2 := resolver.Endpoint{Addresses: []resolver.Address{addr}, Attributes: attributes.New(verifyC5Key{}, "attrs-v2")}
+
+	cc, b, _ := setupTest(t, []resolver.Endpoint{epV1})
+	rb := b.(*ringhashBalancer)
+
+	get := func() *endpointState {
+		rb.mu.Lock()
+		defer rb.mu.Unlock()
+		es, ok := rb.endpointStates.Get(epV1)
+		if !ok {
+			t.Fatal("endpointState missing")
+		}
+		return es
+	}
+	dump := func(label string) (statePicker, snapPicker balancer.Picker, snap endpointsharding.ChildState) {
+		es := get()
+		rb.mu.Lock()
+		defer rb.mu.Unlock()
+		snap, ok := es.balancer.(endpointsharding.ChildState)
+		t.Logf("%s: es.balancer dynamic type=%T (is ChildState value: %v)", label, es.balancer, ok)
+		t.Logf("%s: es.state           = {%v, picker %T@%p}", label, es.state.ConnectivityState, es.state.Picker, es.state.Picker)
+		t.Logf("%s: es.balancer.State  = {%v, picker %T@%p}", label, snap.State.ConnectivityState, snap.State.Picker, snap.State.Picker)
+		t.Logf("%s: es.balancer.Endpoint.Attributes[verifyC5Key] = %v", label, snap.Endpoint.Attributes.Value(verifyC5Key{}))
+		return es.state.Picker, snap.State.Picker, snap
+	}
+
+	p0State, p0Snap, _ := dump("after creation")
+	if fmt.Sprintf("%p", p0State) != fmt.Sprintf("%p", p0Snap) {
+		t.Fatalf("precondition: snapshot picker differs from es.state picker at creation")
+	}
+
+	// Newer child-state update #1: reconnection through es.balancer drives the
+	// child IDLE -> CONNECTING -> READY, each replacing es.state.
+	get().balancer.ExitIdle()
+	var sc *testutils.TestSubConn
+	select {
+	case sc = <-cc.NewSubConnCh:
+	case <-time.After(defaultTestTimeout):
+		t.Fatal("no SubConn created after es.balancer.ExitIdle()")
+	}
+	sc.UpdateState(balancer.SubConnState{ConnectivityState: connectivity.Connecting})
+	sc.UpdateState(balancer.SubConnState{ConnectivityState: connectivity.Ready})
+	deadline := time.Now().Add(defaultTestTimeout)
+	for {
+		es := get()
+		rb.mu.Lock()
+		st := es.state.ConnectivityState
+		rb.mu.Unlock()
+		if st == connectivity.Ready {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("es.state never became READY (is %v)", st)
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	// Newer child-state update #2: resolver update changes the endpoint's
+	// attributes (same address => same endpointState).
+	if err := b.UpdateClientConnState(balancer.ClientConnState{
+		ResolverState:  resolver.State{Endpoints: []resolver.Endpoint{epV2}},
+		BalancerConfig: testConfig,
+	}); err != nil {
+		t.Fatalf("UpdateClientConnState: %v", err)
+	}
+
+	p1State, p1Snap, snap := dump("after updates ")
+
+	// What endpointsharding currently reports for this child.
+	rb.mu.Lock()
+	t.Logf("ringhash endpointStates.Len()=%d", rb.endpointStates.Len())
+	rb.mu.Unlock()
+
+	stateReplaced := fmt.Sprintf("%p", p1State) != fmt.Sprintf("%p", p0State)
+	snapRetained := fmt.Sprintf("%p", p1Snap) == fmt.Sprintf("%p", p0Snap)
+	attrsRetained := snap.Endpoint.Attributes.Value(verifyC5Key{}) == "attrs-v1"
+	t.Logf("es.state picker replaced: %v; es.balancer still holds initial picker: %v; es.balancer still holds initial endpoint attributes: %v (snapshot state %v vs live %v)",
+		stateReplaced, snapRetained, attrsRetained, snap.State.ConnectivityState, connectivity.Ready)
+
+	// Functional check: reconnection through the stale snapshot still reaches
+	// the live child.
+	sc.UpdateState(balancer.SubConnState{ConnectivityState: connectivity.Idle})
+	drain := time.After(50 * time.Millisecond)
+loop:
+	for {
+		select {
+		case <-sc.ConnectCh:
+		case <-drain:
+			break loop
+		}
+	}
+	get().balancer.ExitIdle()
+	select {
+	case <-sc.ConnectCh:
+		t.Log("functional: ExitIdle through the stale snapshot still triggered SubConn.Connect on the live child")
+	case <-time.After(2 * time.Second):
+		t.Log("functional: ExitIdle through the stale snapshot did NOT trigger SubConn.Connect within 2s")
+	}
+
+	if stateReplaced && snapRetained && attrsRetained {
+		t.Errorf("PROBLEM REPRODUCED: es.balancer retains the initial ChildState snapshot (original picker and endpoint attributes) after es.state was replaced")
+	}
+}
