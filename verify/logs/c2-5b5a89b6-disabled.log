@@ -1,0 +1,8 @@
+=== RUN   TestVerifyC2_HandlerHandleStreams
+    verify_c2_handler_test.go:92: compaction enabled=false: 1026 one-byte body reads -> backlog entries=1025, entry types=map[*mem.buffer:1025], backing capacity held=16793600 bytes (16.0 MiB) for 1025 unread payload bytes, heap grew 16967120 bytes
+--- PASS: TestVerifyC2_HandlerHandleStreams (0.01s)
+=== RUN   TestVerifyC2_HandlerOverRealHTTP2
+    verify_c2_handler_test.go:92: compaction enabled=false: 1026 one-byte body reads -> backlog entries=1025, entry types=map[*mem.buffer:1025], backing capacity held=16793600 bytes (16.0 MiB) for 1025 unread payload bytes, heap grew 16951264 bytes
+--- PASS: TestVerifyC2_HandlerOverRealHTTP2 (1.26s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	1.276s

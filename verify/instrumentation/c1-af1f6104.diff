@@ -1,0 +1,20 @@
+diff --git a/internal/transport/recv_buffer_test.go b/internal/transport/recv_buffer_test.go
+index b931983f..3b22550c 100644
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -437,6 +437,7 @@ func runTinyDataFramesClient(t *testing.T, want []byte) uint64 {
+ 	if err != nil {
+ 		t.Fatalf("Error while listening: %v", err)
+ 	}
++	lis = verifyWrapListener(lis)
+ 	defer lis.Close()
+ 
+ 	// serverReady is closed once the server has sent its preface and
+@@ -525,6 +526,7 @@ func runTinyDataFramesClient(t *testing.T, want []byte) uint64 {
+ 	copts := ConnectOptions{
+ 		ChannelzParent: channelzSubChannel(t),
+ 		BufferPool:     mem.DefaultBufferPool(),
++		Dialer:         verifyDialer(),
+ 	}
+ 	ct, err := NewHTTP2Client(ctx, ctx, resolver.Address{Addr: lis.Addr().String()}, copts, func(GoAwayInfo) {})
+ 	if err != nil {

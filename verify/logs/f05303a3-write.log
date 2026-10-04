@@ -1,0 +1,20 @@
+=== RUN   Test
+=== RUN   Test/ClientReceivesManyTinyDataFrames
+=== RUN   Test/ClientReceivesManyTinyDataFrames/compaction_enabled
+[verify +  0.00s] server lis.Accept(): begin
+[verify +  0.00s] server lis.Accept(): returned after 0.00s err=<nil>
+[verify +  0.00s] client: stops reading from the socket
+[verify +  1.01s] server sconn.Read #6: STALLED >1s (no deadline set on conn)
+[verify + 10.04s] client conn.Close(): closing socket, called by: transport.NewHTTP2Client.func6:483 <- runtime.goexit:1693
+    transport_test.go:4552: Timed out waiting for the stream to complete
+[verify + 10.04s] client conn.Close(): closing socket, called by: transport.(*http2Client).Close:1073 <- runtime.Goexit:615 <- testing.(*common).FailNow:1013
+[verify + 10.04s] lis.Close() called by: runtime.Goexit:615 <- testing.(*common).FailNow:1013 <- testing.(*common).Fatalf:1219
+[verify + 10.04s] server sconn.Read #6: returned after 10.03s n=0 err=read tcp 127.0.0.1:39491->127.0.0.1:54808: read: connection reset by peer
+[verify + 10.04s] server sconn.Close() called by: transport.s.TestClientReceivesManyTinyDataFrames.func1.1.1:4520 <- transport.s.TestClientReceivesManyTinyDataFrames.func1.1:4523 <- runtime.goexit:1693
+--- FAIL: Test (10.04s)
+    --- FAIL: Test/ClientReceivesManyTinyDataFrames (10.04s)
+        --- FAIL: Test/ClientReceivesManyTinyDataFrames/compaction_enabled (10.04s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+exit=1 wall=10.044564730s

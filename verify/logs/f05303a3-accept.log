@@ -1,0 +1,15 @@
+=== RUN   Test
+=== RUN   Test/ClientReceivesManyTinyDataFrames
+=== RUN   Test/ClientReceivesManyTinyDataFrames/compaction_enabled
+[verify +  0.00s] client: dialing black-hole 127.0.0.1:46295 instead of the test server
+[verify +  0.00s] server lis.Accept(): begin
+    transport_test.go:4535: Error while creating client transport: connection error: desc = "error reading server preface: read tcp 127.0.0.1:53418->127.0.0.1:46295: use of closed network connection"
+[verify + 10.00s] lis.Close() called by: runtime.Goexit:615 <- testing.(*common).FailNow:1013 <- testing.(*common).Fatalf:1219
+[verify + 10.00s] server lis.Accept(): returned after 10.00s err=accept tcp 127.0.0.1:37179: use of closed network connection
+--- FAIL: Test (10.00s)
+    --- FAIL: Test/ClientReceivesManyTinyDataFrames (10.00s)
+        --- FAIL: Test/ClientReceivesManyTinyDataFrames/compaction_enabled (10.00s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+exit=1 wall=10.008358093s

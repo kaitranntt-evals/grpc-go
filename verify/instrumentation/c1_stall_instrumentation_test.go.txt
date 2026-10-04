@@ -1,0 +1,276 @@
+// Instrumentation for claim C1 (run v-76589dfa). Copy to internal/transport/verify_stall_test.go (source: verify/instrumentation/c1_stall_instrumentation_test.go.txt)
+// on the audited branch and apply the matching c1-<branch>.diff; select a stall with VERIFY_STALL.
+//
+// It leaves the solution's test-server code untouched: the listener is wrapped only to
+// timestamp Accept / Read / Write calls, and the stall is injected on the *client* side
+// through ConnectOptions.Dialer.
+//
+//	VERIFY_STALL=            no stall, timestamps only
+//	VERIFY_STALL=accept      client dials a black-hole listener, so the server's lis.Accept() never gets a connection
+//	VERIFY_STALL=read        client connects but its writes are swallowed, so the server's first read on the accepted conn stalls
+//	VERIFY_STALL=stream      handshake completes, but the client's HEADERS frame (and everything after) is swallowed,
+//	                         so the server's ReadFrame loop waiting for the stream stalls
+//	VERIFY_STALL=write       the client stops reading after the server's SETTINGS + SETTINGS-ack (18 bytes),
+//	                         so the server's DATA-frame writes can only stall on full socket buffers
+package transport
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"os"
+	"runtime"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+)
+
+var verifyStart = time.Now()
+
+func verifyLogf(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, "[verify +%6.2fs] %s\n", time.Since(verifyStart).Seconds(), fmt.Sprintf(format, args...))
+}
+
+type verifyListener struct{ net.Listener }
+
+func verifyWrapListener(l net.Listener) net.Listener {
+	verifyStart = time.Now()
+	return &verifyListener{l}
+}
+
+func (l *verifyListener) Accept() (net.Conn, error) {
+	verifyLogf("server lis.Accept(): begin")
+	begin := time.Now()
+	c, err := l.Listener.Accept()
+	verifyLogf("server lis.Accept(): returned after %.2fs err=%v", time.Since(begin).Seconds(), err)
+	if err != nil {
+		return nil, err
+	}
+	return &verifyServerConn{Conn: c}, nil
+}
+
+func (l *verifyListener) Close() error {
+	verifyLogf("lis.Close() called by: %s", verifyCaller())
+	return l.Listener.Close()
+}
+
+// verifyServerConn timestamps server-side operations on the accepted conn.
+type verifyServerConn struct {
+	net.Conn
+	n atomic.Int64
+}
+
+func (c *verifyServerConn) Read(p []byte) (int, error) {
+	id := c.n.Add(1)
+	begin := time.Now()
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			verifyLogf("server sconn.Read #%d: STALLED >1s (no deadline set on conn)", id)
+			select {
+			case <-done:
+			case <-time.After(24 * time.Second):
+				verifyLogf("server sconn.Read #%d: STILL STALLED after 25s", id)
+				verifyDumpServerGoroutine()
+			}
+		}
+	}()
+	n, err := c.Conn.Read(p)
+	close(done)
+	if d := time.Since(begin); d > time.Second || err != nil {
+		verifyLogf("server sconn.Read #%d: returned after %.2fs n=%d err=%v", id, d.Seconds(), n, err)
+	}
+	return n, err
+}
+
+func (c *verifyServerConn) Write(p []byte) (int, error) {
+	begin := time.Now()
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			verifyLogf("server sconn.Write: STALLED >1s (no deadline set on conn)")
+		}
+	}()
+	n, err := c.Conn.Write(p)
+	close(done)
+	if d := time.Since(begin); d > time.Second || err != nil {
+		verifyLogf("server sconn.Write: returned after %.2fs n=%d/%d err=%v", d.Seconds(), n, len(p), err)
+	}
+	return n, err
+}
+
+func (c *verifyServerConn) SetDeadline(t time.Time) error {
+	verifyLogf("server sconn.SetDeadline(%v)", t)
+	return c.Conn.SetDeadline(t)
+}
+func (c *verifyServerConn) SetReadDeadline(t time.Time) error {
+	verifyLogf("server sconn.SetReadDeadline(%v)", t)
+	return c.Conn.SetReadDeadline(t)
+}
+func (c *verifyServerConn) SetWriteDeadline(t time.Time) error {
+	verifyLogf("server sconn.SetWriteDeadline(%v)", t)
+	return c.Conn.SetWriteDeadline(t)
+}
+func (c *verifyServerConn) Close() error {
+	verifyLogf("server sconn.Close() called by: %s", verifyCaller())
+	return c.Conn.Close()
+}
+
+func verifyCaller() string {
+	pc := make([]uintptr, 8)
+	n := runtime.Callers(3, pc)
+	frames := runtime.CallersFrames(pc[:n])
+	var out []string
+	for {
+		f, more := frames.Next()
+		out = append(out, fmt.Sprintf("%s:%d", f.Function[strings.LastIndex(f.Function, "/")+1:], f.Line))
+		if !more || len(out) == 3 {
+			break
+		}
+	}
+	return strings.Join(out, " <- ")
+}
+
+func verifyDumpServerGoroutine() {
+	buf := make([]byte, 1<<20)
+	buf = buf[:runtime.Stack(buf, true)]
+	for _, g := range strings.Split(string(buf), "\n\n") {
+		if strings.Contains(g, "verifyServerConn") && strings.Contains(g, "IO wait") {
+			verifyLogf("blocked server goroutine:\n%s", g)
+		}
+	}
+}
+
+var (
+	verifyBlackholeOnce sync.Once
+	verifyBlackhole     net.Listener
+)
+
+// clientStallConn swallows the client's writes so the server never receives a byte.
+type clientStallConn struct{ net.Conn }
+
+func (c *clientStallConn) Write(p []byte) (int, error) { return len(p), nil }
+func (c *clientStallConn) Close() error {
+	verifyLogf("client conn.Close(): closing socket, called by: %s", verifyCaller())
+	return c.Conn.Close()
+}
+
+// verifyDialer returns the ConnectOptions.Dialer implementing VERIFY_STALL (nil when unset).
+func verifyDialer() func(context.Context, string) (net.Conn, error) {
+	mode := os.Getenv("VERIFY_STALL")
+	switch mode {
+	case "":
+		return nil
+	case "accept":
+		return func(ctx context.Context, _ string) (net.Conn, error) {
+			verifyBlackholeOnce.Do(func() { verifyBlackhole, _ = net.Listen("tcp", "localhost:0") })
+			verifyLogf("client: dialing black-hole %s instead of the test server", verifyBlackhole.Addr())
+			return (&net.Dialer{}).DialContext(ctx, "tcp", verifyBlackhole.Addr().String())
+		}
+	case "read":
+		return func(ctx context.Context, addr string) (net.Conn, error) {
+			c, err := (&net.Dialer{}).DialContext(ctx, "tcp", addr)
+			if err != nil {
+				return nil, err
+			}
+			verifyLogf("client: connected to test server; all client writes will be swallowed")
+			return &clientStallConn{Conn: c}, nil
+		}
+	case "stream":
+		return func(ctx context.Context, addr string) (net.Conn, error) {
+			c, err := (&net.Dialer{}).DialContext(ctx, "tcp", addr)
+			if err != nil {
+				return nil, err
+			}
+			return &clientDropHeadersConn{Conn: c, skip: 24}, nil
+		}
+	case "write":
+		return func(ctx context.Context, addr string) (net.Conn, error) {
+			c, err := (&net.Dialer{}).DialContext(ctx, "tcp", addr)
+			if err != nil {
+				return nil, err
+			}
+			return &clientStopReadingConn{Conn: c, left: 18, closed: make(chan struct{})}, nil
+		}
+	}
+	panic("unknown VERIFY_STALL=" + mode)
+}
+
+// clientDropHeadersConn forwards the client preface and connection-level frames, and swallows
+// everything from the first HEADERS frame on.
+type clientDropHeadersConn struct {
+	net.Conn
+	mu       sync.Mutex
+	skip     int    // bytes of the current preface/frame still to forward
+	hdr      []byte // partially collected 9-byte frame header
+	dropping bool
+}
+
+func (c *clientDropHeadersConn) Write(p []byte) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	total := len(p)
+	for len(p) > 0 && !c.dropping {
+		if c.skip > 0 {
+			n := min(c.skip, len(p))
+			if _, err := c.Conn.Write(p[:n]); err != nil {
+				return 0, err
+			}
+			c.skip -= n
+			p = p[n:]
+			continue
+		}
+		n := min(9-len(c.hdr), len(p))
+		c.hdr = append(c.hdr, p[:n]...)
+		p = p[n:]
+		if len(c.hdr) < 9 {
+			break
+		}
+		if c.hdr[3] == 0x1 { // HEADERS
+			verifyLogf("client: swallowing HEADERS frame and all later client writes")
+			c.dropping = true
+			break
+		}
+		if _, err := c.Conn.Write(c.hdr); err != nil {
+			return 0, err
+		}
+		c.skip = int(c.hdr[0])<<16 | int(c.hdr[1])<<8 | int(c.hdr[2])
+		c.hdr = c.hdr[:0]
+	}
+	return total, nil
+}
+
+func (c *clientDropHeadersConn) Close() error {
+	verifyLogf("client conn.Close(): closing socket, called by: %s", verifyCaller())
+	return c.Conn.Close()
+}
+
+// clientStopReadingConn delivers the first `left` bytes from the server and then never reads again.
+type clientStopReadingConn struct {
+	net.Conn
+	left   int
+	once   sync.Once
+	closed chan struct{}
+}
+
+func (c *clientStopReadingConn) Read(p []byte) (int, error) {
+	if c.left == 0 {
+		verifyLogf("client: stops reading from the socket")
+		<-c.closed
+		return 0, net.ErrClosed
+	}
+	n, err := c.Conn.Read(p[:min(len(p), c.left)])
+	c.left -= n
+	return n, err
+}
+
+func (c *clientStopReadingConn) Close() error {
+	verifyLogf("client conn.Close(): closing socket, called by: %s", verifyCaller())
+	c.once.Do(func() { close(c.closed) })
+	return c.Conn.Close()
+}

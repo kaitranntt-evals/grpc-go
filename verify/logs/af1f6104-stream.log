@@ -1,0 +1,20 @@
+=== RUN   Test
+=== RUN   Test/ClientTinyDataFramesBoundReceiveMemory
+=== RUN   Test/ClientTinyDataFramesBoundReceiveMemory/compaction=true
+[verify +  0.00s] server lis.Accept(): begin
+[verify +  0.00s] server lis.Accept(): returned after 0.00s err=<nil>
+[verify +  0.00s] client: swallowing HEADERS frame and all later client writes
+[verify +  1.00s] server sconn.Read #4: STALLED >1s (no deadline set on conn)
+[verify + 10.02s] client conn.Close(): closing socket, called by: transport.NewHTTP2Client.func6:483 <- runtime.goexit:1693
+[verify + 10.02s] client conn.Close(): closing socket, called by: transport.(*http2Client).Close:1073 <- transport.(*http2Client).reader.func1:1716 <- transport.(*http2Client).reader:1760
+    recv_buffer_test.go:422: Timed out waiting for the server to send all DATA frames
+[verify + 10.02s] lis.Close() called by: runtime.Goexit:615 <- testing.(*common).FailNow:1013 <- testing.(*common).Fatalf:1219
+[verify + 10.02s] server sconn.Read #4: returned after 10.02s n=0 err=EOF
+[verify + 10.02s] server sconn.Close() called by: transport.runTinyDataFramesClient.func1.1:477 <- transport.runTinyDataFramesClient.func1:521 <- runtime.goexit:1693
+--- FAIL: Test (10.03s)
+    --- FAIL: Test/ClientTinyDataFramesBoundReceiveMemory (10.03s)
+        --- FAIL: Test/ClientTinyDataFramesBoundReceiveMemory/compaction=true (10.02s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+exit=1 wall=10.034801017s

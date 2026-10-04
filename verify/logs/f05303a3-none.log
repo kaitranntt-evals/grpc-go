@@ -1,0 +1,16 @@
+=== RUN   Test
+=== RUN   Test/ClientReceivesManyTinyDataFrames
+=== RUN   Test/ClientReceivesManyTinyDataFrames/compaction_enabled
+[verify +  0.00s] server lis.Accept(): begin
+[verify +  0.00s] server lis.Accept(): returned after 0.00s err=<nil>
+    transport_test.go:4556: received 8192 one-byte DATA frames: backlog entries = 2, retained bytes = 8256
+[verify +  0.02s] server sconn.Read #14: returned after 0.00s n=0 err=EOF
+[verify +  0.02s] server sconn.Close() called by: transport.s.TestClientReceivesManyTinyDataFrames.func1.1.1:4520 <- transport.s.TestClientReceivesManyTinyDataFrames.func1.1:4523 <- runtime.goexit:1693
+[verify +  0.02s] lis.Close() called by: transport.s.TestClientReceivesManyTinyDataFrames.func1:4585 <- testing.tRunner:1934 <- runtime.goexit:1693
+--- PASS: Test (0.02s)
+    --- PASS: Test/ClientReceivesManyTinyDataFrames (0.02s)
+        --- PASS: Test/ClientReceivesManyTinyDataFrames/compaction_enabled (0.02s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+exit=0 wall=.024990014s

@@ -1,0 +1,181 @@
+// Run (C2, real handler path): on branch evalon/grpc-go-tr-5b5a89b6, cp this file to internal/transport/verify_c2_handler_test.go, then: go test ./internal/transport -run '^TestVerifyC2_Handler' -count=1 -v
+// (GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION=false gives the compaction-off baseline.)
+package transport
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"runtime"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/internal/envconfig"
+	"google.golang.org/grpc/mem"
+)
+
+const verifyC2N = 1026 // same count as the eval fixture's HandlerServerStream subtest
+
+type verifyC2Stats struct {
+	entries  int
+	types    map[string]int
+	capSum   int
+	queued   int
+	heapGrew uint64
+}
+
+func verifyC2Heap() uint64 {
+	runtime.GC()
+	runtime.GC()
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	return ms.HeapAlloc
+}
+
+// verifyC2Wait blocks until all n payload bytes are queued on the (unread) stream, then
+// snapshots the receive backlog.
+func verifyC2Wait(t *testing.T, s *ServerStream, n int) verifyC2Stats {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		st := verifyC2Stats{types: map[string]int{}}
+		s.buf.mu.Lock()
+		st.entries = len(s.buf.backlog)
+		for _, m := range s.buf.backlog {
+			if m.buffer == nil {
+				continue
+			}
+			st.types[fmt.Sprintf("%T", m.buffer)]++
+			st.capSum += cap(m.buffer.ReadOnlyData())
+			st.queued += m.buffer.Len()
+		}
+		s.buf.mu.Unlock()
+		// One message sits in the channel slot (len(s.buf.c)); the rest is the backlog.
+		chanBytes := 0
+		if len(s.buf.c) == 1 {
+			chanBytes = 1
+		}
+		if st.queued+chanBytes >= n {
+			return st
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out: only %d of %d bytes queued", st.queued+chanBytes, n)
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+func verifyC2Drain(t *testing.T, s *ServerStream, want []byte) {
+	t.Helper()
+	bs, err := s.Read(len(want))
+	if err != nil {
+		t.Fatalf("s.Read(%d) = %v", len(want), err)
+	}
+	defer bs.Free()
+	if got := bs.Materialize(); !bytes.Equal(got, want) {
+		t.Fatalf("payload mismatch: got %d bytes, want %d", len(got), len(want))
+	}
+}
+
+func verifyC2Payload() []byte {
+	want := make([]byte, verifyC2N)
+	for i := range want {
+		want[i] = byte(i%251 + 1)
+	}
+	return want
+}
+
+func verifyC2Report(t *testing.T, st verifyC2Stats) {
+	t.Logf("compaction enabled=%v: %d one-byte body reads -> backlog entries=%d, entry types=%v, backing capacity held=%d bytes (%.1f MiB) for %d unread payload bytes, heap grew %d bytes",
+		envconfig.EnableReceiveBufferCompaction, verifyC2N, st.entries, st.types, st.capSum, float64(st.capSum)/(1<<20), st.queued, st.heapGrew)
+	if envconfig.EnableReceiveBufferCompaction && st.entries > verifyC2N/16 {
+		t.Errorf("C2: handler receive path left %d backlog entries for %d one-byte reads with compaction ENABLED, want <= %d (the bound the eval fixture applies to its HandlerServerStream subtest)", st.entries, verifyC2N, verifyC2N/16)
+	}
+}
+
+// TestVerifyC2_HandlerHandleStreams drives the unmodified serverHandlerTransport.HandleStreams
+// reader goroutine with one-byte request-body reads (io.Pipe: one Write == one Body.Read) and
+// lets it feed s.buf.put itself, instead of calling s.buf.put with hand-made buffers as the
+// eval fixture's HandlerServerStream subtest does.
+func TestVerifyC2_HandlerHandleStreams(t *testing.T) {
+	st := newHandleStreamTest(t, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	streamCh := make(chan *ServerStream, 1)
+	go st.ht.HandleStreams(ctx, func(s *ServerStream) { streamCh <- s })
+	s := <-streamCh
+
+	want := verifyC2Payload()
+	before := verifyC2Heap()
+	for i := range want {
+		if _, err := st.bodyw.Write(want[i : i+1]); err != nil {
+			t.Fatalf("body write %d: %v", i, err)
+		}
+	}
+	stats := verifyC2Wait(t, s, len(want))
+	stats.heapGrew = verifyC2Heap() - before
+	verifyC2Report(t, stats)
+	verifyC2Drain(t, s, want)
+	st.bodyw.Close()
+	st.ht.Close(nil)
+}
+
+// TestVerifyC2_HandlerOverRealHTTP2 does the same over a real net/http HTTP/2 server: an HTTP/2
+// client uploads the request body one byte per DATA frame while the application does not read.
+func TestVerifyC2_HandlerOverRealHTTP2(t *testing.T) {
+	streamCh := make(chan *ServerStream, 1)
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Same construction grpc.Server.ServeHTTP performs.
+		tr, err := NewServerHandlerTransport(w, r, nil, mem.DefaultBufferPool())
+		if err != nil {
+			t.Errorf("NewServerHandlerTransport: %v", err)
+			return
+		}
+		tr.HandleStreams(r.Context(), func(s *ServerStream) { streamCh <- s })
+	}))
+	srv.EnableHTTP2 = true
+	srv.StartTLS()
+	defer srv.Close()
+
+	want := verifyC2Payload()
+	pr, pw := io.Pipe()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "POST", srv.URL+"/service/foo.bar", pr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/grpc")
+	req.Header.Set("TE", "trailers")
+	go func() {
+		resp, err := srv.Client().Do(req)
+		if err == nil {
+			resp.Body.Close()
+		}
+	}()
+
+	var s *ServerStream
+	select {
+	case s = <-streamCh:
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for the handler stream")
+	}
+	before := verifyC2Heap()
+	for i := range want {
+		// One pipe write == one client body read == one DATA frame.
+		if _, err := pw.Write(want[i : i+1]); err != nil {
+			t.Fatalf("body write %d: %v", i, err)
+		}
+		// Wait for this byte to be queued so frames are not coalesced by the HTTP/2 layers.
+		verifyC2Wait(t, s, i+1)
+	}
+	stats := verifyC2Wait(t, s, len(want))
+	stats.heapGrew = verifyC2Heap() - before
+	verifyC2Report(t, stats)
+	verifyC2Drain(t, s, want)
+	pw.Close()
+	cancel()
+}

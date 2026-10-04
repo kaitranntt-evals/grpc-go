@@ -1,0 +1,70 @@
+// Run (C2, unit level): on branch evalon/grpc-go-tr-5b5a89b6, cp this file to internal/transport/verify_c2_unit_test.go, then: go test ./internal/transport -run '^TestVerifyC2_Unit' -count=1 -v
+package transport
+
+import (
+	"bytes"
+	"fmt"
+	"testing"
+
+	"google.golang.org/grpc/mem"
+)
+
+// TestVerifyC2_UnitPooledVsUnpooled queues the same 1026 one-byte payloads three ways and
+// reports how many backlog entries recvBuffer keeps. Only the buffer's dynamic type differs.
+func TestVerifyC2_UnitPooledVsUnpooled(t *testing.T) {
+	const n = 1026
+	pool := mem.DefaultBufferPool()
+	shapes := []struct {
+		name string
+		mk   func(b byte) mem.Buffer
+	}{
+		{"unpooled mem.SliceBuffer", func(b byte) mem.Buffer { return mem.SliceBuffer{b} }},
+		{"fixture input: mem.Copy(1 byte, pool)", func(b byte) mem.Buffer { return mem.Copy([]byte{b}, pool) }},
+		{"handler input: NewBuffer(pool.Get(http2MaxFrameLen)[:1], pool)", func(b byte) mem.Buffer {
+			// Exactly what serverHandlerTransport.HandleStreams does for a 1-byte Body.Read.
+			buf := pool.Get(http2MaxFrameLen)
+			(*buf)[0] = b
+			*buf = (*buf)[:1]
+			return mem.NewBuffer(buf, pool)
+		}},
+	}
+	results := map[string]int{}
+	for _, sh := range shapes {
+		var rb recvBuffer
+		rb.init()
+		want := make([]byte, n)
+		var typ string
+		for i := 0; i < n; i++ {
+			want[i] = byte(i%251 + 1)
+			m := sh.mk(want[i])
+			typ = fmt.Sprintf("%T", m)
+			rb.put(recvMsg{buffer: m})
+		}
+		rb.mu.Lock()
+		entries, capSum := len(rb.backlog), 0
+		for _, m := range rb.backlog {
+			capSum += cap(m.buffer.ReadOnlyData())
+		}
+		rb.mu.Unlock()
+		results[sh.name] = entries
+		t.Logf("%-66s type=%-16s backlog entries=%4d (of %d queued behind the channel slot), backing capacity held=%d bytes", sh.name, typ, entries, n-1, capSum)
+
+		// Every byte must still come out in order, whatever was merged.
+		var got []byte
+		for len(got) < n {
+			m := <-rb.get()
+			rb.load()
+			got = append(got, m.buffer.ReadOnlyData()...)
+			m.buffer.Free()
+		}
+		if !bytes.Equal(got, want) {
+			t.Errorf("%s: payload mismatch", sh.name)
+		}
+	}
+	if got := results[shapes[0].name]; got > n/16 {
+		t.Errorf("unpooled SliceBuffer payloads were not merged: %d entries", got)
+	}
+	if got := results[shapes[2].name]; got > n/16 {
+		t.Errorf("C2: pooled handler-shaped short reads were NOT merged: %d backlog entries for %d one-byte payloads, want <= %d (unpooled got %d)", got, n, n/16, results[shapes[0].name])
+	}
+}

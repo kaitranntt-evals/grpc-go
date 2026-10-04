@@ -1,0 +1,18 @@
+=== RUN   Test
+=== RUN   Test/ClientTinyDataFramesBoundReceiveMemory
+=== RUN   Test/ClientTinyDataFramesBoundReceiveMemory/compaction=true
+[verify +  0.00s] server lis.Accept(): begin
+[verify +  0.00s] server lis.Accept(): returned after 0.00s err=<nil>
+    recv_buffer_test.go:422: client retained 127240 bytes while 65535 bytes were queued unread in 8 entries
+[verify +  0.06s] lis.Close() called by: transport.runTinyDataFramesClient:580 <- transport.s.TestClientTinyDataFramesBoundReceiveMemory.func1:422 <- testing.tRunner:1934
+=== NAME  Test/ClientTinyDataFramesBoundReceiveMemory
+    recv_buffer_test.go:426: client retained 127240 bytes with compaction enabled and 0 bytes with it disabled, want at least a 4x reduction
+[verify +  0.06s] server sconn.Read #26: returned after 0.00s n=0 err=EOF
+[verify +  0.06s] server sconn.Close() called by: transport.runTinyDataFramesClient.func1.1:477 <- transport.runTinyDataFramesClient.func1:521 <- runtime.goexit:1693
+--- FAIL: Test (0.07s)
+    --- FAIL: Test/ClientTinyDataFramesBoundReceiveMemory (0.07s)
+        --- PASS: Test/ClientTinyDataFramesBoundReceiveMemory/compaction=true (0.06s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+exit=1 wall=.075735647s

@@ -1,0 +1,21 @@
+=== RUN   Test
+=== RUN   Test/ClientTinyDataFramesBoundReceiveMemory
+=== RUN   Test/ClientTinyDataFramesBoundReceiveMemory/compaction=true
+[verify +  0.00s] server lis.Accept(): begin
+[verify +  0.00s] client: connected to test server; all client writes will be swallowed
+[verify +  0.00s] server lis.Accept(): returned after 0.00s err=<nil>
+[verify +  1.00s] server sconn.Read #1: STALLED >1s (no deadline set on conn)
+[verify + 10.04s] client conn.Close(): closing socket, called by: transport.NewHTTP2Client.func4:260 <- runtime.goexit:1693
+[verify + 10.04s] server sconn.Read #1: returned after 10.04s n=0 err=EOF
+[verify + 10.04s] client conn.Close(): closing socket, called by: transport.(*http2Client).Close:1073 <- transport.NewHTTP2Client.func5:426 <- transport.NewHTTP2Client:488
+[verify + 10.04s] server sconn.Close() called by: transport.runTinyDataFramesClient.func1.1:456 <- transport.runTinyDataFramesClient.func1:521 <- runtime.goexit:1693
+[verify + 10.04s] client conn.Close(): closing socket, called by: transport.NewHTTP2Client.func2:236 <- transport.NewHTTP2Client:488 <- transport.runTinyDataFramesClient:531
+    recv_buffer_test.go:422: Error while creating client transport: connection error: desc = "error reading server preface: read tcp 127.0.0.1:53236->127.0.0.1:39743: use of closed network connection"
+[verify + 10.04s] lis.Close() called by: runtime.Goexit:615 <- testing.(*common).FailNow:1013 <- testing.(*common).Fatalf:1219
+--- FAIL: Test (10.05s)
+    --- FAIL: Test/ClientTinyDataFramesBoundReceiveMemory (10.05s)
+        --- FAIL: Test/ClientTinyDataFramesBoundReceiveMemory/compaction=true (10.04s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+exit=1 wall=10.055275972s

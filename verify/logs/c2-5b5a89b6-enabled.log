@@ -1,0 +1,17 @@
+=== RUN   TestVerifyC2_HandlerHandleStreams
+    verify_c2_handler_test.go:92: compaction enabled=true: 1026 one-byte body reads -> backlog entries=1025, entry types=map[*mem.buffer:1025], backing capacity held=16793600 bytes (16.0 MiB) for 1025 unread payload bytes, heap grew 16961760 bytes
+    verify_c2_handler_test.go:95: C2: handler receive path left 1025 backlog entries for 1026 one-byte reads with compaction ENABLED, want <= 64 (the bound the eval fixture applies to its HandlerServerStream subtest)
+--- FAIL: TestVerifyC2_HandlerHandleStreams (0.01s)
+=== RUN   TestVerifyC2_HandlerOverRealHTTP2
+    verify_c2_handler_test.go:92: compaction enabled=true: 1026 one-byte body reads -> backlog entries=1025, entry types=map[*mem.buffer:1025], backing capacity held=16793600 bytes (16.0 MiB) for 1025 unread payload bytes, heap grew 16951040 bytes
+    verify_c2_handler_test.go:95: C2: handler receive path left 1025 backlog entries for 1026 one-byte reads with compaction ENABLED, want <= 64 (the bound the eval fixture applies to its HandlerServerStream subtest)
+--- FAIL: TestVerifyC2_HandlerOverRealHTTP2 (1.26s)
+=== RUN   TestVerifyC2_UnitPooledVsUnpooled
+    verify_c2_unit_test.go:50: unpooled mem.SliceBuffer                                           type=mem.SliceBuffer  backlog entries=   1 (of 1025 queued behind the channel slot), backing capacity held=2048 bytes
+    verify_c2_unit_test.go:50: fixture input: mem.Copy(1 byte, pool)                              type=mem.SliceBuffer  backlog entries=   1 (of 1025 queued behind the channel slot), backing capacity held=2048 bytes
+    verify_c2_unit_test.go:50: handler input: NewBuffer(pool.Get(http2MaxFrameLen)[:1], pool)     type=*mem.buffer      backlog entries=1025 (of 1025 queued behind the channel slot), backing capacity held=16793600 bytes
+    verify_c2_unit_test.go:68: C2: pooled handler-shaped short reads were NOT merged: 1025 backlog entries for 1026 one-byte payloads, want <= 64 (unpooled got 1)
+--- FAIL: TestVerifyC2_UnitPooledVsUnpooled (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	1.277s
+FAIL

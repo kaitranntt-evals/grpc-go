@@ -1,0 +1,15 @@
+=== RUN   Test
+=== RUN   Test/ClientTinyDataFramesBoundReceiveMemory
+=== RUN   Test/ClientTinyDataFramesBoundReceiveMemory/compaction=true
+[verify +  0.00s] server lis.Accept(): begin
+[verify +  0.00s] client: dialing black-hole 127.0.0.1:33137 instead of the test server
+    recv_buffer_test.go:422: Error while creating client transport: connection error: desc = "error reading server preface: read tcp 127.0.0.1:52516->127.0.0.1:33137: use of closed network connection"
+[verify + 10.05s] lis.Close() called by: runtime.Goexit:615 <- testing.(*common).FailNow:1013 <- testing.(*common).Fatalf:1219
+[verify + 10.05s] server lis.Accept(): returned after 10.05s err=accept tcp 127.0.0.1:37865: use of closed network connection
+--- FAIL: Test (10.05s)
+    --- FAIL: Test/ClientTinyDataFramesBoundReceiveMemory (10.05s)
+        --- FAIL: Test/ClientTinyDataFramesBoundReceiveMemory/compaction=true (10.05s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+FAIL
+exit=1 wall=10.058573463s

@@ -1,0 +1,20 @@
+diff --git a/internal/transport/transport_test.go b/internal/transport/transport_test.go
+index c22ae9e2..cf2f4d22 100644
+--- a/internal/transport/transport_test.go
++++ b/internal/transport/transport_test.go
+@@ -4453,6 +4453,7 @@ func (s) TestClientReceivesManyTinyDataFrames(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatalf("Error while listening: %v", err)
+ 			}
++			lis = verifyWrapListener(lis)
+ 			defer lis.Close()
+ 
+ 			serverErr := make(chan error, 1)
+@@ -4527,6 +4528,7 @@ func (s) TestClientReceivesManyTinyDataFrames(t *testing.T) {
+ 			copts := ConnectOptions{
+ 				ChannelzParent: channelzSubChannel(t),
+ 				BufferPool:     mem.DefaultBufferPool(),
++				Dialer:         verifyDialer(),
+ 			}
+ 			ct, err := NewHTTP2Client(ctx, ctx, resolver.Address{Addr: lis.Addr().String()}, copts, func(GoAwayInfo) {})
+ 			if err != nil {
