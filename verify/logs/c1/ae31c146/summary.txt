@@ -1,0 +1,9 @@
+branch HEAD: 4210b350  test file: internal/transport/recv_buffer_compaction_test.go
+go test -run '^Test$/^(RecvBufferCompaction_PreservesDataAndOrder|RecvBufferCompaction_ErrorAfterCompactedData|ServerReceiveBufferCompaction_ManyTinyDataFrames|ClientReceiveBufferCompaction_ManyTinyDataFrames)$'
+baseline                              : ok  	google.golang.org/grpc/internal/transport	5.924s
+injection sites patched               : 1
+inject 0        (solution intact)     : ok  	google.golang.org/grpc/internal/transport	6.390s
+inject -1048576 (solution intact)     : FAIL	google.golang.org/grpc/internal/transport	5.947s
+compaction neutered, real samples     : FAIL	google.golang.org/grpc/internal/transport	6.540s
+compaction neutered + inject 0        : ok  	google.golang.org/grpc/internal/transport	8.025s
+compaction neutered + inject -1048576 : FAIL	google.golang.org/grpc/internal/transport	6.817s

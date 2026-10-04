@@ -1,0 +1,9 @@
+branch HEAD: 9ff9c4f8  test file: internal/transport/recv_buffer_test.go
+go test -run '^Test$/^(ReceiveBufferTinyFrames|RecvBufferCompactionOrdering|RecvBufferCompactionConcurrentReader)$'
+baseline                              : ok  	google.golang.org/grpc/internal/transport	3.520s
+injection sites patched               : 1
+inject 0        (solution intact)     : ok  	google.golang.org/grpc/internal/transport	3.633s
+inject -1048576 (solution intact)     : ok  	google.golang.org/grpc/internal/transport	3.605s
+compaction neutered, real samples     : FAIL	google.golang.org/grpc/internal/transport	5.910s
+compaction neutered + inject 0        : ok  	google.golang.org/grpc/internal/transport	5.471s
+compaction neutered + inject -1048576 : ok  	google.golang.org/grpc/internal/transport	5.830s

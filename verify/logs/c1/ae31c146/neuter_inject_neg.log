@@ -1,0 +1,17 @@
+    recv_buffer_compaction_test.go:453: Retained 18446744073708503040 bytes for 262144 bytes of payload
+    recv_buffer_compaction_test.go:453: Retained 19554592 bytes for 262144 bytes of payload
+    recv_buffer_compaction_test.go:463: With compaction, server retained 18446744073708503040 bytes for 262144 bytes of unread payload; want at most 1048576
+    recv_buffer_compaction_test.go:469: With compaction, server retained 18446744073708503040 bytes; without compaction it retained 19554592 bytes; want compaction to retain less than a quarter
+--- FAIL: Test (6.78s)
+    --- PASS: Test/ClientReceiveBufferCompaction_ManyTinyDataFrames (2.26s)
+    --- PASS: Test/RecvBufferCompaction_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBufferCompaction_PreservesDataAndOrder (0.50s)
+        --- PASS: Test/RecvBufferCompaction_PreservesDataAndOrder/compaction=true (0.22s)
+        --- PASS: Test/RecvBufferCompaction_PreservesDataAndOrder/compaction=false (0.28s)
+    --- FAIL: Test/ServerReceiveBufferCompaction_ManyTinyDataFrames (3.98s)
+        --- PASS: Test/ServerReceiveBufferCompaction_ManyTinyDataFrames/compaction=true (2.09s)
+        --- PASS: Test/ServerReceiveBufferCompaction_ManyTinyDataFrames/compaction=false (1.88s)
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	6.817s
+FAIL

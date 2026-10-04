@@ -1,0 +1,15 @@
+    recv_buffer_test.go:124: 524280 one-byte DATA frames: 524280 unread bytes, 540152 retained heap bytes (1.03x)
+    recv_buffer_test.go:124: 524280 one-byte DATA frames: 524280 unread bytes, 534744 retained heap bytes (1.02x)
+--- PASS: Test (2.49s)
+    --- PASS: Test/ReceiveBufferTinyFrames (2.45s)
+        --- PASS: Test/ReceiveBufferTinyFrames/client (1.11s)
+        --- PASS: Test/ReceiveBufferTinyFrames/server (1.33s)
+    --- PASS: Test/RecvBufferCompactionConcurrentReader (0.01s)
+    --- PASS: Test/RecvBufferCompactionOrdering (0.02s)
+        --- PASS: Test/RecvBufferCompactionOrdering/enabled=true/error=EOF (0.00s)
+        --- PASS: Test/RecvBufferCompactionOrdering/enabled=true/error=stream_failed (0.00s)
+        --- PASS: Test/RecvBufferCompactionOrdering/enabled=false/error=EOF (0.01s)
+        --- PASS: Test/RecvBufferCompactionOrdering/enabled=false/error=stream_failed (0.01s)
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	3.520s

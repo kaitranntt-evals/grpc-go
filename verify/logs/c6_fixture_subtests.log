@@ -1,0 +1,13 @@
+### TestEval_RecvBufferConfiguredPoolAcquisition/UnpooledConsolidation (ulimit -v 6000000, timeout 20s)
+--- PASS: TestEval_RecvBufferConfiguredPoolAcquisition (0.00s)
+    --- PASS: TestEval_RecvBufferConfiguredPoolAcquisition/UnpooledConsolidation (0.00s)
+PASS
+exit=0
+### TestEval_RecvBufferConfiguredPoolAcquisition/SliceGrowthPoolOwnership (ulimit -v 6000000, timeout 20s)
+--- PASS: TestEval_RecvBufferConfiguredPoolAcquisition (0.00s)
+    --- PASS: TestEval_RecvBufferConfiguredPoolAcquisition/SliceGrowthPoolOwnership (0.00s)
+PASS
+exit=0
+### TestEval_RecvBufferConfiguredPoolAcquisition/ExactCapacitySmallDestination (ulimit -v 6000000, timeout 20s)
+fatal error: too many address space collisions for -race mode
+exit=2

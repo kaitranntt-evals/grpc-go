@@ -1,0 +1,13 @@
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index cbe84755..93721d9b 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -112,7 +112,7 @@ func (b *recvBuffer) put(r recvMsg) {
+ 		default:
+ 		}
+ 	}
+-	if envconfig.EnableReceiveBufferCompaction && r.err == nil && r.buffer != nil && len(b.backlog) > 0 {
++	if (envconfig.EnableReceiveBufferCompaction && false) && r.err == nil && r.buffer != nil && len(b.backlog) > 0 {
+ 		last := &b.backlog[len(b.backlog)-1]
+ 		if last.buffer != nil && r.buffer.Len() <= recvBufferCompactionSize-last.buffer.Len() {
+ 			if b.backlogTail == nil {

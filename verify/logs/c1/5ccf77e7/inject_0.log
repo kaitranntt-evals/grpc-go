@@ -1,0 +1,9 @@
+    recv_buffer_compaction_test.go:245: Retained heap for 262144 unread 1-byte DATA frames: compaction enabled = 0 bytes, disabled = 19821904 bytes
+--- PASS: Test (4.08s)
+    --- PASS: Test/RecvBuffer_DeliversAllBytesInOrder (0.48s)
+        --- PASS: Test/RecvBuffer_DeliversAllBytesInOrder/compaction=true (0.23s)
+        --- PASS: Test/RecvBuffer_DeliversAllBytesInOrder/compaction=false (0.25s)
+    --- PASS: Test/ServerTransport_TinyDataFramesReceiveMemory (3.59s)
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	5.106s

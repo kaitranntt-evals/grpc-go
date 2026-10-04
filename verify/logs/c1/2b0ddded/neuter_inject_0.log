@@ -1,0 +1,11 @@
+    recv_buffer_test.go:329: Heap growth for 60000 unread 1-byte DATA frames: compaction enabled = 0 bytes, disabled = 4767976 bytes
+    recv_buffer_test.go:144: Heap growth for 65536 unread 1-byte messages: compaction enabled = 0 bytes, disabled = 4972544 bytes
+--- PASS: Test (1.15s)
+    --- PASS: Test/ClientTinyDataFramesMemory (0.79s)
+    --- PASS: Test/RecvBuffer_TinyMessagesMemory (0.12s)
+    --- PASS: Test/RecvBuffer_TinyMessagesPreserveOrder (0.21s)
+        --- PASS: Test/RecvBuffer_TinyMessagesPreserveOrder/compaction=true (0.10s)
+        --- PASS: Test/RecvBuffer_TinyMessagesPreserveOrder/compaction=false (0.11s)
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	2.176s

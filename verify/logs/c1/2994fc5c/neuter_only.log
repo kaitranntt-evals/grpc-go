@@ -1,0 +1,32 @@
+    recv_buffer_test.go:60: 65535 unread payload bytes retain 4973920 heap bytes
+    recv_buffer_test.go:64: compacted receive heap = 4973920 bytes, want at most 524280
+    recv_buffer_test.go:60: 65535 unread payload bytes retain 4973824 heap bytes
+    recv_buffer_test.go:60: 65535 unread payload bytes retain 4973824 heap bytes
+    recv_buffer_test.go:64: compacted receive heap = 4973824 bytes, want at most 524280
+    recv_buffer_test.go:78: compaction retained 4973824 bytes versus 4973824 disabled, want at least an 8x reduction
+    recv_buffer_test.go:60: 65535 unread payload bytes retain 4973824 heap bytes
+    recv_buffer_test.go:64: compacted receive heap = 4973824 bytes, want at most 524280
+    recv_buffer_test.go:60: 65535 unread payload bytes retain 4973856 heap bytes
+    recv_buffer_test.go:60: 65535 unread payload bytes retain 4973920 heap bytes
+    recv_buffer_test.go:64: compacted receive heap = 4973920 bytes, want at most 524280
+    recv_buffer_test.go:78: compaction retained 4973920 bytes versus 4973856 disabled, want at least an 8x reduction
+--- FAIL: Test (1.78s)
+    --- PASS: Test/ReceiveBufferCompactionConcurrentReads (0.12s)
+    --- FAIL: Test/ReceiveBufferCompactionMemory (1.63s)
+        --- FAIL: Test/ReceiveBufferCompactionMemory/client=false (0.82s)
+            --- FAIL: Test/ReceiveBufferCompactionMemory/client=false/configured (0.28s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/client=false/disabled (0.28s)
+            --- FAIL: Test/ReceiveBufferCompactionMemory/client=false/enabled (0.26s)
+        --- FAIL: Test/ReceiveBufferCompactionMemory/client=true (0.81s)
+            --- FAIL: Test/ReceiveBufferCompactionMemory/client=true/configured (0.29s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/client=true/disabled (0.26s)
+            --- FAIL: Test/ReceiveBufferCompactionMemory/client=true/enabled (0.26s)
+    --- PASS: Test/ReceiveBufferCompactionReads (0.01s)
+        --- PASS: Test/ReceiveBufferCompactionReads/enabled=false/error=EOF (0.00s)
+        --- PASS: Test/ReceiveBufferCompactionReads/enabled=false/error=stream_failed (0.00s)
+        --- PASS: Test/ReceiveBufferCompactionReads/enabled=true/error=EOF (0.00s)
+        --- PASS: Test/ReceiveBufferCompactionReads/enabled=true/error=stream_failed (0.00s)
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	1.800s
+FAIL

@@ -1,0 +1,14 @@
+    recv_buffer_compaction_test.go:453: Retained 0 bytes for 262144 bytes of payload
+    recv_buffer_compaction_test.go:453: Retained 19554528 bytes for 262144 bytes of payload
+--- PASS: Test (7.00s)
+    --- PASS: Test/ClientReceiveBufferCompaction_ManyTinyDataFrames (1.94s)
+    --- PASS: Test/RecvBufferCompaction_ErrorAfterCompactedData (0.00s)
+    --- PASS: Test/RecvBufferCompaction_PreservesDataAndOrder (0.42s)
+        --- PASS: Test/RecvBufferCompaction_PreservesDataAndOrder/compaction=true (0.21s)
+        --- PASS: Test/RecvBufferCompaction_PreservesDataAndOrder/compaction=false (0.20s)
+    --- PASS: Test/ServerReceiveBufferCompaction_ManyTinyDataFrames (4.62s)
+        --- PASS: Test/ServerReceiveBufferCompaction_ManyTinyDataFrames/compaction=true (2.90s)
+        --- PASS: Test/ServerReceiveBufferCompaction_ManyTinyDataFrames/compaction=false (1.71s)
+--- PASS: Test (0.01s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	8.025s

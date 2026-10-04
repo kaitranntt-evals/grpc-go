@@ -1,0 +1,22 @@
+    recv_buffer_test.go:143: retained heap for 65532 unread payload bytes: 5004040 bytes
+    recv_buffer_test.go:143: retained heap for 65532 unread payload bytes: 0 bytes
+    recv_buffer_test.go:143: retained heap for 65532 unread payload bytes: 0 bytes
+    recv_buffer_test.go:143: retained heap for 65532 unread payload bytes: 4982088 bytes
+    recv_buffer_test.go:143: retained heap for 65532 unread payload bytes: 0 bytes
+    recv_buffer_test.go:143: retained heap for 65532 unread payload bytes: 0 bytes
+--- PASS: Test (2.26s)
+    --- PASS: Test/ReceiveBufferCompactionMemory (1.93s)
+        --- PASS: Test/ReceiveBufferCompactionMemory/server=false (0.90s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/server=false/disabled (0.28s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/server=false/enabled (0.31s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/server=false/configured (0.32s)
+        --- PASS: Test/ReceiveBufferCompactionMemory/server=true (1.02s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/server=true/disabled (0.34s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/server=true/enabled (0.28s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/server=true/configured (0.40s)
+    --- PASS: Test/ReceiveBufferCompactionOwnership (0.31s)
+        --- PASS: Test/ReceiveBufferCompactionOwnership/compact=false (0.16s)
+        --- PASS: Test/ReceiveBufferCompactionOwnership/compact=true (0.15s)
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	3.286s

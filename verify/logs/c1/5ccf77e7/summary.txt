@@ -1,0 +1,9 @@
+branch HEAD: 81bf5de5  test file: internal/transport/recv_buffer_compaction_test.go
+go test -run '^Test$/^(RecvBuffer_DeliversAllBytesInOrder|ServerTransport_TinyDataFramesReceiveMemory)$'
+baseline                              : ok  	google.golang.org/grpc/internal/transport	5.147s
+injection sites patched               : 1
+inject 0        (solution intact)     : ok  	google.golang.org/grpc/internal/transport	5.106s
+inject -1048576 (solution intact)     : ok  	google.golang.org/grpc/internal/transport	5.000s
+compaction neutered, real samples     : FAIL	google.golang.org/grpc/internal/transport	5.750s
+compaction neutered + inject 0        : ok  	google.golang.org/grpc/internal/transport	6.093s
+compaction neutered + inject -1048576 : ok  	google.golang.org/grpc/internal/transport	6.565s

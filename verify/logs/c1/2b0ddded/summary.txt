@@ -1,0 +1,9 @@
+branch HEAD: 611fec51  test file: internal/transport/recv_buffer_test.go
+go test -run '^Test$/^(RecvBuffer_TinyMessagesPreserveOrder|RecvBuffer_TinyMessagesMemory|ClientTinyDataFramesMemory)$'
+baseline                              : ok  	google.golang.org/grpc/internal/transport	1.931s
+injection sites patched               : 2
+inject 0        (solution intact)     : ok  	google.golang.org/grpc/internal/transport	1.894s
+inject -1048576 (solution intact)     : ok  	google.golang.org/grpc/internal/transport	2.165s
+compaction neutered, real samples     : FAIL	google.golang.org/grpc/internal/transport	1.515s
+compaction neutered + inject 0        : ok  	google.golang.org/grpc/internal/transport	2.176s
+compaction neutered + inject -1048576 : ok  	google.golang.org/grpc/internal/transport	2.353s

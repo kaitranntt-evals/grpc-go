@@ -1,0 +1,19 @@
+--- PASS: TestProd_RecvBufferCompaction (0.00s)
+--- PASS: TestProd_RecvBufferCompactionDisabled (0.00s)
+    --- PASS: TestProd_RecvBufferCompactionDisabled/ProductionStream (0.00s)
+    --- PASS: TestProd_RecvBufferCompactionDisabled/ComponentBuffer (0.00s)
+--- PASS: TestProd_RecvBufferCompactionSkippedLargeBuffer (0.02s)
+    --- PASS: TestProd_RecvBufferCompactionSkippedLargeBuffer/PoolOwnership_SliceGrowth (0.00s)
+--- PASS: TestProd_RecvBufferErrorResetSafety (0.00s)
+--- PASS: TestProd_RecvBufferCompaction_MixedFrames (0.00s)
+--- PASS: TestProd_RecvBufferCompaction_MultiCycleMemoryBound (0.01s)
+    --- PASS: TestProd_RecvBufferCompaction_MultiCycleMemoryBound/MultiCycleBursts (0.00s)
+    --- PASS: TestProd_RecvBufferCompaction_MultiCycleMemoryBound/IncrementalMessageAssembly (0.01s)
+    c345_prod_construction_fixture_test.go:624: Compaction destination buffer was never acquired from the configured buffer pool
+--- FAIL: TestProd_RecvBufferConfiguredPoolAcquisition (0.00s)
+    --- FAIL: TestProd_RecvBufferConfiguredPoolAcquisition/UnpooledConsolidation (0.00s)
+    --- PASS: TestProd_RecvBufferConfiguredPoolAcquisition/SliceGrowthPoolOwnership (0.00s)
+    --- PASS: TestProd_RecvBufferConfiguredPoolAcquisition/ExactCapacitySmallDestination (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	0.058s
+FAIL

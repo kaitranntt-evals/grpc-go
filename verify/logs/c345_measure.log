@@ -1,0 +1,19 @@
+    c345_measure_test.go:117: C3 client(newStream): chan=1 len(backlog)=0 queuedBuffers(backlog+tail)=1 queuedPayload=1025 retainedCap=16384 (fixture bound: backlog<=64)
+    c345_measure_test.go:117: C3 server(operateHeaders): chan=1 len(backlog)=0 queuedBuffers(backlog+tail)=1 queuedPayload=1025 retainedCap=16384 (fixture bound: backlog<=64)
+--- PASS: TestC345_C3_1025OneByteBehindOccupiedChannel (0.00s)
+    c345_measure_test.go:143: C4 small(1-7B) client(newStream): frames=1074 payload=4290 len(backlog)=0 queuedBuffers=1 queuedPayload=4289 retainedCap=16384 (bound: backlog<=134)
+    c345_measure_test.go:170: C4 alternating(1B/2KiB) client(newStream): payload=49178 len(backlog)=3 queuedBuffers=4 queuedPayload=49177 retainedCap(backlog+tail)=65536 (bound: retained<=262248)
+    c345_measure_test.go:143: C4 small(1-7B) server(operateHeaders): frames=1074 payload=4290 len(backlog)=0 queuedBuffers=1 queuedPayload=4289 retainedCap=16384 (bound: backlog<=134)
+    c345_measure_test.go:170: C4 alternating(1B/2KiB) server(operateHeaders): payload=49178 len(backlog)=3 queuedBuffers=4 queuedPayload=49177 retainedCap(backlog+tail)=65536 (bound: retained<=262248)
+--- PASS: TestC345_C4_SmallAndAlternating (0.01s)
+    c345_measure_test.go:195: C5 burst client(newStream) cycle 0: len(backlog)=0 queuedBuffers=1 queuedPayload=3369 retainedCap=16384 (bounds: backlog<=512; 4*payload+64KiB=79012)
+    c345_measure_test.go:195: C5 burst client(newStream) cycle 1: len(backlog)=1 queuedBuffers=2 queuedPayload=6739 retainedCap=19840 (bounds: backlog<=512; 4*payload+64KiB=92492)
+    c345_measure_test.go:195: C5 burst client(newStream) cycle 2: len(backlog)=0 queuedBuffers=1 queuedPayload=6740 retainedCap=16384 (bounds: backlog<=512; 4*payload+64KiB=92496)
+    c345_measure_test.go:254: C5 incremental client(newStream): payload=3072 retainedBuffers=2048 distinctRetainedCap=9216 maxSingleCap=8 (bound: <=77824) inOrder=true
+    c345_measure_test.go:195: C5 burst server(operateHeaders) cycle 0: len(backlog)=0 queuedBuffers=1 queuedPayload=3369 retainedCap=16384 (bounds: backlog<=512; 4*payload+64KiB=79012)
+    c345_measure_test.go:195: C5 burst server(operateHeaders) cycle 1: len(backlog)=1 queuedBuffers=2 queuedPayload=6739 retainedCap=19840 (bounds: backlog<=512; 4*payload+64KiB=92492)
+    c345_measure_test.go:195: C5 burst server(operateHeaders) cycle 2: len(backlog)=0 queuedBuffers=1 queuedPayload=6740 retainedCap=16384 (bounds: backlog<=512; 4*payload+64KiB=92496)
+    c345_measure_test.go:254: C5 incremental server(operateHeaders): payload=3072 retainedBuffers=2048 distinctRetainedCap=9216 maxSingleCap=8 (bound: <=77824) inOrder=true
+--- PASS: TestC345_C5_Cycles (0.03s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	1.059s

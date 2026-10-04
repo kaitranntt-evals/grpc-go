@@ -1,0 +1,13 @@
+diff --git a/internal/transport/recv_buffer_test.go b/internal/transport/recv_buffer_test.go
+index 77f4b327..e13b4e40 100644
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -120,7 +120,7 @@ func (s) TestReceiveBufferMemory(t *testing.T) {
+ 			runtime.KeepAlive(fr)
+ 			runtime.KeepAlive(writer)
+ 			runtime.KeepAlive(handleData)
+-			retained := int64(after.HeapAlloc) - int64(before.HeapAlloc)
++			retained := c1Inject(int64(after.HeapAlloc) - int64(before.HeapAlloc))
+ 			t.Logf("compaction=%v: retained %d bytes for %d unread payload bytes", envconfig.EnableReceiveBufferCompaction, retained, payloadSize)
+ 			if envconfig.EnableReceiveBufferCompaction {
+ 				// Allow ample headroom for runtime bookkeeping and GC variation.

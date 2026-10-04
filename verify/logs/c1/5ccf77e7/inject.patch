@@ -1,0 +1,13 @@
+diff --git a/internal/transport/recv_buffer_compaction_test.go b/internal/transport/recv_buffer_compaction_test.go
+index ce9a4ca4..244acfec 100644
+--- a/internal/transport/recv_buffer_compaction_test.go
++++ b/internal/transport/recv_buffer_compaction_test.go
+@@ -211,7 +211,7 @@ func retainedBytesForTinyFrames(t *testing.T, numFrames int) int64 {
+ 	case <-ctx.Done():
+ 		t.Fatal("Timed out waiting for PING ack")
+ 	}
+-	retained := heapInUse() - before
++	retained := c1Inject(heapInUse() - before)
+ 
+ 	data, err := ss.read(numFrames)
+ 	if err != nil {

@@ -1,0 +1,13 @@
+    c9_paths_test.go:39: C9 http2Client.newStream: env="" queued=1026 one-byte payloads -> len(backlog)=0
+--- PASS: TestC9_ClientNewStream (0.00s)
+    c9_paths_test.go:75: C9 http2Server.operateHeaders: env="" queued=1026 one-byte payloads -> len(backlog)=0
+--- PASS: TestC9_HTTP2ServerOperateHeaders (0.00s)
+    c9_paths_test.go:91: C9 serverHandlerTransport.HandleStreams(direct put): env="" queued=1026 one-byte payloads -> len(backlog)=1025
+    c9_paths_test.go:92: handler path NOT compacting: backlog=1025
+--- FAIL: TestC9_HandlerServerDirectPut (0.00s)
+    c9_paths_test.go:132: C9 serverHandlerTransport via request body: wrote 1026 one-byte chunks -> len(backlog)=1025
+    c9_paths_test.go:134: handler path NOT compacting: backlog=1025
+--- FAIL: TestC9_HandlerServerViaRequestBody (0.12s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	0.147s
+FAIL

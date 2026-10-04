@@ -1,0 +1,29 @@
+    recv_buffer_test.go:143: retained heap for 65532 unread payload bytes: 4998504 bytes
+    recv_buffer_test.go:143: retained heap for 65532 unread payload bytes: 4981896 bytes
+    recv_buffer_test.go:145: compacted receive heap = 4981896, want at most four times payload plus 128 KiB
+    recv_buffer_test.go:143: retained heap for 65532 unread payload bytes: 4982088 bytes
+    recv_buffer_test.go:145: compacted receive heap = 4982088, want at most four times payload plus 128 KiB
+    recv_buffer_test.go:185: compaction retained 4981896 bytes vs 4998504 without compaction, want at least 8x reduction
+    recv_buffer_test.go:143: retained heap for 65532 unread payload bytes: 4982184 bytes
+    recv_buffer_test.go:143: retained heap for 65532 unread payload bytes: 4981992 bytes
+    recv_buffer_test.go:145: compacted receive heap = 4981992, want at most four times payload plus 128 KiB
+    recv_buffer_test.go:143: retained heap for 65532 unread payload bytes: 4981896 bytes
+    recv_buffer_test.go:145: compacted receive heap = 4981896, want at most four times payload plus 128 KiB
+    recv_buffer_test.go:185: compaction retained 4981992 bytes vs 4982184 without compaction, want at least 8x reduction
+--- FAIL: Test (2.24s)
+    --- FAIL: Test/ReceiveBufferCompactionMemory (1.92s)
+        --- FAIL: Test/ReceiveBufferCompactionMemory/server=false (1.04s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/server=false/disabled (0.34s)
+            --- FAIL: Test/ReceiveBufferCompactionMemory/server=false/enabled (0.35s)
+            --- FAIL: Test/ReceiveBufferCompactionMemory/server=false/configured (0.35s)
+        --- FAIL: Test/ReceiveBufferCompactionMemory/server=true (0.88s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/server=true/disabled (0.32s)
+            --- FAIL: Test/ReceiveBufferCompactionMemory/server=true/enabled (0.27s)
+            --- FAIL: Test/ReceiveBufferCompactionMemory/server=true/configured (0.29s)
+    --- PASS: Test/ReceiveBufferCompactionOwnership (0.31s)
+        --- PASS: Test/ReceiveBufferCompactionOwnership/compact=false (0.16s)
+        --- PASS: Test/ReceiveBufferCompactionOwnership/compact=true (0.14s)
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	2.265s
+FAIL

@@ -1,0 +1,13 @@
+diff --git a/internal/transport/recv_buffer_test.go b/internal/transport/recv_buffer_test.go
+index 40c70957..200e5ff3 100644
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -132,7 +132,7 @@ func receiveTinyFrames(t *testing.T, side string) int64 {
+ 		}
+ 		df.data.Free()
+ 	}
+-	retained := heapSize() - before
++	retained := c1Inject(heapSize() - before)
+ 	// Keep all setup allocations alive across both measurements.
+ 	runtime.KeepAlive(f)
+ 	runtime.KeepAlive(client)

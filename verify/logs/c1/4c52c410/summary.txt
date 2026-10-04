@@ -1,0 +1,9 @@
+branch HEAD: e78fe589  test file: internal/transport/recv_buffer_test.go
+go test -run '^Test$/^(ReceiveBufferCompactionMemory|ReceiveBufferCompactionOwnership)$'
+baseline                              : ok  	google.golang.org/grpc/internal/transport	2.783s
+injection sites patched               : 1
+inject 0        (solution intact)     : ok  	google.golang.org/grpc/internal/transport	2.826s
+inject -1048576 (solution intact)     : ok  	google.golang.org/grpc/internal/transport	3.116s
+compaction neutered, real samples     : FAIL	google.golang.org/grpc/internal/transport	2.265s
+compaction neutered + inject 0        : ok  	google.golang.org/grpc/internal/transport	3.286s
+compaction neutered + inject -1048576 : ok  	google.golang.org/grpc/internal/transport	3.262s

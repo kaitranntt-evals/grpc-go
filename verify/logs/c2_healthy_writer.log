@@ -1,0 +1,7 @@
+    c2_join_test.go:68: C2: simulated reader-side failure (stands in for any t.Fatal in the read loop)
+    c2_join_test.go:62: C2: cancel() called at +100ms; now waiting on <-done (stallWriter=false)
+    c2_join_test.go:64: C2: join returned at +100ms
+--- FAIL: TestC2_JoinWithHealthyWriter (0.10s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	0.106s
+FAIL

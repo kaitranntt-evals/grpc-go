@@ -1,0 +1,38 @@
+$ go version
+go version go1.25.7 linux/amd64
+$ git rev-parse HEAD; git status --short | wc -l
+76b1ff251c7a689e8cc26fc6a1a5966ea3e177f9
+0
+$ gofmt -s -d -l internal/transport/recv_buffer_compaction_test.go; echo exit=$?
+exit=0
+$ gofmt -s -d -l internal/transport/recv_buffer_compaction_test.go | wc -c
+0
+$ git show HEAD:internal/transport/recv_buffer_compaction_test.go | gofmt -s -d | wc -c
+0
+$ gofmt -s -l internal/transport internal/envconfig internal/mem mem | wc -l
+0
+$ grep -n 'putTiny(100)\|put(large(' internal/transport/recv_buffer_compaction_test.go
+103:	putTiny(100)                                          // Chunk 1 holds tiny messages 3 through 100.
+104:	put(large(recvBufferCompactionMaxPayloadSize+1, 'A')) // Too large: passes through, closing chunk 1.
+105:	putTiny(100)                                          // Chunk 2 holds all 100 tiny messages.
+107:	put(large(recvBufferCompactionMaxPayloadSize, 'B'))
+109:	put(large(recvBufferCompactionMaxPayloadSize, 'C'))
+111:	put(large(recvBufferCompactionChunkSize, 'E')) // Too large: passes through, closing chunk 3.
+$ # positive control: de-align the trailing comments on the putTiny lines in a scratch copy
+$ gofmt -s -d -l /tmp/c8/ctl_test.go
+/tmp/c8/ctl_test.go
+diff /tmp/c8/ctl_test.go.orig /tmp/c8/ctl_test.go
+--- /tmp/c8/ctl_test.go.orig
++++ /tmp/c8/ctl_test.go
+@@ -100,9 +100,9 @@
+ 	// The first message is handed straight to the channel and the second one
+ 	// starts the backlog without being compacted. Everything after that is
+ 	// compacted while it fits the eligibility threshold.
+-	putTiny(100) // Chunk 1 holds tiny messages 3 through 100.
++	putTiny(100)                                          // Chunk 1 holds tiny messages 3 through 100.
+ 	put(large(recvBufferCompactionMaxPayloadSize+1, 'A')) // Too large: passes through, closing chunk 1.
+-	putTiny(100) // Chunk 2 holds all 100 tiny messages.
++	putTiny(100)                                          // Chunk 2 holds all 100 tiny messages.
+ 	// Exactly the eligibility threshold and fits in the remainder of chunk 2.
+ 	put(large(recvBufferCompactionMaxPayloadSize, 'B'))
+ 	// Does not fit in the remainder of chunk 2: opens chunk 3.

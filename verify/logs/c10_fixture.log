@@ -1,0 +1,8 @@
+    eval_recv_buffer_compaction_test.go:757: Exact capacity pool: 1 acquired destination buffers <= 1024 bytes were abandoned and never returned to the pool (mem.NewBuffer SliceBuffer leak)
+--- FAIL: TestEval_RecvBufferConfiguredPoolAcquisition (0.00s)
+    --- PASS: TestEval_RecvBufferConfiguredPoolAcquisition/UnpooledConsolidation (0.00s)
+    --- PASS: TestEval_RecvBufferConfiguredPoolAcquisition/SliceGrowthPoolOwnership (0.00s)
+    --- FAIL: TestEval_RecvBufferConfiguredPoolAcquisition/ExactCapacitySmallDestination (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	0.015s
+FAIL

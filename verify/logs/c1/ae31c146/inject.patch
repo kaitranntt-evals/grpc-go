@@ -1,0 +1,13 @@
+diff --git a/internal/transport/recv_buffer_compaction_test.go b/internal/transport/recv_buffer_compaction_test.go
+index e6a8976f..7a0f40a9 100644
+--- a/internal/transport/recv_buffer_compaction_test.go
++++ b/internal/transport/recv_buffer_compaction_test.go
+@@ -418,7 +418,7 @@ func serverRetainedBytesForTinyFrames(t *testing.T) uint64 {
+ 
+ 	before := heapInUse()
+ 	peer.sendTinyDataFrames(t, 1, payload)
+-	retained := heapInUse() - before
++	retained := c1InjectU(heapInUse() - before)
+ 
+ 	// Finish the request and verify that the application receives every
+ 	// byte in order.

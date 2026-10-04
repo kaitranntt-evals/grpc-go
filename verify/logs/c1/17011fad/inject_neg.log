@@ -1,0 +1,19 @@
+    recv_buffer_test.go:56: retained heap for 64000 unread bytes: configured=-1048576, disabled=4859576
+    recv_buffer_test.go:56: retained heap for 64000 unread bytes: configured=-1048576, disabled=4853880
+--- PASS: Test (1.11s)
+    --- PASS: Test/ReceiveBufferCompactionConcurrent (0.08s)
+    --- PASS: Test/ReceiveBufferCompactionOwnership (0.02s)
+        --- PASS: Test/ReceiveBufferCompactionOwnership/enabled=true/error=EOF (0.00s)
+        --- PASS: Test/ReceiveBufferCompactionOwnership/enabled=true/error=stream_reset (0.00s)
+        --- PASS: Test/ReceiveBufferCompactionOwnership/enabled=false/error=EOF (0.00s)
+        --- PASS: Test/ReceiveBufferCompactionOwnership/enabled=false/error=stream_reset (0.00s)
+    --- PASS: Test/ReceiveBufferTinyFrames (0.98s)
+        --- PASS: Test/ReceiveBufferTinyFrames/client (0.44s)
+            --- PASS: Test/ReceiveBufferTinyFrames/client/configured (0.16s)
+            --- PASS: Test/ReceiveBufferTinyFrames/client/disabled (0.27s)
+        --- PASS: Test/ReceiveBufferTinyFrames/server (0.54s)
+            --- PASS: Test/ReceiveBufferTinyFrames/server/configured (0.29s)
+            --- PASS: Test/ReceiveBufferTinyFrames/server/disabled (0.25s)
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	2.131s

@@ -1,0 +1,13 @@
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index 071ff23b..8553f243 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -151,7 +151,7 @@ func (b *recvBuffer) put(r recvMsg) {
+ 	}
+ 	// The reader is not keeping up, so r has to be queued. Small payloads are
+ 	// copied into a compaction buffer to bound the per-frame memory overhead.
+-	if b.compact && r.err == nil && r.buffer.Len() <= recvBufferCompactionThreshold {
++	if false && b.compact && r.err == nil && r.buffer.Len() <= recvBufferCompactionThreshold {
+ 		b.compactLocked(r.buffer)
+ 		b.mu.Unlock()
+ 		return

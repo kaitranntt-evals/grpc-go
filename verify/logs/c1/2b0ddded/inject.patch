@@ -1,0 +1,22 @@
+diff --git a/internal/transport/recv_buffer_test.go b/internal/transport/recv_buffer_test.go
+index 1c9c44cf..60cf1e01 100644
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -126,7 +126,7 @@ func recvBufferTinyMessagesHeapGrowth(n int) int64 {
+ 		buf[0] = byte(i)
+ 		b.put(recvMsg{buffer: buf})
+ 	}
+-	growth := heapAlloc() - before
++	growth := c1Inject(heapAlloc() - before)
+ 	runtime.KeepAlive(&b)
+ 	return growth
+ }
+@@ -295,7 +295,7 @@ func clientTinyDataFramesHeapGrowth(t *testing.T, numFrames int) int64 {
+ 	case <-ctx.Done():
+ 		t.Fatalf("Timed out waiting for the client to process DATA frames")
+ 	}
+-	growth := heapAlloc() - before
++	growth := c1Inject(heapAlloc() - before)
+ 
+ 	data, err := cs.Read(numFrames)
+ 	if err != nil {

@@ -1,0 +1,22 @@
+    recv_buffer_test.go:56: retained heap for 64000 unread bytes: configured=4853992, disabled=4853880
+    recv_buffer_test.go:65: compaction retained 4853992 bytes, want <= 256000 and at least 8x less than disabled (4853880)
+    recv_buffer_test.go:56: retained heap for 64000 unread bytes: configured=4853976, disabled=4853976
+    recv_buffer_test.go:65: compaction retained 4853976 bytes, want <= 256000 and at least 8x less than disabled (4853976)
+--- FAIL: Test (1.64s)
+    --- PASS: Test/ReceiveBufferCompactionConcurrent (0.18s)
+    --- PASS: Test/ReceiveBufferCompactionOwnership (0.02s)
+        --- PASS: Test/ReceiveBufferCompactionOwnership/enabled=true/error=EOF (0.01s)
+        --- PASS: Test/ReceiveBufferCompactionOwnership/enabled=true/error=stream_reset (0.00s)
+        --- PASS: Test/ReceiveBufferCompactionOwnership/enabled=false/error=EOF (0.01s)
+        --- PASS: Test/ReceiveBufferCompactionOwnership/enabled=false/error=stream_reset (0.00s)
+    --- FAIL: Test/ReceiveBufferTinyFrames (1.42s)
+        --- FAIL: Test/ReceiveBufferTinyFrames/client (0.71s)
+            --- PASS: Test/ReceiveBufferTinyFrames/client/configured (0.43s)
+            --- PASS: Test/ReceiveBufferTinyFrames/client/disabled (0.28s)
+        --- FAIL: Test/ReceiveBufferTinyFrames/server (0.70s)
+            --- PASS: Test/ReceiveBufferTinyFrames/server/configured (0.40s)
+            --- PASS: Test/ReceiveBufferTinyFrames/server/disabled (0.30s)
+--- PASS: Test (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	1.659s
+FAIL

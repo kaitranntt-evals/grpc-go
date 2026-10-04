@@ -1,0 +1,25 @@
+    recv_buffer_test.go:60: 65535 unread payload bytes retain -1048576 heap bytes
+    recv_buffer_test.go:60: 65535 unread payload bytes retain 4973920 heap bytes
+    recv_buffer_test.go:60: 65535 unread payload bytes retain -1048576 heap bytes
+    recv_buffer_test.go:60: 65535 unread payload bytes retain -1048576 heap bytes
+    recv_buffer_test.go:60: 65535 unread payload bytes retain 4973824 heap bytes
+    recv_buffer_test.go:60: 65535 unread payload bytes retain -1048576 heap bytes
+--- PASS: Test (2.07s)
+    --- PASS: Test/ReceiveBufferCompactionConcurrentReads (0.13s)
+    --- PASS: Test/ReceiveBufferCompactionMemory (1.92s)
+        --- PASS: Test/ReceiveBufferCompactionMemory/client=false (1.06s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/client=false/configured (0.31s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/client=false/disabled (0.29s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/client=false/enabled (0.45s)
+        --- PASS: Test/ReceiveBufferCompactionMemory/client=true (0.86s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/client=true/configured (0.30s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/client=true/disabled (0.26s)
+            --- PASS: Test/ReceiveBufferCompactionMemory/client=true/enabled (0.30s)
+    --- PASS: Test/ReceiveBufferCompactionReads (0.01s)
+        --- PASS: Test/ReceiveBufferCompactionReads/enabled=false/error=EOF (0.00s)
+        --- PASS: Test/ReceiveBufferCompactionReads/enabled=false/error=stream_failed (0.00s)
+        --- PASS: Test/ReceiveBufferCompactionReads/enabled=true/error=EOF (0.00s)
+        --- PASS: Test/ReceiveBufferCompactionReads/enabled=true/error=stream_failed (0.00s)
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	3.087s

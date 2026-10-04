@@ -1,0 +1,18 @@
+    recv_buffer_test.go:128: retained heap = 134528 bytes for 131072 unread payload bytes
+    recv_buffer_test.go:128: retained heap = 10005568 bytes for 131072 unread payload bytes
+    recv_buffer_test.go:128: retained heap = 134528 bytes for 131072 unread payload bytes
+    recv_buffer_test.go:128: retained heap = 10000064 bytes for 131072 unread payload bytes
+--- PASS: Test (1.91s)
+    --- PASS: Test/ReceiveBufferCompactionConcurrent (0.06s)
+    --- PASS: Test/ReceiveBufferCompactionMemory (1.82s)
+        --- PASS: Test/ReceiveBufferCompactionMemory/server=false/disable=false (0.42s)
+        --- PASS: Test/ReceiveBufferCompactionMemory/server=false/disable=true (0.47s)
+        --- PASS: Test/ReceiveBufferCompactionMemory/server=true/disable=false (0.44s)
+        --- PASS: Test/ReceiveBufferCompactionMemory/server=true/disable=true (0.47s)
+    --- PASS: Test/ReceiveBufferCompactionOwnership (0.00s)
+        --- PASS: Test/ReceiveBufferCompactionOwnership/enabled=false (0.00s)
+        --- PASS: Test/ReceiveBufferCompactionOwnership/enabled=true (0.00s)
+    --- PASS: Test/ReceiveBufferCompactionReaderOwnership (0.00s)
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	2.924s

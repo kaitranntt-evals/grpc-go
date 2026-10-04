@@ -1,0 +1,28 @@
+    c10_cap1024_test.go:86: C10 pool=mem.NewTieredBufferPool(1024,4096,16384) frames=10x100B inOrder=true
+              acquisitions=[Get(1024)->len=1024,cap=1024]
+              delivered=[mem.SliceBuffer(len=100,cap=100) mem.SliceBuffer(len=100,cap=100) mem.SliceBuffer(len=800,cap=1024)]
+              returned caps=[]
+              NOT returned after Free() (caps)=[1024]
+    c10_cap1024_test.go:94: tiered pool with a 1KiB tier: 1 acquired destination(s) never returned
+    c10_cap1024_test.go:86: C10 pool=exact-length pool (make([]byte,n)) frames=10x100B inOrder=true
+              acquisitions=[Get(1024)->len=1024,cap=1024]
+              delivered=[mem.SliceBuffer(len=100,cap=100) mem.SliceBuffer(len=100,cap=100) mem.SliceBuffer(len=800,cap=1024)]
+              returned caps=[]
+              NOT returned after Free() (caps)=[1024]
+    c10_cap1024_test.go:97: exact pool: 1 acquired destination(s) never returned
+    c10_cap1024_test.go:86: C10 pool=mem.NewTieredBufferPool(1024,4096,16384) [3000 bytes] frames=30x100B inOrder=true
+              acquisitions=[Get(1024)->len=1024,cap=1024 Get(2048)->len=2048,cap=4096]
+              delivered=[mem.SliceBuffer(len=100,cap=100) mem.SliceBuffer(len=100,cap=100) mem.SliceBuffer(len=1024,cap=1024) *mem.buffer(len=1776,cap=4096)]
+              returned caps=[4096]
+              NOT returned after Free() (caps)=[1024]
+    c10_cap1024_test.go:101: tiered pool, 3000 bytes: 1 acquired destination(s) never returned
+--- FAIL: TestC10_Cap1024Destination (0.00s)
+    c10_cap1024_test.go:86: C10 pool=mem.DefaultBufferPool() frames=10x100B inOrder=true
+              acquisitions=[Get(1024)->len=1024,cap=4096]
+              delivered=[mem.SliceBuffer(len=100,cap=100) mem.SliceBuffer(len=100,cap=100) *mem.buffer(len=800,cap=4096)]
+              returned caps=[4096]
+              NOT returned after Free() (caps)=[]
+--- PASS: TestC10_DefaultPoolControl (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/transport	0.027s
+FAIL

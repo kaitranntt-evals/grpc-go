@@ -1,0 +1,13 @@
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index 160e74e2..71a7a5ae 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -127,7 +127,7 @@ func (b *recvBuffer) put(r recvMsg) {
+ // compact attempts to coalesce the payload of r into the last message of the
+ // backlog. It returns true if r was consumed. It must be called with b.mu held.
+ func (b *recvBuffer) compact(r recvMsg) bool {
+-	if !envconfig.EnableReceiveBufferCompaction || r.err != nil || r.buffer == nil || len(b.backlog) == 0 {
++	if !(envconfig.EnableReceiveBufferCompaction && false) || r.err != nil || r.buffer == nil || len(b.backlog) == 0 {
+ 		return false
+ 	}
+ 	n := r.buffer.Len()

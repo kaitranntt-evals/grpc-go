@@ -1,0 +1,13 @@
+diff --git a/internal/transport/recv_buffer_test.go b/internal/transport/recv_buffer_test.go
+index c8a91149..1a5df96e 100644
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -124,7 +124,7 @@ func (s) TestReceiveBufferCompactionMemory(t *testing.T) {
+ 				runtime.GC()
+ 				runtime.GC()
+ 				runtime.ReadMemStats(&after)
+-				retained := int64(after.HeapAlloc) - int64(before.HeapAlloc)
++				retained := c1Inject(int64(after.HeapAlloc) - int64(before.HeapAlloc))
+ 				t.Logf("retained heap = %d bytes for %d unread payload bytes", retained, payloadSize)
+ 				if wantCompaction && retained > 4*payloadSize {
+ 					t.Errorf("compacted receive heap = %d, want <= %d", retained, 4*payloadSize)

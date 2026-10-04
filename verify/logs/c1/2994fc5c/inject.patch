@@ -1,0 +1,13 @@
+diff --git a/internal/transport/recv_buffer_test.go b/internal/transport/recv_buffer_test.go
+index 165e8c01..303f61ef 100644
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -153,7 +153,7 @@ func tinyFrameReceiveMemory(t *testing.T, client bool, payloadSize int) int64 {
+ 	// Keep the input and framer alive across both measurements so their
+ 	// collection cannot hide allocations retained by the receive queue.
+ 	runtime.KeepAlive(fr)
+-	retained := int64(after.HeapAlloc) - int64(before.HeapAlloc)
++	retained := c1Inject(int64(after.HeapAlloc) - int64(before.HeapAlloc))
+ 	if got := stream.fc.pendingData; got != uint32(payloadSize) {
+ 		t.Fatalf("pending data before reading = %d, want %d", got, payloadSize)
+ 	}

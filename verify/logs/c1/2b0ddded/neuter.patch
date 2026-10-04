@@ -1,0 +1,13 @@
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index aabc64a1..fe59fae3 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -86,7 +86,7 @@ const recvBufferCompactionChunkSize = http2MaxFrameLen
+ // compactable reports whether r is a small data message whose payload may be
+ // copied into the pending buffer instead of being queued individually.
+ func compactable(r recvMsg) bool {
+-	return envconfig.EnableReceiveBufferCompaction && r.err == nil && r.buffer != nil &&
++	return (envconfig.EnableReceiveBufferCompaction && false) && r.err == nil && r.buffer != nil &&
+ 		mem.IsBelowBufferPoolingThreshold(r.buffer.Len())
+ }
+ 

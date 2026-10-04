@@ -1,0 +1,61 @@
+=== RUN   TestC2_JoinWithStalledWriter
+    c2_join_test.go:68: C2: simulated reader-side failure (stands in for any t.Fatal in the read loop)
+    c2_join_test.go:62: C2: cancel() called at +101ms; now waiting on <-done (stallWriter=true)
+panic: test timed out after 40s
+	running tests:
+		TestC2_JoinWithStalledWriter (40s)
+goroutine 18 [running]:
+testing.(*M).startAlarm.func1()
+	/usr/local/go/src/testing/testing.go:2682 +0x345
+created by time.goFunc
+	/usr/local/go/src/time/sleep.go:215 +0x2d
+goroutine 1 [chan receive]:
+testing.(*T).Run(0xc0000b08c0, {0xbf8618?, 0xc0001f5b30?}, 0xc25760)
+	/usr/local/go/src/testing/testing.go:2005 +0x485
+testing.runTests.func1(0xc0000b08c0)
+	/usr/local/go/src/testing/testing.go:2477 +0x37
+testing.tRunner(0xc0000b08c0, 0xc0001f5c70)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+testing.runTests(0xc000012918, {0x11eca00, 0x5, 0x5}, {0x7?, 0xc0000517c0?, 0x11fc100?})
+	/usr/local/go/src/testing/testing.go:2475 +0x4b4
+testing.(*M).Run(0xc0000bdea0)
+	/usr/local/go/src/testing/testing.go:2337 +0x63a
+main.main()
+	_testmain.go:63 +0x9b
+goroutine 8 [chan receive]:
+google.golang.org/grpc/internal/transport.c2Body.func2()
+	/home/ubuntu/wt/8b3e4b01/internal/transport/c2_join_test.go:63 +0xf4
+runtime.Goexit()
+	/usr/local/go/src/runtime/panic.go:615 +0x5e
+testing.(*common).FailNow(0xc0000b0a80)
+	/usr/local/go/src/testing/testing.go:1013 +0x4a
+testing.(*common).Fatal(0xc0000b0a80, {0xc000085f18?, 0xc0000129c0?, 0x0?})
+	/usr/local/go/src/testing/testing.go:1212 +0x4f
+google.golang.org/grpc/internal/transport.c2Body(0xc0000b0a80, 0x1)
+	/home/ubuntu/wt/8b3e4b01/internal/transport/c2_join_test.go:68 +0x33a
+google.golang.org/grpc/internal/transport.TestC2_JoinWithStalledWriter(0xc0000b0a80?)
+	/home/ubuntu/wt/8b3e4b01/internal/transport/c2_join_test.go:71 +0x18
+testing.tRunner(0xc0000b0a80, 0xc25760)
+	/usr/local/go/src/testing/testing.go:1934 +0xea
+created by testing.(*T).Run in goroutine 1
+	/usr/local/go/src/testing/testing.go:1997 +0x465
+goroutine 9 [sync.Mutex.Lock]:
+internal/sync.runtime_SemacquireMutex(0x121d7e0?, 0x0?, 0x2540be400?)
+	/usr/local/go/src/runtime/sema.go:95 +0x25
+internal/sync.(*Mutex).lockSlow(0xc000051848)
+	/usr/local/go/src/internal/sync/mutex.go:149 +0x15d
+internal/sync.(*Mutex).Lock(...)
+	/usr/local/go/src/internal/sync/mutex.go:70
+sync.(*Mutex).Lock(...)
+	/usr/local/go/src/sync/mutex.go:46
+google.golang.org/grpc/internal/transport.(*recvBuffer).put(0xc000051840, {{0xcf5020?, 0xc0000129f0?}, {0x0?, 0x0?}})
+	/home/ubuntu/wt/8b3e4b01/internal/transport/transport.go:91 +0x85
+google.golang.org/grpc/internal/transport.c2Body.func1()
+	/home/ubuntu/wt/8b3e4b01/internal/transport/c2_join_test.go:54 +0x125
+created by google.golang.org/grpc/internal/transport.c2Body in goroutine 8
+	/home/ubuntu/wt/8b3e4b01/internal/transport/c2_join_test.go:46 +0x26a
+FAIL	google.golang.org/grpc/internal/transport	40.080s
+FAIL
+real	0m40.529s
+user	0m0.821s
+sys	0m0.214s

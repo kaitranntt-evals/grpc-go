@@ -1,0 +1,13 @@
+diff --git a/internal/transport/recv_buffer_test.go b/internal/transport/recv_buffer_test.go
+index 354ef189..8c11f663 100644
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -118,7 +118,7 @@ func (s) TestReceiveBufferCompactionMemory(t *testing.T) {
+ 			}
+ 			runtime.GC()
+ 			runtime.ReadMemStats(&after)
+-			retained := int64(after.HeapAlloc) - int64(before.HeapAlloc)
++			retained := c1Inject(int64(after.HeapAlloc) - int64(before.HeapAlloc))
+ 			t.Logf("compaction=%v: retained %d heap bytes for %d unread payload bytes", envconfig.EnableReceiveBufferCompaction, retained, totalBytes)
+ 			if envconfig.EnableReceiveBufferCompaction {
+ 				// Allow ample room for runtime noise and queue/transport metadata.

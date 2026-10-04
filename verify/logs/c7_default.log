@@ -1,0 +1,27 @@
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #2: len(backlog)=1 pendingCap=2 nextPendingCap=4
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #3: len(backlog)=0 pendingCap=2 nextPendingCap=4
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #4: len(backlog)=0 pendingCap=4 nextPendingCap=8
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #5: len(backlog)=0 pendingCap=8 nextPendingCap=16
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #6: len(backlog)=0 pendingCap=8 nextPendingCap=16
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #7: len(backlog)=0 pendingCap=16 nextPendingCap=32
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #8: len(backlog)=0 pendingCap=32 nextPendingCap=64
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #9: len(backlog)=0 pendingCap=32 nextPendingCap=64
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #10: len(backlog)=0 pendingCap=64 nextPendingCap=128
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #11: len(backlog)=0 pendingCap=128 nextPendingCap=256
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #12: len(backlog)=0 pendingCap=128 nextPendingCap=256
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #13: len(backlog)=0 pendingCap=256 nextPendingCap=512
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #14: len(backlog)=0 pendingCap=512 nextPendingCap=1024
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #15: len(backlog)=0 pendingCap=512 nextPendingCap=1024
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #16: len(backlog)=0 pendingCap=1024 nextPendingCap=2048
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #17: len(backlog)=0 pendingCap=4096 nextPendingCap=8192
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #18: len(backlog)=0 pendingCap=4096 nextPendingCap=8192
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #19: len(backlog)=0 pendingCap=16384 nextPendingCap=16384
+    c7_sustained_backlog_test.go:63: C7 trace env=: after put #20: len(backlog)=0 pendingCap=16384 nextPendingCap=16384
+    c7_sustained_backlog_test.go:71: C7 env=: payload=1024 bytes in 1024 one-byte frames; inOrder=true; retained buffers=1024; >=16KiB arrays holding <=4 payload bytes=670; distinct retained capacity=10983424 bytes (10726x payload)
+--- PASS: TestC7_SustainedBacklogDefault (0.02s)
+    c7_sustained_backlog_test.go:177: C7 e2e env="": 4000-byte message in 4000 one-byte DATA frames; inOrder=true; buffers in assembled message=1921; distinct backing arrays=1921; >=16KiB arrays holding <=4 payload bytes=0; distinct retained capacity=5829 bytes (1x payload)
+--- PASS: TestC7_EndToEndMessageAssembly (0.03s)
+    c7_sustained_backlog_test.go:216: C7 Stream.read env="": 1024-byte message in 1024 one-byte payloads; inOrder=true; buffers in assembled message=1024; distinct backing arrays=1024; >=16KiB arrays holding <=4 payload bytes=1011; distinct retained capacity=16570368 bytes (16182x payload)
+--- PASS: TestC7_StreamReadAssembly (0.02s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	1.087s

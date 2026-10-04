@@ -1,0 +1,18 @@
+    recv_buffer_test.go:124: compaction=true: retained 0 bytes for 262140 unread payload bytes
+    recv_buffer_test.go:124: compaction=true: retained 0 bytes for 262140 unread payload bytes
+--- PASS: Test (3.06s)
+    --- PASS: Test/ReceiveBufferCompaction (0.00s)
+        --- PASS: Test/ReceiveBufferCompaction/enabled=false (0.00s)
+            --- PASS: Test/ReceiveBufferCompaction/enabled=false/EOF (0.00s)
+            --- PASS: Test/ReceiveBufferCompaction/enabled=false/stream_failed (0.00s)
+        --- PASS: Test/ReceiveBufferCompaction/enabled=true (0.00s)
+            --- PASS: Test/ReceiveBufferCompaction/enabled=true/EOF (0.00s)
+            --- PASS: Test/ReceiveBufferCompaction/enabled=true/stream_failed (0.00s)
+    --- PASS: Test/ReceiveBufferCompactionConcurrent (0.17s)
+    --- PASS: Test/ReceiveBufferCompactionOwnership (0.00s)
+    --- PASS: Test/ReceiveBufferMemory (2.87s)
+        --- PASS: Test/ReceiveBufferMemory/server=false (1.59s)
+        --- PASS: Test/ReceiveBufferMemory/server=true (1.28s)
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/transport	4.078s

@@ -1,0 +1,13 @@
+diff --git a/internal/transport/recv_buffer_test.go b/internal/transport/recv_buffer_test.go
+index a4cf5593..c745da6b 100644
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -131,7 +131,7 @@ func (s) TestReceiveBufferCompactionMemory(t *testing.T) {
+ 					}
+ 					runtime.GC()
+ 					runtime.ReadMemStats(&after)
+-					heap := int64(after.HeapAlloc) - int64(before.HeapAlloc)
++					heap := c1Inject(int64(after.HeapAlloc) - int64(before.HeapAlloc))
+ 					if tc.override {
+ 						retained[mode] = heap
+ 					}
