@@ -1,0 +1,19 @@
+# Run via ./run.sh m2 (git apply onto evalon/grpc-go-en-89e1da1a): mutation M2, idle exits wait for any in-flight parent update (the bug the task removes).
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -390,7 +390,14 @@
+ // ExitIdle pings an IDLE child balancer to exit idle in a new goroutine to
+ // avoid deadlocks due to synchronous balancer state updates.
+ func (bw *balancerWrapper) ExitIdle() {
+-	go bw.exitIdleSync()
++	go func() {
++		// MUTATION M2 (audit probe, not a fix): reintroduce the bug the task
++		// removes - an idle exit for one child waits for any in-flight
++		// UpdateClientConnState/ResolverError/Close, i.e. for other children.
++		bw.es.updateMu.Lock()
++		bw.es.updateMu.Unlock()
++		bw.exitIdleSync()
++	}()
+ }
+ 
+ // exitIdleSync calls ExitIdle on the child balancer, unless it is closed.

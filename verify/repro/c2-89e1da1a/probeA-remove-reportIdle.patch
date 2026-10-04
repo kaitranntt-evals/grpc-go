@@ -1,0 +1,12 @@
+# Run via ./run.sh probeA (git apply onto evalon/grpc-go-en-89e1da1a): removes the operation under test, childB.reportIdle(), from TestAutoReconnect_NotBlockedByOtherChildUpdate.
+--- a/balancer/endpointsharding/endpointsharding_locking_test.go
++++ b/balancer/endpointsharding/endpointsharding_locking_test.go
+@@ -294,7 +294,7 @@
+ 	for len(exitIdleCh) > 0 {
+ 		<-exitIdleCh
+ 	}
+-	childB.reportIdle()
++	_ = childB // PROBE A: the operation under test (childB.reportIdle()) is removed.
+ 	waitForExitIdle(ctx, t, exitIdleCh, "b")
+ 
+ 	close(unblock)

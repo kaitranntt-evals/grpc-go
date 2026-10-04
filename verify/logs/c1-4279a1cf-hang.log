@@ -1,0 +1,91 @@
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ChildExitIdleDuringBuild
+    endpointsharding_ext_test.go:523: Timed out waiting for the builder to report IDLE
+panic: test timed out after 40s
+	running tests:
+		Test (40s)
+		Test/ChildExitIdleDuringBuild (40s)
+
+goroutine 19 [running]:
+testing.(*M).startAlarm.func1()
+	/usr/local/go/src/testing/testing.go:2682 +0x605
+created by time.goFunc
+	/usr/local/go/src/time/sleep.go:215 +0x45
+
+goroutine 1 [chan receive]:
+testing.(*T).Run(0xc0000be540, {0x120b780, 0x4}, 0x1249bc8)
+	/usr/local/go/src/testing/testing.go:2005 +0x9fe
+testing.runTests.func1(0xc0000be540)
+	/usr/local/go/src/testing/testing.go:2477 +0x86
+testing.tRunner(0xc0000be540, 0xc000261ae0)
+	/usr/local/go/src/testing/testing.go:1934 +0x21d
+testing.runTests(0xc000012960, {0x18fe960, 0x2, 0x2}, {0x0?, 0x4ba525?, 0x1914700?})
+	/usr/local/go/src/testing/testing.go:2475 +0x96d
+testing.(*M).Run(0xc0000b1d60)
+	/usr/local/go/src/testing/testing.go:2337 +0xed5
+main.main()
+	_testmain.go:49 +0x165
+
+goroutine 9 [chan receive]:
+testing.(*T).Run(0xc0000bea80, {0x109adb6, 0x18}, 0xc000092ec0)
+	/usr/local/go/src/testing/testing.go:2005 +0x9fe
+google.golang.org/grpc/internal/grpctest.RunSubTests(0xc0000bea80, {0x13550d8, 0x193a300})
+	/home/ubuntu/verify-wt/c1-4279a1cf-hang/4279a1cf/internal/grpctest/grpctest.go:124 +0x34b
+google.golang.org/grpc/balancer/endpointsharding_test.Test(0xc0000bea80)
+	/home/ubuntu/verify-wt/c1-4279a1cf-hang/4279a1cf/balancer/endpointsharding/endpointsharding_ext_test.go:67 +0x35
+testing.tRunner(0xc0000bea80, 0x1249bc8)
+	/usr/local/go/src/testing/testing.go:1934 +0x21d
+created by testing.(*T).Run in goroutine 1
+	/usr/local/go/src/testing/testing.go:1997 +0x9d3
+
+goroutine 10 [chan receive]:
+google.golang.org/grpc/balancer/endpointsharding_test.s.TestChildExitIdleDuringBuild.func5()
+	/home/ubuntu/verify-wt/c1-4279a1cf-hang/4279a1cf/balancer/endpointsharding/endpointsharding_ext_test.go:518 +0x31
+runtime.Goexit()
+	/usr/local/go/src/runtime/panic.go:615 +0x5e
+testing.(*common).FailNow(0xc0000bec40)
+	/usr/local/go/src/testing/testing.go:1013 +0x7b
+testing.(*common).Fatal(0xc0000bec40, {0xc0000fd5b0, 0x1, 0x1})
+	/usr/local/go/src/testing/testing.go:1212 +0x85
+google.golang.org/grpc/balancer/endpointsharding_test.s.TestChildExitIdleDuringBuild({{}}, 0xc0000bec40)
+	/home/ubuntu/verify-wt/c1-4279a1cf-hang/4279a1cf/balancer/endpointsharding/endpointsharding_ext_test.go:523 +0xb25
+google.golang.org/grpc/internal/grpctest.RunSubTests.func1(0xc0000bec40)
+	/home/ubuntu/verify-wt/c1-4279a1cf-hang/4279a1cf/internal/grpctest/grpctest.go:132 +0x10b
+testing.tRunner(0xc0000bec40, 0xc000092ec0)
+	/usr/local/go/src/testing/testing.go:1934 +0x21d
+created by testing.(*T).Run in goroutine 9
+	/usr/local/go/src/testing/testing.go:1997 +0x9d3
+
+goroutine 11 [sync.Mutex.Lock]:
+internal/sync.runtime_SemacquireMutex(0x0?, 0x0?, 0x0?)
+	/usr/local/go/src/runtime/sema.go:95 +0x25
+internal/sync.(*Mutex).lockSlow(0xc0002148d8)
+	/usr/local/go/src/internal/sync/mutex.go:149 +0x210
+internal/sync.(*Mutex).Lock(0xc0002148d8)
+	/usr/local/go/src/internal/sync/mutex.go:70 +0x55
+sync.(*Mutex).Lock(0xc0002148d8)
+	/usr/local/go/src/sync/mutex.go:46 +0x29
+google.golang.org/grpc/balancer/endpointsharding.(*balancerWrapper).UpdateState.(*balancerWrapper).ExitIdle.func1(0xc000214880)
+	/home/ubuntu/verify-wt/c1-4279a1cf-hang/4279a1cf/balancer/endpointsharding/endpointsharding.go:352 +0x3a
+google.golang.org/grpc/balancer/endpointsharding.(*balancerWrapper).ExitIdle(...)
+	/home/ubuntu/verify-wt/c1-4279a1cf-hang/4279a1cf/balancer/endpointsharding/endpointsharding.go:357
+google.golang.org/grpc/balancer/endpointsharding.(*balancerWrapper).UpdateState(0xc000214880, {0x120?, {0x1351aa0?, 0xc000049020?}})
+	/home/ubuntu/verify-wt/c1-4279a1cf-hang/4279a1cf/balancer/endpointsharding/endpointsharding.go:343 +0x125
+google.golang.org/grpc/balancer/endpointsharding_test.s.TestChildExitIdleDuringBuild.func2(0xc0002010e0)
+	/home/ubuntu/verify-wt/c1-4279a1cf-hang/4279a1cf/balancer/endpointsharding/endpointsharding_ext_test.go:495 +0xd4
+google.golang.org/grpc/internal/balancer/stub.bb.Build({{_, _}, {_, _, _, _, _, _}}, {0x135dbf8, 0xc000214880}, ...)
+	/home/ubuntu/verify-wt/c1-4279a1cf-hang/4279a1cf/internal/balancer/stub/stub.go:98 +0x24b
+google.golang.org/grpc/balancer/endpointsharding.(*endpointSharding).UpdateClientConnState(0xc000200fc0, {{{0x0, 0x0, 0x0}, {0xc000092fe0, 0x1, 0x1}, 0x0, 0x0}, {0x0, ...}})
+	/home/ubuntu/verify-wt/c1-4279a1cf-hang/4279a1cf/balancer/endpointsharding/endpointsharding.go:164 +0x8c7
+google.golang.org/grpc/balancer/endpointsharding_test.s.TestChildExitIdleDuringBuild.func4()
+	/home/ubuntu/verify-wt/c1-4279a1cf-hang/4279a1cf/balancer/endpointsharding/endpointsharding_ext_test.go:510 +0x1dd
+created by google.golang.org/grpc/balancer/endpointsharding_test.s.TestChildExitIdleDuringBuild in goroutine 10
+	/home/ubuntu/verify-wt/c1-4279a1cf-hang/4279a1cf/balancer/endpointsharding/endpointsharding_ext_test.go:508 +0x9ab
+FAIL	google.golang.org/grpc/balancer/endpointsharding	40.116s
+FAIL
+
+real	0m40.627s
+user	0m0.619s
+sys	0m0.154s

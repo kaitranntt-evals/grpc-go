@@ -1,0 +1,20 @@
+# Run via ./run.sh control (git apply onto evalon/grpc-go-en-4279a1cf): control that bounds the cleanup wait in TestChildExitIdleDuringBuild.
+diff --git a/balancer/endpointsharding/endpointsharding_ext_test.go b/balancer/endpointsharding/endpointsharding_ext_test.go
+index 6c4f678e..88a0d626 100644
+--- a/balancer/endpointsharding/endpointsharding_ext_test.go
++++ b/balancer/endpointsharding/endpointsharding_ext_test.go
+@@ -515,7 +515,13 @@ func (s) TestChildExitIdleDuringBuild(t *testing.T) {
+ 	}()
+ 	// Unblock the builder and wait for the resolver update before closing b,
+ 	// including when the test fails before construction finishes.
+-	defer func() { <-updateDone }()
++	defer func() { // CONTROL (audit): bounded cleanup wait instead of a bare receive.
++		select {
++		case <-updateDone:
++		case <-time.After(defaultTestShortTimeout):
++			t.Error("UpdateClientConnState did not return after the builder was released")
++		}
++	}()
+ 	defer releaseBuild()
+ 	select {
+ 	case <-building:

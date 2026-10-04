@@ -1,0 +1,13 @@
+# Run via ./run.sh control (git apply onto evalon/grpc-go-en-eb9cd093): control that releases the fixture barrier on blockChildUpdate's startup-timeout path.
+diff --git a/balancer/endpointsharding/endpointsharding_ext_test.go b/balancer/endpointsharding/endpointsharding_ext_test.go
+index 2bac2e12..c175fa9a 100644
+--- a/balancer/endpointsharding/endpointsharding_ext_test.go
++++ b/balancer/endpointsharding/endpointsharding_ext_test.go
+@@ -476,6 +476,7 @@ func blockChildUpdate(ctx context.Context, t *testing.T, es balancer.Balancer, c
+ 	select {
+ 	case <-controls["b"].updateStarted:
+ 	case <-ctx.Done():
++		close(unblock) // CONTROL (audit): release the fixture barrier on the startup-timeout path.
+ 		t.Fatalf("Timeout waiting for UpdateClientConnState on child %q", "b")
+ 	}
+ 	return func() {

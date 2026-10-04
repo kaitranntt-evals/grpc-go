@@ -1,0 +1,32 @@
+# Run via ./run.sh hang (git apply onto evalon/grpc-go-en-eb9cd093): scheduling probe delaying delivery of the update to child "b" by 11s while that child's mutex is held.
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index d2dbc62d..60a725e4 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -30,6 +30,7 @@ import (
+ 	rand "math/rand/v2"
+ 	"sync"
+ 	"sync/atomic"
++	"time"
+ 
+ 	"google.golang.org/grpc/balancer"
+ 	"google.golang.org/grpc/balancer/base"
+@@ -397,6 +398,12 @@ func (bw *balancerWrapper) build() {
+ func (bw *balancerWrapper) updateClientConnState(ccs balancer.ClientConnState) error {
+ 	bw.mu.Lock()
+ 	defer bw.mu.Unlock()
++	// SCHEDULING PROBE (audit, not a fix): after the two-child initial update,
++	// delivery of an update to the child for endpoint "b" is late while that
++	// child's mutex is held, as on a stalled or badly overloaded machine.
++	if probeUpdates.Add(1) > 2 && ccs.ResolverState.Endpoints[0].Addresses[0].Addr == "b" {
++		time.Sleep(11 * time.Second)
++	}
+ 	return bw.child.UpdateClientConnState(ccs)
+ }
+ 
+@@ -417,3 +424,5 @@ func (bw *balancerWrapper) resolverError(err error) {
+ 	defer bw.mu.Unlock()
+ 	bw.child.ResolverError(err)
+ }
++
++var probeUpdates atomic.Int32

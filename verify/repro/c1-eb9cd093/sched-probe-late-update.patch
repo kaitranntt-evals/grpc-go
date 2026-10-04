@@ -1,0 +1,31 @@
+# Run via ./run.sh leak (git apply onto evalon/grpc-go-en-eb9cd093): scheduling probe delaying the 2nd parent update by 11s before any lock.
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index d2dbc62d..c410381b 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -30,6 +30,7 @@ import (
+ 	rand "math/rand/v2"
+ 	"sync"
+ 	"sync/atomic"
++	"time"
+ 
+ 	"google.golang.org/grpc/balancer"
+ 	"google.golang.org/grpc/balancer/base"
+@@ -155,6 +156,11 @@ func rotateEndpoints(es []resolver.Endpoint) []resolver.Endpoint {
+ // addresses it will ignore that endpoint. Otherwise, returns first error found
+ // from a child, but fully processes the new update.
+ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState) error {
++	// SCHEDULING PROBE (audit, not a fix): the second and later updates are
++	// delivered late, as on a stalled or badly overloaded machine.
++	if probeUpdates.Add(1) > 1 {
++		time.Sleep(11 * time.Second)
++	}
+ 	es.inhibitChildUpdates.Store(true)
+ 	defer func() {
+ 		es.inhibitChildUpdates.Store(false)
+@@ -417,3 +423,5 @@ func (bw *balancerWrapper) resolverError(err error) {
+ 	defer bw.mu.Unlock()
+ 	bw.child.ResolverError(err)
+ }
++
++var probeUpdates atomic.Int32

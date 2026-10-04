@@ -1,0 +1,29 @@
+=== RUN   Test
+=== RUN   Test/AutoReconnect_NotBlockedByOtherChildUpdate
+PROBE + 21.639ms UpdateClientConnState acquired updateMu
+PROBE + 21.773ms exitIdle #1 child="b" REQUESTED, origin: inside a parent UpdateClientConnState call
+PROBE + 21.833ms exitIdle #2 child="a" REQUESTED, origin: inside a parent UpdateClientConnState call
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000053b40})
+PROBE + 21.904ms UpdateClientConnState returning
+PROBE + 21.947ms exitIdle #2 child="a" passed updateMu barrier
+PROBE + 21.921ms exitIdle #1 child="b" passed updateMu barrier
+PROBE + 42.377ms UpdateClientConnState acquired updateMu
+PROBE + 42.575ms exitIdle #3 child="b" REQUESTED, origin: child-initiated UpdateState outside any parent call (the test's childB.reportIdle())
+PROBE + 73.042ms exitIdle #1 child="b" DELIVERED to child balancer
+PROBE + 73.128ms exitIdle #4 child="a" REQUESTED, origin: inside a parent UpdateClientConnState call
+PROBE + 73.193ms exitIdle #5 child="b" REQUESTED, origin: inside a parent UpdateClientConnState call
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000126080})
+PROBE + 73.253ms exitIdle #2 child="a" DELIVERED to child balancer
+PROBE + 73.273ms UpdateClientConnState returning
+PROBE + 73.295ms exitIdle #5 child="b" passed updateMu barrier
+PROBE + 73.319ms exitIdle #4 child="a" passed updateMu barrier
+PROBE + 73.341ms exitIdle #3 child="b" passed updateMu barrier
+PROBE +123.700ms exitIdle #5 child="b" DELIVERED to child balancer
+PROBE +123.739ms exitIdle #4 child="a" DELIVERED to child balancer
+PROBE +123.751ms exitIdle #3 child="b" DELIVERED to child balancer
+--- PASS: Test (0.12s)
+    --- PASS: Test/AutoReconnect_NotBlockedByOtherChildUpdate (0.12s)
+=== RUN   Test
+--- PASS: Test (0.00s)
+PASS
+ok  	google.golang.org/grpc/balancer/endpointsharding	1.139s

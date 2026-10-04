@@ -1,0 +1,13 @@
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ChildExitIdleDuringBuild
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000055ac0})
+--- PASS: Test (0.01s)
+    --- PASS: Test/ChildExitIdleDuringBuild (0.01s)
+PASS
+ok  	google.golang.org/grpc/balancer/endpointsharding	1.026s
+
+real	0m1.546s
+user	0m0.602s
+sys	0m0.156s

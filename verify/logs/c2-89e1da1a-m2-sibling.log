@@ -1,0 +1,12 @@
+=== RUN   Test
+=== RUN   Test/ChildExitIdle_NotBlockedByOtherChildUpdate
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc000055b00})
+    endpointsharding_locking_test.go:188: Timeout waiting for ExitIdle to be called on child "b"
+panic: test timed out after 25s
+	running tests:
+		Test (25s)
+		Test/ChildExitIdle_NotBlockedByOtherChildUpdate (25s)
+
+goroutine 34 [running]:
+testing.(*M).startAlarm.func1()
+	/usr/local/go/src/testing/testing.go:2682 +0x605

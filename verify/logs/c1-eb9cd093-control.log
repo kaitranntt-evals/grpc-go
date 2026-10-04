@@ -1,0 +1,16 @@
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/EndpointSharding_ChildStateExitIdleNotBlockedByOtherChild
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc0000b5b80})
+    endpointsharding_ext_test.go:499: Timeout waiting for UpdateClientConnState on child "b"
+    balancer.go:193: testutils.BalancerClientConn: UpdateState({IDLE 0xc0000b5c40})
+--- FAIL: Test (11.00s)
+    --- FAIL: Test/EndpointSharding_ChildStateExitIdleNotBlockedByOtherChild (11.00s)
+FAIL
+FAIL	google.golang.org/grpc/balancer/endpointsharding	11.019s
+FAIL
+
+real	0m11.778s
+user	0m0.831s
+sys	0m0.206s

@@ -1,0 +1,41 @@
+=== RUN   Test
+--- PASS: Test (0.00s)
+=== RUN   Test
+=== RUN   Test/ChildExitIdleDuringBuild
+    endpointsharding_ext_test.go:529: Timed out waiting for the builder to report IDLE
+    endpointsharding_ext_test.go:522: UpdateClientConnState did not return after the builder was released
+    grpctest.go:45: Leaked goroutine: goroutine 11 [sync.Mutex.Lock]:
+        internal/sync.runtime_SemacquireMutex(0x0?, 0x0?, 0x0?)
+        	/usr/local/go/src/runtime/sema.go:95 +0x25
+        internal/sync.(*Mutex).lockSlow(0xc00016c8d8)
+        	/usr/local/go/src/internal/sync/mutex.go:149 +0x210
+        internal/sync.(*Mutex).Lock(0xc00016c8d8)
+        	/usr/local/go/src/internal/sync/mutex.go:70 +0x55
+        sync.(*Mutex).Lock(0xc00016c8d8)
+        	/usr/local/go/src/sync/mutex.go:46 +0x29
+        google.golang.org/grpc/balancer/endpointsharding.(*balancerWrapper).UpdateState.(*balancerWrapper).ExitIdle.func1(0xc00016c880)
+        	/home/ubuntu/verify-wt/c1-4279a1cf-control/4279a1cf/balancer/endpointsharding/endpointsharding.go:352 +0x3a
+        google.golang.org/grpc/balancer/endpointsharding.(*balancerWrapper).ExitIdle(...)
+        	/home/ubuntu/verify-wt/c1-4279a1cf-control/4279a1cf/balancer/endpointsharding/endpointsharding.go:357
+        google.golang.org/grpc/balancer/endpointsharding.(*balancerWrapper).UpdateState(0xc00016c880, {0x120?, {0x1351b40?, 0xc00004b020?}})
+        	/home/ubuntu/verify-wt/c1-4279a1cf-control/4279a1cf/balancer/endpointsharding/endpointsharding.go:343 +0x125
+        google.golang.org/grpc/balancer/endpointsharding_test.s.TestChildExitIdleDuringBuild.func2(0xc0001590e0)
+        	/home/ubuntu/verify-wt/c1-4279a1cf-control/4279a1cf/balancer/endpointsharding/endpointsharding_ext_test.go:495 +0xd4
+        google.golang.org/grpc/internal/balancer/stub.bb.Build({{_, _}, {_, _, _, _, _, _}}, {0x135dc98, 0xc00016c880}, ...)
+        	/home/ubuntu/verify-wt/c1-4279a1cf-control/4279a1cf/internal/balancer/stub/stub.go:98 +0x24b
+        google.golang.org/grpc/balancer/endpointsharding.(*endpointSharding).UpdateClientConnState(0xc000158fc0, {{{0x0, 0x0, 0x0}, {0xc00007cfe0, 0x1, 0x1}, 0x0, 0x0}, {0x0, ...}})
+        	/home/ubuntu/verify-wt/c1-4279a1cf-control/4279a1cf/balancer/endpointsharding/endpointsharding.go:164 +0x8c7
+        google.golang.org/grpc/balancer/endpointsharding_test.s.TestChildExitIdleDuringBuild.func4()
+        	/home/ubuntu/verify-wt/c1-4279a1cf-control/4279a1cf/balancer/endpointsharding/endpointsharding_ext_test.go:510 +0x1dd
+        created by google.golang.org/grpc/balancer/endpointsharding_test.s.TestChildExitIdleDuringBuild in goroutine 10
+        	/home/ubuntu/verify-wt/c1-4279a1cf-control/4279a1cf/balancer/endpointsharding/endpointsharding_ext_test.go:508 +0x9ab
+    grpctest.go:77: Goroutine leak check disabled for future tests
+--- FAIL: Test (20.08s)
+    --- FAIL: Test/ChildExitIdleDuringBuild (20.08s)
+FAIL
+FAIL	google.golang.org/grpc/balancer/endpointsharding	20.097s
+FAIL
+
+real	0m20.584s
+user	0m0.816s
+sys	0m0.226s

@@ -1,0 +1,18 @@
+# Run via ./run.sh (git apply onto evalon/grpc-go-en-4279a1cf): mutation making balancerWrapper.ExitIdle synchronous, the regression TestChildExitIdleDuringBuild targets.
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -355,13 +355,13 @@
+ // ExitIdle pings an IDLE child balancer to exit idle in a new goroutine to
+ // avoid deadlocks due to synchronous balancer state updates.
+ func (bw *balancerWrapper) ExitIdle() {
+-	go func() {
++	func() { // MUTATION (audit probe, not a fix): synchronous instead of `go func()`.
+ 		bw.mu.Lock()
+ 		defer bw.mu.Unlock()
+ 		if !bw.isClosed {
+ 			bw.child.ExitIdle()
+ 		}
+ 	}()
+ }
+ 
+ // updateClientConnState delivers the ClientConnState to the child balancer.

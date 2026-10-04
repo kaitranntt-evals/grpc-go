@@ -1,0 +1,72 @@
+# Run via ./run.sh trace (git apply onto evalon/grpc-go-en-89e1da1a): mutation M2 plus two sleeps (scheduling probe) and a PROBE trace of every idle-exit request.
+diff --git a/balancer/endpointsharding/endpointsharding.go b/balancer/endpointsharding/endpointsharding.go
+index 31be5cf6..a313eb16 100644
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -26,10 +26,15 @@
+ package endpointsharding
+ 
+ import (
++	"bytes"
+ 	"errors"
++	"fmt"
+ 	rand "math/rand/v2"
++	"os"
++	"runtime"
+ 	"sync"
+ 	"sync/atomic"
++	"time"
+ 
+ 	"google.golang.org/grpc/balancer"
+ 	"google.golang.org/grpc/balancer/base"
+@@ -155,7 +160,10 @@ func rotateEndpoints(es []resolver.Endpoint) []resolver.Endpoint {
+ // addresses it will ignore that endpoint. Otherwise, returns first error found
+ // from a child, but fully processes the new update.
+ func (es *endpointSharding) UpdateClientConnState(state balancer.ClientConnState) error {
++	time.Sleep(20 * time.Millisecond) // SCHEDULING PROBE: caller descheduled before taking updateMu.
+ 	es.updateMu.Lock()
++	probef("UpdateClientConnState acquired updateMu")
++	defer probef("UpdateClientConnState returning")
+ 	defer es.updateMu.Unlock()
+ 
+ 	es.inhibitChildUpdates.Store(true)
+@@ -390,7 +398,38 @@ func (bw *balancerWrapper) UpdateState(state balancer.State) {
+ // ExitIdle pings an IDLE child balancer to exit idle in a new goroutine to
+ // avoid deadlocks due to synchronous balancer state updates.
+ func (bw *balancerWrapper) ExitIdle() {
+-	go bw.exitIdleSync()
++	// TRACE (audit probe): number every idle-exit request and print its
++	// lifecycle so stale requests can be told apart from later ones.
++	id := probeSeq.Add(1)
++	bw.es.mu.Lock()
++	addr := bw.childState.Endpoint.Addresses[0].Addr
++	bw.es.mu.Unlock()
++	origin := "child-initiated UpdateState outside any parent call (the test's childB.reportIdle())"
++	stack := make([]byte, 16<<10)
++	if stack = stack[:runtime.Stack(stack, false)]; bytes.Contains(stack, []byte("(*endpointSharding).UpdateClientConnState")) {
++		origin = "inside a parent UpdateClientConnState call"
++	}
++	probef("exitIdle #%d child=%q REQUESTED, origin: %s", id, addr, origin)
++	go func() {
++		// MUTATION M2 (audit probe, not a fix): reintroduce the bug the task
++		// removes - an idle exit for one child waits for any in-flight
++		// UpdateClientConnState/ResolverError/Close, i.e. for other children.
++		bw.es.updateMu.Lock()
++		bw.es.updateMu.Unlock()
++		probef("exitIdle #%d child=%q passed updateMu barrier", id, addr)
++		time.Sleep(50 * time.Millisecond) // SCHEDULING PROBE: goroutine descheduled here.
++		bw.exitIdleSync()
++		probef("exitIdle #%d child=%q DELIVERED to child balancer", id, addr)
++	}()
++}
++
++var (
++	probeSeq   atomic.Int64
++	probeStart = time.Now()
++)
++
++func probef(format string, args ...any) {
++	fmt.Fprintf(os.Stderr, "PROBE +%7.3fms "+format+"\n", append([]any{float64(time.Since(probeStart).Microseconds()) / 1000}, args...)...)
+ }
+ 
+ // exitIdleSync calls ExitIdle on the child balancer, unless it is closed.
