@@ -1,0 +1,52 @@
+// Run via verify/repro/c1_blocking_ops.sh (copies this file to internal/transport/verify_c1_watch_test.go in a worktree of the audited branch).
+package transport
+
+import (
+	"fmt"
+	"os"
+	"regexp"
+	"runtime"
+	"strings"
+	"time"
+)
+
+// When VERIFY_C1_WATCH names a regexp, a watchdog prints, every
+// VERIFY_C1_EVERY (default 3s), each goroutine whose stack matches it. It
+// only observes; it never unblocks anything, and exits at the first tick with no match.
+func init() {
+	pat := os.Getenv("VERIFY_C1_WATCH")
+	if pat == "" {
+		return
+	}
+	re := regexp.MustCompile(pat)
+	every := 3 * time.Second
+	if d, err := time.ParseDuration(os.Getenv("VERIFY_C1_EVERY")); err == nil {
+		every = d
+	}
+	start := time.Now()
+	go func() {
+		for {
+			time.Sleep(every)
+			buf := make([]byte, 8<<20)
+			buf = buf[:runtime.Stack(buf, true)]
+			n := 0
+			for _, g := range strings.Split(string(buf), "\n\n") {
+				if !re.MatchString(g) || strings.Contains(g, "verify_c1_watch_test.go") {
+					continue
+				}
+				n++
+				var keep []string
+				for i, l := range strings.Split(g, "\n") {
+					if i == 0 || (strings.Contains(l, "_test.go:") && !strings.Contains(l, "/testing/")) || re.MatchString(l) {
+						keep = append(keep, strings.TrimSpace(l))
+					}
+				}
+				fmt.Fprintf(os.Stderr, "WATCH t=%4.1fs still blocked: %s\n", time.Since(start).Seconds(), strings.Join(keep, " | "))
+			}
+			if n == 0 {
+				fmt.Fprintf(os.Stderr, "WATCH t=%4.1fs no goroutine matches %q any more; watchdog exits\n", time.Since(start).Seconds(), pat)
+				return
+			}
+		}
+	}()
+}

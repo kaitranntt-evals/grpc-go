@@ -1,0 +1,47 @@
+// Run via: verify/repro/c1_blocking_ops.sh 1e8d9a91 <worktree of evalon/grpc-go-tr-1e8d9a91> (copied to internal/transport/verify_c1_probe_test.go).
+package transport
+
+import (
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/mem"
+)
+
+// Stalls the read performed by the authored helper newTestRecvStream's
+// stream (the same s.read that readAllFromStream issues) by withholding one
+// byte, and reports whether anything interrupts it within 12s, i.e. longer
+// than the package's 10s defaultTestTimeout.
+func TestVerifyC1_StalledReadOnNewTestRecvStream(t *testing.T) {
+	st := newTestRecvStream()
+	t.Logf("newTestRecvStream(): reader.ctx == nil: %v, reader.ctxDone == nil: %v, defaultTestTimeout=%v",
+		st.trReader.reader.ctx == nil, st.trReader.reader.ctxDone == nil, defaultTestTimeout)
+	st.write(recvMsg{buffer: mem.SliceBuffer([]byte{1})})
+
+	type res struct {
+		n   int
+		err error
+	}
+	done := make(chan res, 1)
+	start := time.Now()
+	go func() {
+		data, err := st.read(2) // needs 2 bytes, only 1 queued, no EOF queued
+		n := 0
+		if err == nil {
+			n = data.Len()
+			data.Free()
+		}
+		done <- res{n, err}
+	}()
+	const wait = 12 * time.Second
+	select {
+	case r := <-done:
+		t.Fatalf("RESULT stalled s.read(2) was interrupted after %v: n=%d err=%v", time.Since(start).Round(time.Millisecond), r.n, r.err)
+	case <-time.After(wait):
+		t.Logf("RESULT stalled s.read(2) still blocked after %v; nothing local interrupted it", wait)
+	}
+	// Release it ourselves so the probe exits cleanly.
+	st.write(recvMsg{buffer: mem.SliceBuffer([]byte{2})})
+	r := <-done
+	t.Logf("RESULT released only by supplying the missing byte: n=%d err=%v", r.n, r.err)
+}

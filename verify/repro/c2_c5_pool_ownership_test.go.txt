@@ -1,0 +1,270 @@
+// Run: cp verify/repro/c2_c5_pool_ownership_test.go.txt <worktree of evalon/grpc-go-tr-bf9e3569>/internal/transport/verify_c2_c5_test.go && go test -v -count=1 -run 'TestVerifyC2C5' ./internal/transport
+package transport
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"net"
+	"runtime"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+	"unsafe"
+
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/hpack"
+	"google.golang.org/grpc/mem"
+	"google.golang.org/grpc/resolver"
+)
+
+// verifyTrackingPool wraps a default-tiered pool and records backing-array
+// identities for every Get and Put, plus the nearest transport/mem callers.
+type verifyTrackingPool struct {
+	inner mem.BufferPool
+	mu    sync.Mutex
+	// arrays handed out by Get and not yet returned: array -> cap
+	out    map[unsafe.Pointer]int
+	events []verifyPoolEvent
+}
+
+type verifyPoolEvent struct {
+	op      string // "Get" or "Put"
+	req     int    // requested length (Get only)
+	arr     unsafe.Pointer
+	capa    int
+	known   bool // Put only: array is one that Get handed out and is outstanding
+	callers string
+}
+
+func verifyCallers() string {
+	pcs := make([]uintptr, 16)
+	n := runtime.Callers(3, pcs)
+	frames := runtime.CallersFrames(pcs[:n])
+	var out []string
+	for {
+		f, more := frames.Next()
+		if i := strings.LastIndex(f.Function, "/"); i >= 0 {
+			f.Function = f.Function[i+1:]
+		}
+		if strings.HasPrefix(f.Function, "transport.") || strings.HasPrefix(f.Function, "mem.") {
+			out = append(out, f.Function)
+		}
+		if !more || len(out) == 4 {
+			break
+		}
+	}
+	return strings.Join(out, " <- ")
+}
+
+// newVerifyTrackingPool wraps a fresh pool with the same tiers as
+// mem.DefaultBufferPool (256B, 4K, 16K, 32K, 1M) so that each test starts from
+// a pool that supplies exactly 4-KiB capacity for a 4-KiB request.
+func newVerifyTrackingPool() *verifyTrackingPool {
+	inner, err := mem.NewBinaryTieredBufferPool(8, 12, 14, 15, 20)
+	if err != nil {
+		panic(err)
+	}
+	return &verifyTrackingPool{inner: inner, out: map[unsafe.Pointer]int{}}
+}
+
+// logNextGet shows what the pool hands out for the next 4-KiB request after
+// the foreign array was Put (informational: sync.Pool gives no guarantees).
+func (p *verifyTrackingPool) logNextGet(t *testing.T) {
+	b := p.inner.Get(4096)
+	t.Logf("AFTERMATH next inner.Get(4096) -> array=%p cap=%d", unsafe.SliceData(*b), cap(*b))
+}
+
+func (p *verifyTrackingPool) Get(n int) *[]byte {
+	b := p.inner.Get(n)
+	arr := unsafe.Pointer(unsafe.SliceData(*b))
+	p.mu.Lock()
+	p.out[arr] = cap(*b)
+	p.events = append(p.events, verifyPoolEvent{op: "Get", req: n, arr: arr, capa: cap(*b), callers: verifyCallers()})
+	p.mu.Unlock()
+	return b
+}
+
+func (p *verifyTrackingPool) Put(b *[]byte) {
+	arr := unsafe.Pointer(unsafe.SliceData(*b))
+	p.mu.Lock()
+	_, known := p.out[arr]
+	delete(p.out, arr)
+	p.events = append(p.events, verifyPoolEvent{op: "Put", arr: arr, capa: cap(*b), known: known, callers: verifyCallers()})
+	p.mu.Unlock()
+	p.inner.Put(b)
+}
+
+// report logs all events and returns (abandoned arrays handed to
+// compactLocked's 4-KiB request and never Put, foreign arrays Put without
+// having been handed out by Get).
+func (p *verifyTrackingPool) report(t *testing.T) (abandoned, foreign []verifyPoolEvent) {
+	t.Helper()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for i, e := range p.events {
+		if e.op == "Get" {
+			_, outstanding := p.out[e.arr]
+			t.Logf("event %02d Get(%5d) -> array=%p cap=%5d neverPut=%-5v via %s", i, e.req, e.arr, e.capa, outstanding, e.callers)
+			if outstanding && strings.Contains(e.callers, "compactLocked") {
+				abandoned = append(abandoned, e)
+			}
+		} else {
+			t.Logf("event %02d Put        <- array=%p cap=%5d fromGet=%-5v via %s", i, e.arr, e.capa, e.known, e.callers)
+			if !e.known {
+				foreign = append(foreign, e)
+			}
+		}
+	}
+	return abandoned, foreign
+}
+
+func verifyPattern(n int, seed byte) []byte {
+	p := make([]byte, n)
+	for i := range p {
+		p[i] = byte(i)*7 + seed
+	}
+	return p
+}
+
+// Ownership part: recvBuffer.put -> compactLocked with a fresh destination.
+func TestVerifyC2C5_Ownership(t *testing.T) {
+	pool := newVerifyTrackingPool()
+	var b recvBuffer
+	b.init(pool)
+	if b.pool == nil {
+		t.Skip("compaction disabled")
+	}
+	first, second := verifyPattern(8192, 1), verifyPattern(8192, 2)
+	b.put(recvMsg{buffer: mem.Copy(first, pool)})  // goes straight to the channel
+	b.put(recvMsg{buffer: mem.Copy(second, pool)}) // reader busy -> compactLocked
+	t.Logf("after puts: compacted len=%d cap=%d array=%p", len(*b.compacted), cap(*b.compacted), unsafe.SliceData(*b.compacted))
+
+	var got []byte
+	for range 2 {
+		m := <-b.get()
+		b.load()
+		got = append(got, m.buffer.ReadOnlyData()...)
+		m.buffer.Free()
+	}
+	if !bytes.Equal(got, append(first, second...)) {
+		t.Fatalf("payload mismatch")
+	}
+	abandoned, foreign := pool.report(t)
+	t.Logf("RESULT ownership: abandoned compactLocked acquisitions=%d, foreign arrays Put=%d, payload intact=true", len(abandoned), len(foreign))
+	pool.logNextGet(t)
+	if len(abandoned) == 0 || len(foreign) == 0 {
+		t.Fatalf("expected the 4-KiB acquisition to be abandoned and a replacement array to be Put; got abandoned=%d foreign=%d", len(abandoned), len(foreign))
+	}
+}
+
+// Trigger part: a real http2Client reading two 8192-byte DATA frames sent by a
+// raw HTTP/2 server while the application is not reading.
+func TestVerifyC2C5_ReceivePath(t *testing.T) {
+	lis, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lis.Close()
+	first, second := verifyPattern(8192, 1), verifyPattern(8192, 2)
+	serverErr := make(chan error, 1)
+	release := make(chan struct{})
+	go func() {
+		serverErr <- func() error {
+			conn, err := lis.Accept()
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+			conn.SetDeadline(time.Now().Add(10 * time.Second))
+			if _, err := io.ReadFull(conn, make([]byte, len(clientPreface))); err != nil {
+				return err
+			}
+			fr := http2.NewFramer(conn, conn)
+			if err := fr.WriteSettings(); err != nil {
+				return err
+			}
+			for {
+				f, err := fr.ReadFrame()
+				if err != nil {
+					return err
+				}
+				if sf, ok := f.(*http2.SettingsFrame); ok && !sf.IsAck() {
+					fr.WriteSettingsAck()
+				}
+				if hf, ok := f.(*http2.HeadersFrame); ok {
+					var hbuf bytes.Buffer
+					enc := hpack.NewEncoder(&hbuf)
+					enc.WriteField(hpack.HeaderField{Name: ":status", Value: "200"})
+					enc.WriteField(hpack.HeaderField{Name: "content-type", Value: "application/grpc"})
+					if err := fr.WriteHeaders(http2.HeadersFrameParam{StreamID: hf.StreamID, BlockFragment: hbuf.Bytes(), EndHeaders: true}); err != nil {
+						return err
+					}
+					if err := fr.WriteData(hf.StreamID, false, first); err != nil {
+						return err
+					}
+					if err := fr.WriteData(hf.StreamID, false, second); err != nil {
+						return err
+					}
+					<-release
+					return nil
+				}
+			}
+		}()
+	}()
+	defer close(release)
+
+	pool := newVerifyTrackingPool()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	ct, err := NewHTTP2Client(ctx, ctx, resolver.Address{Addr: lis.Addr().String()}, ConnectOptions{BufferPool: pool, ChannelzParent: channelzSubChannel(t)}, func(GoAwayInfo) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ct.Close(fmt.Errorf("test done"))
+	s, err := ct.NewStream(ctx, &CallHdr{Host: "localhost", Method: "/verify/C2C5"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Application does not read. Wait until both frames are queued.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		s.buf.mu.Lock()
+		queued := s.buf.compacted != nil || len(s.buf.backlog) > 0
+		var desc string
+		if s.buf.compacted != nil {
+			desc = fmt.Sprintf("compacted len=%d cap=%d array=%p", len(*s.buf.compacted), cap(*s.buf.compacted), unsafe.SliceData(*s.buf.compacted))
+		}
+		s.buf.mu.Unlock()
+		if queued {
+			t.Logf("stream recvBuffer before app read: chan=%d %s", len(s.buf.c), desc)
+			break
+		}
+		if time.Now().After(deadline) {
+			select {
+			case err := <-serverErr:
+				t.Fatalf("server error: %v", err)
+			default:
+			}
+			t.Fatal("timed out waiting for both DATA frames to be queued")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	data, err := s.Read(16384)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := data.Materialize()
+	data.Free()
+	if !bytes.Equal(got, append(first, second...)) {
+		t.Fatalf("payload mismatch")
+	}
+	abandoned, foreign := pool.report(t)
+	t.Logf("RESULT receive path: abandoned compactLocked acquisitions=%d, foreign arrays Put=%d, payload intact=true", len(abandoned), len(foreign))
+	pool.logNextGet(t)
+	if len(abandoned) == 0 || len(foreign) == 0 {
+		t.Fatalf("expected the 4-KiB acquisition to be abandoned and a replacement array to be Put; got abandoned=%d foreign=%d", len(abandoned), len(foreign))
+	}
+}

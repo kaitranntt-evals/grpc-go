@@ -1,0 +1,264 @@
+// Run: cp verify/repro/c3_tail_chunk_retention_test.go.txt <worktree of evalon/grpc-go-tr-73d2e0f0>/internal/transport/verify_c3_test.go && go test -v -count=1 -run 'TestVerifyC3' ./internal/transport
+package transport
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"net"
+	"runtime"
+	"sync/atomic"
+	"testing"
+	"time"
+	"unsafe"
+
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/hpack"
+	"google.golang.org/grpc/internal/envconfig"
+	"google.golang.org/grpc/internal/testutils"
+	"google.golang.org/grpc/mem"
+	"google.golang.org/grpc/resolver"
+)
+
+const (
+	verifyC3Bursts = 1024
+	verifyC3Total  = 3 * verifyC3Bursts
+)
+
+// verifyC3Frame mirrors what framer.readDataFrame produces for a one-byte DATA
+// frame (below the pooling threshold): make([]byte, 1) cast to SliceBuffer.
+func verifyC3Frame(i int) mem.Buffer {
+	return mem.SliceBuffer([]byte{byte(i)})
+}
+
+func verifyC3Want() []byte {
+	want := make([]byte, verifyC3Total)
+	for i := range want {
+		want[i] = byte(i)
+	}
+	return want
+}
+
+// verifyC3Distinct sums cap() over the distinct backing arrays in data.
+func verifyC3Distinct(data mem.BufferSlice) (bufs, arrays, capacity int, hist map[int]int) {
+	seen := map[unsafe.Pointer]bool{}
+	hist = map[int]int{}
+	for _, b := range data {
+		d := b.ReadOnlyData()
+		p := unsafe.Pointer(unsafe.SliceData(d))
+		bufs++
+		if seen[p] {
+			continue
+		}
+		seen[p] = true
+		arrays++
+		capacity += cap(d)
+		hist[cap(d)]++
+	}
+	return
+}
+
+func verifyC3Heap() uint64 {
+	runtime.GC()
+	runtime.GC()
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	return ms.HeapAlloc
+}
+
+// Small-tail part: one burst of three one-byte frames with no reader.
+func TestVerifyC3_TailChunk(t *testing.T) {
+	testutils.SetEnvConfig(t, &envconfig.EnableReceiveBufferCompaction, true)
+	var b recvBuffer
+	b.init()
+	for i := range 3 {
+		b.put(recvMsg{buffer: verifyC3Frame(i)})
+	}
+	t.Logf("after burst: chan=%d backlog=%d", len(b.c), len(b.backlog))
+	head := <-b.get()
+	t.Logf("head: type=%T len=%d cap=%d", head.buffer, head.buffer.Len(), cap(head.buffer.ReadOnlyData()))
+	tail := b.backlog[0].buffer
+	t.Logf("tail: type=%T len=%d cap=%d", tail, tail.Len(), cap(tail.ReadOnlyData()))
+	if _, ok := tail.(*recvBufferChunk); !ok || tail.Len() != 2 || cap(tail.ReadOnlyData()) != 4096 {
+		t.Fatalf("two-byte tail did not get a fresh 4096-byte destination")
+	}
+}
+
+// Retention part, deterministic: the real Stream.read(3072) assembles the
+// message; each next burst is queued from the reader's own window-update
+// callback as soon as the previous burst has been fully drained.
+func verifyC3Assemble(t *testing.T) (bufs, arrays, capacity int, hist map[int]int, heapDelta int64) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	s := &Stream{ctx: ctx, readRequester: &fakeReadRequester{}}
+	s.buf.init()
+	next := 0
+	burst := func() {
+		for range 3 {
+			s.buf.put(recvMsg{buffer: verifyC3Frame(next)})
+			next++
+		}
+	}
+	read := 0
+	s.trReader = transportReader{
+		reader: recvBufferReader{ctx: ctx, ctxDone: ctx.Done(), recv: &s.buf},
+		windowHandler: &mockWindowUpdater{f: func(n int) {
+			read += n
+			if read == next && next < verifyC3Total {
+				burst()
+			}
+		}},
+	}
+	before := verifyC3Heap()
+	burst()
+	data, err := s.read(verifyC3Total)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after := verifyC3Heap()
+	bufs, arrays, capacity, hist = verifyC3Distinct(data)
+	if !bytes.Equal(data.Materialize(), verifyC3Want()) {
+		t.Fatal("payload mismatch")
+	}
+	runtime.KeepAlive(data)
+	data.Free()
+	return bufs, arrays, capacity, hist, int64(after) - int64(before)
+}
+
+func TestVerifyC3_MessageAssembly(t *testing.T) {
+	for _, enabled := range []bool{true, false} {
+		t.Run(fmt.Sprintf("compaction=%v", enabled), func(t *testing.T) {
+			testutils.SetEnvConfig(t, &envconfig.EnableReceiveBufferCompaction, enabled)
+			bufs, arrays, capacity, hist, heap := verifyC3Assemble(t)
+			t.Logf("RESULT payload=%d bytes: Stream.read returned %d buffers over %d distinct arrays, distinct retained capacity=%d bytes (%.2f MiB), capacity histogram(cap:count)=%v, live-heap delta at completion=%d bytes",
+				verifyC3Total, bufs, arrays, capacity, float64(capacity)/(1<<20), hist, heap)
+			if enabled && capacity < 4<<20 {
+				t.Fatalf("retained capacity %d < 4 MiB", capacity)
+			}
+		})
+	}
+}
+
+// Retention part, end to end: a real http2Client receives the bursts from a raw
+// HTTP/2 server over TCP and the application calls ClientStream.Read(3072).
+// The server sends the next burst once the client has drained the previous
+// one. Timing between the transport reader and the application goroutine is
+// real here, so the result is reported, not asserted. The application is
+// normally parked on the receive channel when a burst lands, so frame 1 is
+// handed to it directly, frame 2 fills the channel and only frames 3.. reach
+// the backlog: burst=3 leaves a single uncompacted frame there, burst=4 leaves
+// a two-byte tail.
+func TestVerifyC3_OverTransport(t *testing.T) {
+	for _, burst := range []int{3, 4} {
+		t.Run(fmt.Sprintf("burst=%d", burst), func(t *testing.T) { verifyC3OverTransport(t, burst) })
+	}
+}
+
+func verifyC3OverTransport(t *testing.T, burst int) {
+	total := burst * verifyC3Bursts
+	testutils.SetEnvConfig(t, &envconfig.EnableReceiveBufferCompaction, true)
+	lis, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lis.Close()
+	streamCh := make(chan *ClientStream, 1)
+	var consumed atomic.Int64 // bytes handed to the application so far
+	serverErr := make(chan error, 1)
+	release := make(chan struct{})
+	defer close(release)
+	go func() {
+		serverErr <- func() error {
+			conn, err := lis.Accept()
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+			conn.SetDeadline(time.Now().Add(30 * time.Second))
+			if _, err := io.ReadFull(conn, make([]byte, len(clientPreface))); err != nil {
+				return err
+			}
+			fr := http2.NewFramer(conn, conn)
+			if err := fr.WriteSettings(); err != nil {
+				return err
+			}
+			var sid uint32
+			for sid == 0 {
+				f, err := fr.ReadFrame()
+				if err != nil {
+					return err
+				}
+				if sf, ok := f.(*http2.SettingsFrame); ok && !sf.IsAck() {
+					fr.WriteSettingsAck()
+				}
+				if hf, ok := f.(*http2.HeadersFrame); ok {
+					sid = hf.StreamID
+				}
+			}
+			go io.Copy(io.Discard, conn) // discard window updates / pings
+			var hbuf bytes.Buffer
+			enc := hpack.NewEncoder(&hbuf)
+			enc.WriteField(hpack.HeaderField{Name: ":status", Value: "200"})
+			enc.WriteField(hpack.HeaderField{Name: "content-type", Value: "application/grpc"})
+			if err := fr.WriteHeaders(http2.HeadersFrameParam{StreamID: sid, BlockFragment: hbuf.Bytes(), EndHeaders: true}); err != nil {
+				return err
+			}
+			<-streamCh
+			for i := 0; i < total; i += burst {
+				// One TCP write per burst of one-byte DATA frames.
+				var wire bytes.Buffer
+				bw := http2.NewFramer(&wire, nil)
+				for j := range burst {
+					bw.WriteData(sid, false, []byte{byte(i + j)})
+				}
+				if _, err := conn.Write(wire.Bytes()); err != nil {
+					return err
+				}
+				// Wait until the application has drained this burst.
+				for consumed.Load() < int64(i+burst) {
+					time.Sleep(20 * time.Microsecond)
+				}
+			}
+			<-release
+			return nil
+		}()
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	ct, err := NewHTTP2Client(ctx, ctx, resolver.Address{Addr: lis.Addr().String()}, ConnectOptions{BufferPool: mem.DefaultBufferPool(), ChannelzParent: channelzSubChannel(t)}, func(GoAwayInfo) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ct.Close(fmt.Errorf("test done"))
+	s, err := ct.NewStream(ctx, &CallHdr{Host: "localhost", Method: "/verify/C3"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	orig := s.trReader.windowHandler
+	s.trReader.windowHandler = &mockWindowUpdater{f: func(n int) {
+		consumed.Add(int64(n))
+		orig.updateWindow(n)
+	}}
+	streamCh <- s
+	data, err := s.Read(total)
+	if err != nil {
+		select {
+		case serr := <-serverErr:
+			t.Fatalf("read: %v (server: %v)", err, serr)
+		default:
+		}
+		t.Fatal(err)
+	}
+	bufs, arrays, capacity, hist := verifyC3Distinct(data)
+	want := make([]byte, total)
+	for i := range want {
+		want[i] = byte(i)
+	}
+	if !bytes.Equal(data.Materialize(), want) {
+		t.Fatal("payload mismatch")
+	}
+	data.Free()
+	t.Logf("RESULT over transport burst=%d payload=%d bytes: ClientStream.Read returned %d buffers over %d distinct arrays, distinct retained capacity=%d bytes (%.2f MiB), capacity histogram(cap:count)=%v",
+		burst, total, bufs, arrays, capacity, float64(capacity)/(1<<20), hist)
+}

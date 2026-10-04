@@ -1,0 +1,67 @@
+// Run: cp verify/repro/c4_clamped_zero_heap_test.go.txt <worktree of evalon/grpc-go-tr-87b780a7>/internal/transport/verify_c4_test.go && go test -v -count=1 -run 'TestVerifyC4' ./internal/transport
+package transport
+
+import (
+	"runtime"
+	"runtime/debug"
+	"sync"
+	"testing"
+	"time"
+)
+
+// TestVerifyC4_NegativeDeltasAccepted runs the authored, unmodified
+// TestClientTransport_TinyDataFramesReceiveMemory while unrelated global heap
+// is released between each "before" and "after" sample of
+// receiveTinyDataFrames, so that both after values are below their before
+// values.
+//
+// The unrelated heap is a 64 MiB ballast parked in a sync.Pool: it survives
+// the single runtime.GC() of the "before" sample (moved to the pool's victim
+// cache) and is released by the runtime.GC() of the "after" sample. A helper
+// goroutine re-arms a fresh ballast after every second GC cycle, i.e. after
+// each receiveTinyDataFrames call has taken both samples.
+func TestVerifyC4_NegativeDeltasAccepted(t *testing.T) {
+	defer debug.SetGCPercent(debug.SetGCPercent(-1)) // only the test's explicit GCs run
+	const ballastSize = 64 << 20
+	var pool sync.Pool
+	newBallast := func() *[]byte {
+		b := make([]byte, ballastSize)
+		for i := 0; i < len(b); i += 4096 {
+			b[i] = 1
+		}
+		return &b
+	}
+	numGC := func() uint32 {
+		var ms runtime.MemStats
+		runtime.ReadMemStats(&ms)
+		return ms.NumGC
+	}
+
+	spare := newBallast() // held (constant offset) until it is parked
+	pool.Put(newBallast())
+	start := numGC()
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		armed := uint32(0)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			if n := numGC() - start; n >= armed+2 && spare != nil {
+				pool.Put(spare)
+				spare = nil
+				armed += 2
+				t.Logf("ballast re-armed after %d GC cycles", n)
+			}
+			time.Sleep(50 * time.Microsecond)
+		}
+	}()
+	defer func() { close(stop); <-done }()
+
+	passed := t.Run("authored", s{}.TestClientTransport_TinyDataFramesReceiveMemory)
+	t.Logf("RESULT authored test passed=%v after %d explicit GC cycles with unrelated heap released between every before/after sample", passed, numGC()-start)
+}

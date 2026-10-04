@@ -1,0 +1,45 @@
+// Run via: verify/repro/c1_blocking_ops.sh e11b3799 <worktree of evalon/grpc-go-tr-e11b3799> (copied to internal/transport/verify_c1_probe_test.go).
+package transport
+
+import (
+	"io"
+	"net"
+	"testing"
+	"time"
+)
+
+// Stalls the goroutine that the authored fixture tinyFrameServer.stop() joins
+// (serve is parked reading from an accepted connection whose peer is silent)
+// and reports whether anything interrupts the join within 12s, i.e. longer
+// than the package's 10s defaultTestTimeout.
+func TestVerifyC1_StalledJoinInTinyFrameServerStop(t *testing.T) {
+	ts := newTinyFrameServer(t, 1)
+	conn, err := net.Dial("tcp", ts.lis.Addr().String())
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	time.Sleep(200 * time.Millisecond) // let serve() accept and park in io.ReadFull
+
+	stopped := make(chan struct{})
+	start := time.Now()
+	go func() {
+		ts.stop() // authored: ts.lis.Close(); <-ts.done
+		close(stopped)
+	}()
+	const wait = 12 * time.Second
+	select {
+	case <-stopped:
+		t.Fatalf("RESULT tinyFrameServer.stop() returned after %v with a silent peer still connected", time.Since(start).Round(time.Millisecond))
+	case <-time.After(wait):
+		_, aerr := net.DialTimeout("tcp", ts.lis.Addr().String(), time.Second)
+		t.Logf("RESULT tinyFrameServer.stop() still blocked after %v (defaultTestTimeout=%v); listener already closed (dial err: %v); nothing local interrupted the join", wait, defaultTestTimeout, aerr)
+	}
+	// Release it ourselves: complete the preface so serve() exits quietly on EOF.
+	if _, err := conn.Write(clientPreface); err != nil {
+		t.Fatalf("Write preface: %v", err)
+	}
+	io.ReadFull(conn, make([]byte, 9)) // server SETTINGS frame header
+	conn.Close()
+	<-stopped
+	t.Logf("RESULT join released only after the peer connection was closed, %v after stop() was called", time.Since(start).Round(time.Millisecond))
+}

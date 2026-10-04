@@ -1,0 +1,17 @@
+// Fault injection used only by verify/repro/c1_blocking_ops.sh: copied to internal/transport/verify_c1_stall.go in a throwaway worktree.
+package transport
+
+import (
+	"context"
+	"os"
+)
+
+// verifyC1StallDial simulates a client that never reaches the test's raw
+// server: with VERIFY_C1_STALL_DIAL set, dial() blocks until its context ends.
+func verifyC1StallDial(ctx context.Context) error {
+	if os.Getenv("VERIFY_C1_STALL_DIAL") == "" {
+		return nil
+	}
+	<-ctx.Done()
+	return ctx.Err()
+}
