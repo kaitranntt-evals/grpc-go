@@ -1,0 +1,15 @@
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index 056810b3..a3a6c300 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -142,7 +142,9 @@ func (b *recvBuffer) put(r recvMsg) {
+ 		b.compactLocked(r.buffer)
+ 		return
+ 	}
+-	b.flushPendingLocked()
++	if r.err == nil {
++		b.flushPendingLocked()
++	}
+ 	b.backlog = append(b.backlog, r)
+ }
+ 

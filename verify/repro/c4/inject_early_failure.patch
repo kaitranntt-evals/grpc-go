@@ -1,0 +1,57 @@
+diff --git a/internal/transport/recv_buffer_test.go b/internal/transport/recv_buffer_test.go
+index 5168c3b3..c27a171a 100644
+--- a/internal/transport/recv_buffer_test.go
++++ b/internal/transport/recv_buffer_test.go
+@@ -23,8 +23,10 @@ import (
+ 	"bytes"
+ 	"context"
+ 	"errors"
++	"fmt"
+ 	"io"
+ 	"net"
++	"os"
+ 	"runtime"
+ 	"testing"
+ 	"time"
+@@ -154,6 +156,9 @@ func (s) TestClientTransport_TinyDataFramesSlowReader(t *testing.T) {
+ 
+ 	retained := func(enabled bool) int64 {
+ 		testutils.SetEnvConfig(t, &envconfig.EnableReceiveBufferCompaction, enabled)
++		// VERIFY-C4: registered first, so it runs after every other deferred cleanup.
++		defer fmt.Fprintln(os.Stderr, "VERIFY-C4 all deferred cleanup of the test body has finished")
++		inject := os.Getenv("VERIFY_C4_INJECT")
+ 		ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+ 		defer cancel()
+ 
+@@ -176,17 +181,30 @@ func (s) TestClientTransport_TinyDataFramesSlowReader(t *testing.T) {
+ 			InitialWindowSize:     2 * numFrames,
+ 			InitialConnWindowSize: 2 * numFrames,
+ 		}
++		if inject == "header-real" {
++			// VERIFY-C4: make the client reject the (valid) response headers so
++			// that stream.Header() genuinely fails.
++			one := uint32(1)
++			copts.MaxHeaderListSize = &one
++		}
+ 		ct, err := NewHTTP2Client(connectCtx, ctx, resolver.Address{Addr: lis.Addr().String()}, copts, func(GoAwayInfo) {})
+ 		if err != nil {
+ 			t.Fatalf("NewHTTP2Client() failed: %v", err)
+ 		}
+ 		defer ct.Close(errors.New("closed manually by test"))
++		if inject == "after-connect" {
++			t.Fatalf("VERIFY-C4 injected setup failure right after NewHTTP2Client()")
++		}
+ 
+ 		stream, err := ct.NewStream(ctx, &CallHdr{Host: "localhost", Method: "foo.Bar"}, nil)
+ 		if err != nil {
+ 			t.Fatalf("NewStream() failed: %v", err)
+ 		}
+-		if _, err := stream.Header(); err != nil {
++		_, err = stream.Header()
++		if inject == "header-forced" && err == nil {
++			err = errors.New("VERIFY-C4 injected error")
++		}
++		if err != nil {
+ 			t.Fatalf("stream.Header() failed: %v", err)
+ 		}
+ 

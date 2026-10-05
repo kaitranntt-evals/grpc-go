@@ -1,0 +1,14 @@
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index 056810b3..d35b9c7e 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -128,6 +128,9 @@ func (b *recvBuffer) put(r recvMsg) {
+ 		// data or errors.
+ 		return
+ 	}
++	if r.err == io.EOF && (len(b.backlog) > 0 || b.pending != nil) {
++		return // mutation: terminal EOF lost while data is buffered
++	}
+ 	b.err = r.err
+ 	if len(b.backlog) == 0 && b.pending == nil {
+ 		select {

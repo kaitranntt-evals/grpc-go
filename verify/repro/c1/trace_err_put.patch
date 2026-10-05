@@ -1,0 +1,26 @@
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index 056810b3..8252c3da 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -27,6 +27,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"net"
++	"os"
+ 	"sync"
+ 	"sync/atomic"
+ 	"time"
+@@ -128,6 +129,13 @@ func (b *recvBuffer) put(r recvMsg) {
+ 		// data or errors.
+ 		return
+ 	}
++	if r.err != nil {
++		pl := -1
++		if b.pending != nil {
++			pl = len(*b.pending)
++		}
++		fmt.Fprintf(os.Stderr, "VERIFY-C1 put(err=%v): compact=%v chanLen=%d backlogLen=%d pendingBytes=%d\n", r.err, b.compact, len(b.c), len(b.backlog), pl)
++	}
+ 	b.err = r.err
+ 	if len(b.backlog) == 0 && b.pending == nil {
+ 		select {
