@@ -1,5 +1,7 @@
-// Run: git worktree add --detach /tmp/wt-64726da8 <claims-remote>/evalon/grpc-go-tr-64726da8 && cp verify/repro/c4_homogeneous_copy_test.go /tmp/wt-64726da8/internal/transport/verify_c4_homogeneous_copy_test.go && cd /tmp/wt-64726da8 && go test -v -run '^TestVerify_C4_' ./internal/transport -count=1
+// Run: git worktree add --detach /tmp/wt-64726da8 <claims-remote>/evalon/grpc-go-tr-64726da8 && cp verify/repro/c4_homogeneous_copy_test.go /tmp/wt-64726da8/internal/transport/verify_c4_homogeneous_copy_test.go && cd /tmp/wt-64726da8 && go test -tags verify_repro -v -run '^TestVerify_C4_' ./internal/transport -count=1
 // (add GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION=false for the control run)
+
+//go:build verify_repro
 
 package transport
 

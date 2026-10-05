@@ -1,9 +1,11 @@
-// Run: git worktree add --detach /tmp/wt-0e684571 <claims-remote>/evalon/grpc-go-tr-0e684571 && cp verify/repro/c3_worker_teardown_test.go /tmp/wt-0e684571/internal/transport/verify_c3_worker_teardown_test.go && cd /tmp/wt-0e684571 && for sc in setup reception success; do VERIFY_C3_SCENARIO=$sc go test -v -run '^TestVerify_C3_WorkerAfterCleanup$' ./internal/transport -count=1; done
+// Run: git worktree add --detach /tmp/wt-0e684571 <claims-remote>/evalon/grpc-go-tr-0e684571 && cp verify/repro/c3_worker_teardown_test.go /tmp/wt-0e684571/internal/transport/verify_c3_worker_teardown_test.go && cd /tmp/wt-0e684571 && for sc in setup reception success; do VERIFY_C3_SCENARIO=$sc go test -tags verify_repro -v -run '^TestVerify_C3_WorkerAfterCleanup$' ./internal/transport -count=1; done
 //
 // Drives the branch's own, unmodified startTinyDataFrameServer fixture down a
 // failure path inside a subtest. t.Run returns only after the subtest's
 // cleanups have completed, so any fixture goroutine seen after t.Run returns
 // outlived fixture cleanup. (Expected to FAIL/panic: that is the evidence.)
+
+//go:build verify_repro
 
 package transport
 

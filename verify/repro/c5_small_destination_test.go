@@ -1,5 +1,7 @@
-// Run: git worktree add --detach /tmp/wt-a4df28bb <claims-remote>/evalon/grpc-go-tr-a4df28bb && cp verify/repro/c5_small_destination_test.go /tmp/wt-a4df28bb/internal/transport/verify_c5_small_destination_test.go && cp <eval_tests.zip>/tests/eval_recv_buffer_compaction_test.go /tmp/wt-a4df28bb/internal/transport/ && cd /tmp/wt-a4df28bb && go test -v -run '^TestVerify_C5_' ./internal/transport -race -count=1
+// Run: git worktree add --detach /tmp/wt-a4df28bb <claims-remote>/evalon/grpc-go-tr-a4df28bb && cp verify/repro/c5_small_destination_test.go /tmp/wt-a4df28bb/internal/transport/verify_c5_small_destination_test.go && cp <eval_tests.zip>/tests/eval_recv_buffer_compaction_test.go /tmp/wt-a4df28bb/internal/transport/ && cd /tmp/wt-a4df28bb && go test -tags verify_repro -v -run '^TestVerify_C5_' ./internal/transport -race -count=1
 // (uses evalNewProductionHTTP2Client from the eval fixture file to get a real client stream)
+
+//go:build verify_repro
 
 package transport
 

@@ -1,4 +1,6 @@
-// Run: git worktree add --detach /tmp/wt-34099504 <claims-remote>/evalon/grpc-go-tr-34099504 && cp verify/repro/c1_c2_ownership_test.go /tmp/wt-34099504/internal/transport/verify_c1_c2_ownership_test.go && cp <eval_tests.zip>/tests/eval_recv_buffer_compaction_test.go /tmp/wt-34099504/internal/transport/ && cd /tmp/wt-34099504 && go test -v -run '^TestVerify_C[12]_' ./internal/transport -race -count=1
+// Run: git worktree add --detach /tmp/wt-34099504 <claims-remote>/evalon/grpc-go-tr-34099504 && cp verify/repro/c1_c2_ownership_test.go /tmp/wt-34099504/internal/transport/verify_c1_c2_ownership_test.go && cp <eval_tests.zip>/tests/eval_recv_buffer_compaction_test.go /tmp/wt-34099504/internal/transport/ && cd /tmp/wt-34099504 && go test -tags verify_repro -v -run '^TestVerify_C[12]_' ./internal/transport -race -count=1
+
+//go:build verify_repro
 
 package transport
 

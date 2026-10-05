@@ -14,7 +14,7 @@ done
 unzip eval_tests.zip -d ~/evalfx
 ```
 
-Commits adjudicated: 34099504 → `f9188394`, 0e684571 → `b865cc0e`, 64726da8 → `00c344c5`, a4df28bb → `4a9231f0`. No production file was modified in any worktree; only test files under `internal/transport/` were added (the repros in `verify/repro/` and the eval fixture).
+Commits adjudicated: 34099504 → `f9188394`, 0e684571 → `b865cc0e`, 64726da8 → `00c344c5`, a4df28bb → `4a9231f0`. No production file was modified in any worktree; only test files under `internal/transport/` were added (the repros in `verify/repro/` and the eval fixture). The repro files carry `//go:build verify_repro` so they stay out of `go build ./...` / `go vet ./...` on this branch; pass `-tags verify_repro` to run them. The tag line was added after the outputs below were captured, so `file:line` prefixes in a replay are 2 higher than shown; a re-run with the tag reproduced every `RESULT` line unchanged.
 
 ## C1
 
@@ -42,7 +42,7 @@ Ownership trace ([verify/repro/c1_c2_ownership_test.go](repro/c1_c2_ownership_te
 
 ```sh
 cp verify/repro/c1_c2_ownership_test.go ~/wt/34099504/internal/transport/verify_c1_c2_ownership_test.go
-cd ~/wt/34099504 && go test -v -run '^TestVerify_C[12]_' ./internal/transport -race -count=1
+cd ~/wt/34099504 && go test -tags verify_repro -v -run '^TestVerify_C[12]_' ./internal/transport -race -count=1
 ```
 
 ```console
@@ -87,7 +87,7 @@ Same repro file, server side: a real `http2Server` (`NewServerTransport`, `Serve
 
 ```sh
 cp verify/repro/c1_c2_ownership_test.go ~/wt/34099504/internal/transport/verify_c1_c2_ownership_test.go
-cd ~/wt/34099504 && go test -v -run '^TestVerify_C[12]_' ./internal/transport -race -count=1
+cd ~/wt/34099504 && go test -tags verify_repro -v -run '^TestVerify_C[12]_' ./internal/transport -race -count=1
 ```
 
 ```console
@@ -129,7 +129,7 @@ FAIL
 Impact reasoning: a client cancelling an RPC (RST_STREAM, deadline, disconnect) is an everyday event. On this branch every server stream that compacted at least once and is then cancelled without END_STREAM never hands its 16 KiB compaction buffer back to the configured `mem.BufferPool`; the pool sees a `Get` with no matching `Put`. What I observed is the missing `Put`; I did not measure process memory. With the escape hatch the path is not taken:
 
 ```sh
-cd ~/wt/34099504 && GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION=false go test -v -run '^TestVerify_C2_ServerCancelWithoutEOF$' ./internal/transport -race -count=1
+cd ~/wt/34099504 && GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION=false go test -tags verify_repro -v -run '^TestVerify_C2_ServerCancelWithoutEOF$' ./internal/transport -race -count=1
 ```
 
 ```console
@@ -167,7 +167,7 @@ Experiment ([verify/repro/c3_worker_teardown_test.go](repro/c3_worker_teardown_t
 
 ```sh
 cp verify/repro/c3_worker_teardown_test.go ~/wt/0e684571/internal/transport/verify_c3_worker_teardown_test.go
-cd ~/wt/0e684571 && go test -c -o /tmp/c3.test ./internal/transport
+cd ~/wt/0e684571 && go test -tags verify_repro -c -o /tmp/c3.test ./internal/transport
 VERIFY_C3_SCENARIO=setup GOMAXPROCS=1 /tmp/c3.test -test.v -test.run '^TestVerify_C3_WorkerAfterCleanup$'
 ```
 
@@ -247,7 +247,7 @@ Target: [evalon/grpc-go-tr-64726da8](https://github.com/kaitranntt-evals/grpc-go
 
 ```sh
 cp verify/repro/c4_homogeneous_copy_test.go ~/wt/64726da8/internal/transport/verify_c4_homogeneous_copy_test.go
-cd ~/wt/64726da8 && go test -v -run '^TestVerify_C4_' ./internal/transport -count=1
+cd ~/wt/64726da8 && go test -tags verify_repro -v -run '^TestVerify_C4_' ./internal/transport -count=1
 ```
 
 ```console
@@ -292,7 +292,7 @@ ok  	google.golang.org/grpc/internal/transport	0.007s
 ```
 
 ```sh
-GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION=false go test -v -run '^TestVerify_C4_Homogeneous' ./internal/transport -count=1
+GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION=false go test -tags verify_repro -v -run '^TestVerify_C4_Homogeneous' ./internal/transport -count=1
 ```
 
 ```console
@@ -342,7 +342,7 @@ Pool and capacity trace ([verify/repro/c5_small_destination_test.go](repro/c5_sm
 
 ```sh
 cp verify/repro/c5_small_destination_test.go ~/wt/a4df28bb/internal/transport/verify_c5_small_destination_test.go
-cd ~/wt/a4df28bb && go test -v -run '^TestVerify_C5_' ./internal/transport -race -count=1
+cd ~/wt/a4df28bb && go test -tags verify_repro -v -run '^TestVerify_C5_' ./internal/transport -race -count=1
 ```
 
 ```console
@@ -405,7 +405,7 @@ ok  	google.golang.org/grpc/internal/transport	1.422s
 Impact reasoning: any stream whose backlog of compacted bytes is flushed while the destination capacity is still ≤ 1024 bytes (a handful of small frames arriving slightly faster than the reader — a very ordinary situation) takes a buffer from the configured pool that is never given back; the pool sees `Get` without `Put`. Observed is the missing `Put`, not process memory growth. With compaction disabled no destination is acquired:
 
 ```sh
-cd ~/wt/a4df28bb && GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION=false go test -v -run '^TestVerify_C5_' ./internal/transport -race -count=1
+cd ~/wt/a4df28bb && GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION=false go test -tags verify_repro -v -run '^TestVerify_C5_' ./internal/transport -race -count=1
 ```
 
 ```console
