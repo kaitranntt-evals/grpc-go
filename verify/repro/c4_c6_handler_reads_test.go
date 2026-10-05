@@ -1,4 +1,6 @@
-// Run: cp verify/repro/c4_c6_handler_reads_test.go internal/transport/zz_c4_c6_handler_reads_test.go && go test -v -run 'TestVerify_HandlerReads' ./internal/transport -count=1 ; rm internal/transport/zz_c4_c6_handler_reads_test.go
+// Run: cp verify/repro/c4_c6_handler_reads_test.go internal/transport/zz_c4_c6_handler_reads_test.go && go test -tags verify_probe -v -run 'TestVerify_HandlerReads' ./internal/transport -count=1 ; rm internal/transport/zz_c4_c6_handler_reads_test.go
+
+//go:build verify_probe
 
 package transport
 

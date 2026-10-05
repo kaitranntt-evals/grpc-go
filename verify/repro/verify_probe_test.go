@@ -1,5 +1,7 @@
 // Run: verify/repro/run_probe.sh <worktree-of-branch-under-test> 'TestVerifyProbe'   (copies this file into internal/transport, runs it, removes it)
 
+//go:build verify_probe
+
 package transport
 
 import (

@@ -25,7 +25,7 @@ mkdir -p ~/fx && (cd ~/fx && unzip -o eval_tests.zip)   # -> ~/fx/tests/eval_rec
 
 Probe files (all under `verify/repro/`):
 
-- `verify_probe_test.go` + `run_probe.sh` — branch-neutral probes (`TestVerifyProbe_*`) in package `transport`. They wrap the configured `mem.BufferPool` in a tracing pool that records, for every `Get`, the innermost `internal/transport` function on the call stack and whether a `recvBuffer` method is on the stack, and tracks which buffers were never `Put` back. The server-side probes use the real `NewServerTransport` on a TCP listener and a raw `golang.org/x/net/http2` framer as the peer.
+- `verify_probe_test.go` + `run_probe.sh` — (both probe test files carry `//go:build verify_probe` so they never affect `go build/vet/test ./...` of the repo; the runner passes `-tags verify_probe`) branch-neutral probes (`TestVerifyProbe_*`) in package `transport`. They wrap the configured `mem.BufferPool` in a tracing pool that records, for every `Get`, the innermost `internal/transport` function on the call stack and whether a `recvBuffer` method is on the stack, and tracks which buffers were never `Put` back. The server-side probes use the real `NewServerTransport` on a TCP listener and a raw `golang.org/x/net/http2` framer as the peer.
 - `c4_c6_handler_reads_test.go` — handler-transport (`serverHandlerTransport.HandleStreams`) probe for the audited branch.
 - `c4_c6_e2e/main.go` — end-to-end program: real `grpc.Server` behind `net/http` HTTP/2 (`ServeHTTP`), raw HTTP/2 peer.
 - `c1_db66491b_mutation.patch`, `c1_95bcb5fc_fault_injection.patch` — product mutations used to test whether test blocking operations are locally bounded.
@@ -373,7 +373,7 @@ Unit-level probe (`verify/repro/c4_c6_handler_reads_test.go`): the real `serverH
 
 ```console
 $ cd ~/repos/grpc-go && cp verify/repro/c4_c6_handler_reads_test.go internal/transport/zz_c4_c6_handler_reads_test.go
-$ go test -v -run 'TestVerify_HandlerReads' ./internal/transport -count=1 ; rm internal/transport/zz_c4_c6_handler_reads_test.go
+$ go test -tags verify_probe -v -run 'TestVerify_HandlerReads' ./internal/transport -count=1 ; rm internal/transport/zz_c4_c6_handler_reads_test.go
     GOARCH=amd64 uintptr=8 bytes recvMsgSize=56 utilizationFactor=2 compactionThreshold=58368 EnableReceiveBufferCompaction=true
     utilization comparison for one read: recvMsgSize+payload = 120 ; utilizationFactor*payload = 128 ; reset(no tracking) = true
     reads=512 readSize=64 total payload=32768 bytes (32 KiB)
@@ -407,7 +407,7 @@ Observed for 512 x 64 bytes: `recvMsgSize`=56 on amd64, so `recvMsgSize + 64 = 1
 With the escape hatch set the result is identical, i.e. the fix has no effect on this path:
 
 ```console
-$ GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION=false go test -v -run 'TestVerify_HandlerReads_C6' ./internal/transport -count=1   # same probe file copied in
+$ GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION=false go test -tags verify_probe -v -run 'TestVerify_HandlerReads_C6' ./internal/transport -count=1   # same probe file copied in
     GOARCH=amd64 uintptr=8 bytes recvMsgSize=56 utilizationFactor=2 compactionThreshold=58368 EnableReceiveBufferCompaction=false
     RETAINED pool buffers (Get without Put)=1025, distinct backing arrays=1025, total backing cap=16793600 bytes (16.02 MiB) [includes 1 buffer held by the blocked reader goroutine]
 ```
@@ -452,7 +452,7 @@ Unit-level probe (`verify/repro/c4_c6_handler_reads_test.go`): the real `serverH
 
 ```console
 $ cd ~/repos/grpc-go && cp verify/repro/c4_c6_handler_reads_test.go internal/transport/zz_c4_c6_handler_reads_test.go
-$ go test -v -run 'TestVerify_HandlerReads' ./internal/transport -count=1 ; rm internal/transport/zz_c4_c6_handler_reads_test.go
+$ go test -tags verify_probe -v -run 'TestVerify_HandlerReads' ./internal/transport -count=1 ; rm internal/transport/zz_c4_c6_handler_reads_test.go
     GOARCH=amd64 uintptr=8 bytes recvMsgSize=56 utilizationFactor=2 compactionThreshold=58368 EnableReceiveBufferCompaction=true
     utilization comparison for one read: recvMsgSize+payload = 120 ; utilizationFactor*payload = 128 ; reset(no tracking) = true
     reads=512 readSize=64 total payload=32768 bytes (32 KiB)
@@ -486,7 +486,7 @@ Observed for 1024 x 64 bytes: `recvMsgSize`=56 on amd64, so `recvMsgSize + 64 = 
 With the escape hatch set the result is identical, i.e. the fix has no effect on this path:
 
 ```console
-$ GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION=false go test -v -run 'TestVerify_HandlerReads_C6' ./internal/transport -count=1   # same probe file copied in
+$ GRPC_GO_EXPERIMENTAL_ENABLE_RECEIVE_BUFFER_COMPACTION=false go test -tags verify_probe -v -run 'TestVerify_HandlerReads_C6' ./internal/transport -count=1   # same probe file copied in
     GOARCH=amd64 uintptr=8 bytes recvMsgSize=56 utilizationFactor=2 compactionThreshold=58368 EnableReceiveBufferCompaction=false
     RETAINED pool buffers (Get without Put)=1025, distinct backing arrays=1025, total backing cap=16793600 bytes (16.02 MiB) [includes 1 buffer held by the blocked reader goroutine]
 ```
