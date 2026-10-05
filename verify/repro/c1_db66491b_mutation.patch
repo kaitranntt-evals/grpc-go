@@ -1,0 +1,14 @@
+# Run: cd <worktree of evalon/grpc-go-tr-db66491b> && git apply <this file> && go test ./internal/transport -run 'Test/RecvBuffer_NoCompactionWhenReaderIsCaughtUp$' -count=1 -timeout 40s -v ; git checkout internal/transport/transport.go
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index 9cf72d17..6f9b1c1a 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -142,7 +142,7 @@ func (b *recvBuffer) put(r recvMsg) {
+ 		return
+ 	}
+ 	b.err = r.err
+-	if len(b.backlog) == 0 && b.compacted == nil {
++	if false && len(b.backlog) == 0 && b.compacted == nil { // VERIFY MUTATION: never hand off directly
+ 		select {
+ 		case b.c <- r:
+ 			b.mu.Unlock()

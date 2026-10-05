@@ -1,0 +1,76 @@
+# Run: cd <worktree of evalon/grpc-go-tr-95bcb5fc> && git apply <this file> && VERIFY_FAULT=<none|nodial|nostream|stall|dropdata|drop> go test ./internal/transport -run 'Test/(RecvBuffer_|ClientRecvMemoryWithManyTinyDataFrames)' -count=1 -timeout 120s -v ; git checkout internal/transport
+diff --git a/internal/transport/http2_client.go b/internal/transport/http2_client.go
+index 720fc4e5..a8035d89 100644
+--- a/internal/transport/http2_client.go
++++ b/internal/transport/http2_client.go
+@@ -20,11 +20,13 @@ package transport
+ 
+ import (
+ 	"context"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"math"
+ 	"net"
+ 	"net/http"
++	"os"
+ 	"path/filepath"
+ 	"strconv"
+ 	"strings"
+@@ -208,6 +210,9 @@ func isTemporary(err error) bool {
+ // and starts to receive messages on it. Non-nil error returns if construction
+ // fails.
+ func NewHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts ConnectOptions, onClose OnCloseFunc) (_ ClientTransport, err error) {
++	if os.Getenv("VERIFY_FAULT") == "nodial" { // VERIFY FAULT INJECTION: client never connects
++		return nil, errors.New("verify: nodial fault")
++	}
+ 	scheme := "http"
+ 	ctx, cancel := context.WithCancel(ctx)
+ 	defer func() {
+@@ -776,6 +781,9 @@ func (e NewStreamError) Error() string {
+ // NewStream creates a stream and registers it into the transport as "active"
+ // streams.  All non-nil errors returned will be *NewStreamError.
+ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr, handler stats.Handler) (*ClientStream, error) {
++	if os.Getenv("VERIFY_FAULT") == "nostream" { // VERIFY FAULT INJECTION: HEADERS are never sent
++		return nil, errors.New("verify: nostream fault")
++	}
+ 	ctx = peer.NewContext(ctx, t.Peer())
+ 
+ 	// ServerName field of the resolver returned address takes precedence over
+@@ -1205,6 +1213,10 @@ func (t *http2Client) updateFlowControl(n uint32) {
+ }
+ 
+ func (t *http2Client) handleData(f *parsedDataFrame) {
++	if os.Getenv("VERIFY_FAULT") == "stall" { // VERIFY FAULT INJECTION: client stops reading at first DATA frame
++		<-t.ctx.Done()
++		return
++	}
+ 	size := f.Header().Length
+ 	var sendBDPPing bool
+ 	if t.bdpEst != nil {
+diff --git a/internal/transport/transport.go b/internal/transport/transport.go
+index 50ee49c7..fb8a5835 100644
+--- a/internal/transport/transport.go
++++ b/internal/transport/transport.go
+@@ -27,6 +27,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"net"
++	"os"
+ 	"sync"
+ 	"sync/atomic"
+ 	"time"
+@@ -145,6 +146,13 @@ func (b *recvBuffer) put(r recvMsg) {
+ 		// data or errors.
+ 		return
+ 	}
++	if f := os.Getenv("VERIFY_FAULT"); f == "drop" || (f == "dropdata" && r.err == nil) { // VERIFY FAULT INJECTION: nothing is ever delivered
++		if r.buffer != nil {
++			r.buffer.Free()
++		}
++		b.mu.Unlock()
++		return
++	}
+ 	b.err = r.err
+ 	if len(b.backlog) == 0 {
+ 		select {
