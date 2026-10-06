@@ -492,6 +492,7 @@ func (s) TestSameChildMutualExclusion(t *testing.T) {
 // 3. Synchronous Construction Idle Callback Safety
 func (s) TestSynchronousConstructionIdleCallback(t *testing.T) {
 	reconnectCalled := make(chan struct{}, 1)
+	reconnectDone := make(chan struct{}, 1)
 	buildEntered := make(chan struct{}, 1)
 	buildRelease := make(chan struct{})
 	constructionDone := make(chan struct{})
@@ -522,6 +523,7 @@ func (s) TestSynchronousConstructionIdleCallback(t *testing.T) {
 		return &maintainedChild{
 			cc:        cc,
 			enterExit: reconnectCalled,
+			doneExit:  reconnectDone,
 		}
 	}
 
@@ -529,10 +531,12 @@ func (s) TestSynchronousConstructionIdleCallback(t *testing.T) {
 	lb := NewBalancer(cc, balancer.BuildOptions{}, childBuilder, Options{
 		DisableAutoReconnect: false,
 	})
+	// On failure or timeout, only unblock buildRelease to allow builder to exit cleanly;
+	// do NOT call lb.Close() in defer to prevent deadlocks if auto-reconnect ExitIdle is hung.
 	defer func() {
-		if releaseBuildAndWait() {
-			lb.Close()
-		}
+		releaseBuildOnce.Do(func() {
+			close(buildRelease)
+		})
 	}()
 
 	ep := resolver.Endpoint{Addresses: []resolver.Address{{Addr: "10.0.0.1"}}}
@@ -565,11 +569,14 @@ func (s) TestSynchronousConstructionIdleCallback(t *testing.T) {
 	}
 
 	select {
-	case <-reconnectCalled:
-		// Reconnect callback safely reached initialized child
+	case <-reconnectDone:
+		// Reconnect callback safely reached and completed on initialized child
 	case <-time.After(2 * time.Second):
-		t.Fatal("reconnect was dropped or never delivered after construction-time Idle report")
+		t.Fatal("reconnect was dropped or never completed after construction-time Idle report")
 	}
+
+	// Construction and auto-reconnect succeeded; close balancer safely.
+	lb.Close()
 }
 
 // 4. Batch Update Consolidated Notification
