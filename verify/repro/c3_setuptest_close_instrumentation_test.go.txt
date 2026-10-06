@@ -1,0 +1,148 @@
+// Run: `verify/repro/run.sh c3` (or: on branch evalon/grpc-go-en-2a7c48e0 copy this file to balancer/ringhash/zz_c3_setuptest_close_instrumentation_test.go, then `go test ./balancer/ringhash -run "^TestReproC3_" -race -count=1 -v`). NormalCompletion/EarlyExitInCaller FAIL == problem is real (balancers built by setupTest never get Close); EarlyExitInsideSetupTest fails by design; Control must PASS.
+
+package ringhash
+
+import (
+	"fmt"
+	"sync"
+	"testing"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/resolver"
+)
+
+// c3Builder wraps the production ringhash builder (without modifying it) so
+// that every balancer handed out by balancer.Get(Name) -- which is what
+// setupTest uses -- reports its Close call.
+type c3Builder struct {
+	balancer.Builder
+}
+
+var c3 struct {
+	mu     sync.Mutex
+	builds int
+	closed map[int]bool
+}
+
+type c3Balancer struct {
+	balancer.Balancer
+	id int
+}
+
+func (b *c3Balancer) Close() {
+	c3.mu.Lock()
+	c3.closed[b.id] = true
+	c3.mu.Unlock()
+	b.Balancer.Close()
+}
+
+func (cb c3Builder) Build(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
+	c3.mu.Lock()
+	c3.builds++
+	id := c3.builds
+	c3.mu.Unlock()
+	return &c3Balancer{Balancer: cb.Builder.Build(cc, opts), id: id}
+}
+
+func c3Install() {
+	c3.mu.Lock()
+	defer c3.mu.Unlock()
+	if c3.closed == nil {
+		c3.closed = map[int]bool{}
+		balancer.Register(c3Builder{Builder: balancer.Get(Name)})
+	}
+}
+
+// c3Snapshot returns the number of balancers built so far and how many of
+// those with id > since have received Close.
+func c3Snapshot(since int) (builds, closes int) {
+	c3.mu.Lock()
+	defer c3.mu.Unlock()
+	for id := since + 1; id <= c3.builds; id++ {
+		if c3.closed[id] {
+			closes++
+		}
+	}
+	return c3.builds, closes
+}
+
+// c3Run runs body as a subtest and reports, after the subtest has fully
+// finished (all of its defers AND all t.Cleanup functions have run), how many
+// balancers it built through setupTest and how many of them received Close.
+func c3Run(t *testing.T, name string, body func(t *testing.T)) (built, closed int) {
+	t.Helper()
+	before, _ := c3Snapshot(0)
+	t.Run(name, body)
+	after, closes := c3Snapshot(before)
+	built = after - before
+	t.Logf("C3-INSTR %-45s built=%d closed=%d UNCLOSED=%d", name, built, closes, built-closes)
+	return built, closes
+}
+
+// Normal completion: the package's real tests that call setupTest, executed
+// unmodified. The first four discard the returned balancer (`cc, _, p0 :=`).
+func TestReproC3_NormalCompletion(t *testing.T) {
+	c3Install()
+	leaked := 0
+	for _, tc := range []struct {
+		name string
+		f    func(s, *testing.T)
+	}{
+		{"TestOneEndpoint(discards)", s.TestOneEndpoint},
+		{"TestThreeSubConnsAffinity(discards)", s.TestThreeSubConnsAffinity},
+		{"TestThreeBackendsAffinityMultiple(discards)", s.TestThreeBackendsAffinityMultiple},
+		{"TestAutoConnectEndpointOnTransientFailure(discards)", s.TestAutoConnectEndpointOnTransientFailure},
+		{"TestUpdateClientConnState_NewRingSize(keeps b)", s.TestUpdateClientConnState_NewRingSize},
+		{"TestAddrWeightChange(keeps b)", s.TestAddrWeightChange},
+		{"TestAddrBalancerAttributesChange(keeps b)", s.TestAddrBalancerAttributesChange},
+	} {
+		built, closed := c3Run(t, tc.name, func(t *testing.T) { tc.f(s{}, t) })
+		leaked += built - closed
+	}
+	if leaked != 0 {
+		t.Errorf("UNCLOSED: %d balancer(s) constructed by setupTest never received Close after their test finished", leaked)
+	}
+}
+
+// Early exit in a caller that discards the balancer, right after setupTest
+// returned. t.SkipNow exits the test goroutine via runtime.Goexit exactly like
+// t.FailNow/t.Fatalf does (defers and t.Cleanup functions run in both cases),
+// without marking the audit run as failed for an unrelated reason.
+func TestReproC3_EarlyExitInCaller(t *testing.T) {
+	c3Install()
+	built, closed := c3Run(t, "caller-exits-early-after-setupTest", func(t *testing.T) {
+		_, _, _ = setupTest(t, []resolver.Endpoint{{Addresses: []resolver.Address{{Addr: testBackendAddrStrs[0]}}}})
+		t.SkipNow()
+	})
+	if built != closed {
+		t.Errorf("UNCLOSED: %d balancer(s) constructed by setupTest never received Close on the caller's early-exit path", built-closed)
+	}
+}
+
+// Early exit inside setupTest itself, after construction: with no endpoints,
+// UpdateClientConnState returns an error and setupTest calls t.Fatalf. This
+// test is therefore reported as FAIL by design; the C3-INSTR line is the
+// evidence.
+func TestReproC3_EarlyExitInsideSetupTest(t *testing.T) {
+	c3Install()
+	built, closed := c3Run(t, "setupTest-t.Fatalf-after-Build", func(t *testing.T) {
+		setupTest(t, nil)
+		panic(fmt.Sprint("unreachable: setupTest was expected to t.Fatalf"))
+	})
+	if built != closed {
+		t.Errorf("UNCLOSED: %d balancer(s) constructed by setupTest never received Close on setupTest's own t.Fatalf path", built-closed)
+	}
+}
+
+// Positive control for the instrumentation: when a caller does close the
+// balancer returned by setupTest, the Close call is observed (closed=1).
+func TestReproC3_ControlExplicitCloseIsObserved(t *testing.T) {
+	c3Install()
+	built, closed := c3Run(t, "control-caller-calls-b.Close", func(t *testing.T) {
+		_, b, _ := setupTest(t, []resolver.Endpoint{{Addresses: []resolver.Address{{Addr: testBackendAddrStrs[0]}}}})
+		b.Close()
+	})
+	if built != 1 || closed != 1 {
+		t.Fatalf("instrumentation control failed: built=%d closed=%d, want 1/1", built, closed)
+	}
+}

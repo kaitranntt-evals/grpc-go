@@ -1,0 +1,16 @@
+Run: `verify/repro/run.sh c2-mutant` (applies this patch on branch evalon/grpc-go-en-b139ba1f and runs the branch test 40x): every run prints the MUTANT line (closed child got ExitIdle) yet about half the runs PASS.
+
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -395,7 +395,10 @@
+ func (bw *balancerWrapper) exitIdleSync() {
+ 	bw.childMu.Lock()
+ 	defer bw.childMu.Unlock()
+-	if bw.child != nil && !bw.isClosed {
++	if bw.child != nil {
++		if bw.isClosed {
++			println("MUTANT: forbidden ExitIdle delivered to CLOSED child")
++		}
+ 		bw.child.ExitIdle()
+ 	}
+ }

@@ -1,0 +1,150 @@
+// Run: `verify/repro/run.sh c4` (or: on branch evalon/grpc-go-en-78149e07 copy this file to balancer/endpointsharding/c4_resolver_error_early_publish_test.go, then `go test ./balancer/endpointsharding -run "^TestReproC4_" -race -count=1 -v`). FAIL == the problem is real (parent update published mid fan-out).
+
+package endpointsharding_test
+
+import (
+	"errors"
+	"runtime/debug"
+	"sync"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/balancer/base"
+	"google.golang.org/grpc/balancer/endpointsharding"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/resolver"
+)
+
+// c4ParentCC records every UpdateState endpointsharding publishes to its
+// parent, together with the stack that published it.
+type c4ParentCC struct {
+	balancer.ClientConn
+	mu     sync.Mutex
+	states []connectivity.State
+	stacks []string
+}
+
+func (p *c4ParentCC) UpdateState(s balancer.State) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.states = append(p.states, s.ConnectivityState)
+	p.stacks = append(p.stacks, string(debug.Stack()))
+}
+
+func (p *c4ParentCC) count() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.states)
+}
+
+type c4Shared struct {
+	mu          sync.Mutex
+	resErrCalls int
+	completed   *c4Child      // child whose ResolverError call returned first.
+	held        *c4Child      // child whose ResolverError call is held.
+	heldCh      chan struct{} // closed when the second child's call is held.
+	releaseCh   chan struct{} // closed to release the held call.
+}
+
+type c4Child struct {
+	cc   balancer.ClientConn
+	sh   *c4Shared
+	addr string
+}
+
+func (c *c4Child) UpdateClientConnState(ccs balancer.ClientConnState) error {
+	c.addr = ccs.ResolverState.Endpoints[0].Addresses[0].Addr
+	c.cc.UpdateState(balancer.State{ConnectivityState: connectivity.Connecting, Picker: base.NewErrPicker(balancer.ErrNoSubConnAvailable)})
+	return nil
+}
+
+// ResolverError returns immediately for the first child endpointsharding
+// calls, and blocks for the second one until released.
+func (c *c4Child) ResolverError(error) {
+	c.sh.mu.Lock()
+	c.sh.resErrCalls++
+	n := c.sh.resErrCalls
+	if n == 1 {
+		c.sh.completed = c
+		c.sh.mu.Unlock()
+		return
+	}
+	c.sh.held = c
+	c.sh.mu.Unlock()
+	close(c.sh.heldCh)
+	<-c.sh.releaseCh
+}
+
+func (c *c4Child) UpdateSubConnState(balancer.SubConn, balancer.SubConnState) {}
+func (c *c4Child) Close()                                                     {}
+func (c *c4Child) ExitIdle()                                                  {}
+
+func TestReproC4_ParentUpdatePublishedDuringResolverErrorFanout(t *testing.T) {
+	sh := &c4Shared{heldCh: make(chan struct{}), releaseCh: make(chan struct{})}
+	parent := &c4ParentCC{}
+	es := endpointsharding.NewBalancer(parent, balancer.BuildOptions{}, func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+		return &c4Child{cc: cc, sh: sh}
+	}, endpointsharding.Options{DisableAutoReconnect: true})
+
+	if err := es.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: []resolver.Endpoint{
+		{Addresses: []resolver.Address{{Addr: "addr-a"}}},
+		{Addresses: []resolver.Address{{Addr: "addr-b"}}},
+	}}}); err != nil {
+		t.Fatalf("UpdateClientConnState() failed: %v", err)
+	}
+	t.Logf("TRACE parent updates after initial UpdateClientConnState: %d %v", parent.count(), parent.states)
+
+	resErrDone := make(chan struct{})
+	go func() {
+		es.ResolverError(errors.New("resolver error"))
+		close(resErrDone)
+	}()
+	select {
+	case <-sh.heldCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for the second child's ResolverError call to be held")
+	}
+	sh.mu.Lock()
+	completed, held := sh.completed, sh.held
+	sh.mu.Unlock()
+	before := parent.count()
+	t.Logf("TRACE ResolverError returned for child %q; ResolverError HELD inside child %q; parent updates so far: %d", completed.addr, held.addr, before)
+
+	// State callback from the child whose ResolverError call already returned.
+	cbDone := make(chan struct{})
+	go func() {
+		completed.cc.UpdateState(balancer.State{ConnectivityState: connectivity.TransientFailure, Picker: base.NewErrPicker(errors.New("tf"))})
+		close(cbDone)
+	}()
+	select {
+	case <-cbDone:
+		t.Logf("TRACE callback UpdateState(TRANSIENT_FAILURE) from completed child %q returned", completed.addr)
+	case <-time.After(2 * time.Second):
+		t.Logf("TRACE callback from completed child %q still blocked after 2s", completed.addr)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	select {
+	case <-resErrDone:
+		t.Fatal("ResolverError fan-out returned although the second child's call is still held")
+	default:
+	}
+	during := parent.count()
+	t.Logf("TRACE parent updates published while child %q ResolverError is still held: %d", held.addr, during-before)
+	if during != before {
+		parent.mu.Lock()
+		t.Logf("TRACE early publication state=%v, published from:\n%s", parent.states[before], parent.stacks[before])
+		parent.mu.Unlock()
+		t.Errorf("EARLY PUBLICATION: parent received %d UpdateState call(s) before ResolverError fan-out finished, want 0", during-before)
+	}
+
+	close(sh.releaseCh)
+	select {
+	case <-resErrDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for ResolverError to return after release")
+	}
+	t.Logf("TRACE parent updates published by the whole ResolverError operation: %d (want exactly 1 consolidated update)", parent.count()-before)
+	es.Close()
+}

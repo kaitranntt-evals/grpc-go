@@ -1,0 +1,85 @@
+// Run: `verify/repro/run.sh c5` (or: on branch evalon/grpc-go-en-33ac8ac2 copy this file to balancer/endpointsharding/c5_stale_update_barrier_test.go, then `go test ./balancer/endpointsharding -run "Test/ReproC5" -race -count=20 -v`). PASS == the problem is real (barrier satisfied by a setup notification).
+
+package endpointsharding_test
+
+import (
+	"context"
+	"testing"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/balancer/endpointsharding"
+	"google.golang.org/grpc/internal/testutils"
+	"google.golang.org/grpc/resolver"
+)
+
+// TestReproC5_UpdateBarrierSatisfiedBySetup is a copy of the branch's
+// TestChildStateExitIdle_NotBlockedByOtherChildUpdate, using the branch's own
+// helpers (newBlockingChildBalancers, childStatesByAddr, awaitEntered). The
+// only behavioral change: the goroutine issuing the later, contending
+// UpdateClientConnState is HELD (holdLater) before it calls into
+// endpointsharding at all, and is released only after the test's
+// update-entry barrier and its ExitIdle assertion have both completed. If the
+// barrier really proved "the later update is blocked in the child", it could
+// not complete while the later update is held.
+func (s) TestReproC5_UpdateBarrierSatisfiedBySetup(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	defer cancel()
+
+	children, builder := newBlockingChildBalancers(t, "blocked")
+	tcc := testutils.NewBalancerClientConn(t)
+	es := endpointsharding.NewBalancer(tcc, balancer.BuildOptions{}, builder, endpointsharding.Options{DisableAutoReconnect: true})
+	defer es.Close()
+
+	ccs := balancer.ClientConnState{
+		ResolverState: resolver.State{Endpoints: []resolver.Endpoint{
+			{Addresses: []resolver.Address{{Addr: "blocked"}}},
+			{Addresses: []resolver.Address{{Addr: "unblocked"}}},
+		}},
+	}
+	if err := es.UpdateClientConnState(ccs); err != nil {
+		t.Fatalf("UpdateClientConnState() failed: %v", err)
+	}
+	states := childStatesByAddr(ctx, t, tcc)
+	if len(states) != 2 {
+		t.Fatalf("Got %d child states, want 2", len(states))
+	}
+	t.Logf("TRACE after SETUP update only: len(updateEntered)=%d (stale setup notifications left in the channel)", len(children.updateEntered))
+
+	// Push a second update which blocks in the "blocked" child.
+	children.blockUpdates.Store(true)
+	updateDone := make(chan error, 1)
+	holdLater := make(chan struct{})   // INJECTED: holds the later update before it starts.
+	laterCalled := make(chan struct{}) // INJECTED: closed when the later update is actually issued.
+	go func() {
+		<-holdLater
+		close(laterCalled)
+		updateDone <- es.UpdateClientConnState(ccs)
+	}()
+	awaitEntered(ctx, t, children.updateEntered, "blocked")
+	select {
+	case <-laterCalled:
+		t.Fatal("later update was issued; hold failed")
+	default:
+		t.Logf("TRACE barrier awaitEntered(updateEntered, %q) RETURNED while the later UpdateClientConnState has not even been called; len(updateEntered)=%d", "blocked", len(children.updateEntered))
+	}
+
+	states["unblocked"].ExitIdle()
+	awaitEntered(ctx, t, children.exitIdleEntered, "unblocked")
+	t.Logf("TRACE ExitIdle assertion completed with no update in progress on any child (nothing was contended)")
+
+	select {
+	case err := <-updateDone:
+		t.Fatalf("UpdateClientConnState() returned %v while a child was blocked", err)
+	default:
+	}
+	close(holdLater) // INJECTED: only now let the later update run.
+	close(children.unblock)
+	select {
+	case err := <-updateDone:
+		if err != nil {
+			t.Fatalf("UpdateClientConnState() failed: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("Timeout waiting for UpdateClientConnState() to return")
+	}
+}

@@ -1,0 +1,51 @@
+// Run: `verify/repro/run.sh c2` (or: on branch evalon/grpc-go-en-b139ba1f copy this file to balancer/endpointsharding/c2_removed_child_exitidle_test.go, then `go test ./balancer/endpointsharding -run "Test/ReproC2" -race -count=20 -v`). PASS == the problem is real (forbidden notification hidden).
+
+package endpointsharding_test
+
+import (
+	"context"
+	"testing"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/balancer/endpointsharding"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/resolver"
+)
+
+// TestReproC2_ForbiddenExitIdleSwallowed is a line-for-line copy of the
+// branch's TestChildStateExitIdle_AfterChildRemoved, using the branch's own
+// helpers (setupFakeChildren, awaitExitIdle, fakeChildHooks). The only change
+// is one injected line: a forbidden ExitIdle notification for the removed
+// child A is placed on hooks.exitIdleCh (exactly what fakeChild.ExitIdle would
+// send if endpointsharding wrongly called ExitIdle on the removed child)
+// before the test's wait and negative assertion. Logging is added around the
+// wait to show where the notification goes.
+func (s) TestReproC2_ForbiddenExitIdleSwallowed(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	defer cancel()
+	hooks := newFakeChildHooks(connectivity.Idle)
+	es, _, states := setupFakeChildren(ctx, t, hooks, endpointsharding.Options{DisableAutoReconnect: true})
+
+	if err := es.UpdateClientConnState(balancer.ClientConnState{
+		ResolverState: resolver.State{
+			Endpoints: []resolver.Endpoint{{Addresses: []resolver.Address{{Addr: fakeChildAddrB}}}},
+		},
+	}); err != nil {
+		t.Fatalf("UpdateClientConnState() failed: %v", err)
+	}
+
+	states[fakeChildAddrA].ExitIdle()
+	hooks.exitIdleCh <- fakeChildAddrA // INJECTED: forbidden notification for removed child A.
+	t.Logf("REPRO: injected forbidden %q notification; len(exitIdleCh)=%d", fakeChildAddrA, len(hooks.exitIdleCh))
+	states[fakeChildAddrB].ExitIdle()
+	awaitExitIdle(ctx, t, hooks.exitIdleCh, fakeChildAddrB)
+	t.Logf("REPRO: awaitExitIdle(%q) returned; len(exitIdleCh)=%d (forbidden notification already consumed)", fakeChildAddrB, len(hooks.exitIdleCh))
+	sCtx, sCancel := context.WithTimeout(ctx, defaultTestShortTimeout)
+	defer sCancel()
+	select {
+	case addr := <-hooks.exitIdleCh:
+		t.Fatalf("ExitIdle unexpectedly called on child %q", addr)
+	case <-sCtx.Done():
+		t.Logf("REPRO: negative assertion PASSED although ExitIdle was reported for removed child %q", fakeChildAddrA)
+	}
+}

@@ -1,0 +1,14 @@
+Run: `verify/repro/run.sh c5-mutant` (applies this patch on branch evalon/grpc-go-en-33ac8ac2 and runs the branch test 48x): a majority of runs PASS although children are re-coupled by one global lock.
+
+--- a/balancer/endpointsharding/endpointsharding.go
++++ b/balancer/endpointsharding/endpointsharding.go
+@@ -389,6 +389,9 @@
+ // exitIdle synchronously calls ExitIdle on the child balancer, unless it has
+ // been closed.
+ func (bw *balancerWrapper) exitIdle() {
++	// MUTANT: re-couple children through the balancer-wide mutex (pre-fix behavior).
++	bw.es.updateMu.Lock()
++	defer bw.es.updateMu.Unlock()
+ 	bw.mu.Lock()
+ 	defer bw.mu.Unlock()
+ 	if !bw.isClosed {

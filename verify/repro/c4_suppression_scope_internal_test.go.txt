@@ -1,0 +1,88 @@
+// Run: `verify/repro/run.sh c4` (or: on branch evalon/grpc-go-en-78149e07 copy this file to balancer/endpointsharding/c4_suppression_scope_internal_test.go, then `go test ./balancer/endpointsharding -run "^TestReproC4Internal_" -race -count=1 -v`). FAIL == suppression is per-child and already lifted for the completed child mid fan-out.
+
+package endpointsharding
+
+import (
+	"errors"
+	"sync"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/balancer/base"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/resolver"
+)
+
+type c4iParent struct{ balancer.ClientConn }
+
+func (c4iParent) UpdateState(balancer.State) {}
+
+type c4iChild struct {
+	cc      balancer.ClientConn
+	mu      *sync.Mutex
+	calls   *int
+	heldCh  chan struct{}
+	release chan struct{}
+}
+
+func (c *c4iChild) UpdateClientConnState(balancer.ClientConnState) error {
+	c.cc.UpdateState(balancer.State{ConnectivityState: connectivity.Connecting, Picker: base.NewErrPicker(balancer.ErrNoSubConnAvailable)})
+	return nil
+}
+func (c *c4iChild) ResolverError(error) {
+	c.mu.Lock()
+	*c.calls++
+	n := *c.calls
+	c.mu.Unlock()
+	if n == 1 {
+		return
+	}
+	close(c.heldCh)
+	<-c.release
+}
+func (c *c4iChild) UpdateSubConnState(balancer.SubConn, balancer.SubConnState) {}
+func (c *c4iChild) Close()                                                     {}
+func (c *c4iChild) ExitIdle()                                                  {}
+
+// Reads each child wrapper's inhibitUpdates flag (the only state-publication
+// suppression state on this branch) while the second child's ResolverError
+// call is held.
+func TestReproC4Internal_SuppressionEndsPerChild(t *testing.T) {
+	var mu sync.Mutex
+	calls := 0
+	heldCh, release := make(chan struct{}), make(chan struct{})
+	lb := NewBalancer(c4iParent{}, balancer.BuildOptions{}, func(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+		return &c4iChild{cc: cc, mu: &mu, calls: &calls, heldCh: heldCh, release: release}
+	}, Options{DisableAutoReconnect: true})
+	es := lb.(*endpointSharding)
+	if err := es.UpdateClientConnState(balancer.ClientConnState{ResolverState: resolver.State{Endpoints: []resolver.Endpoint{
+		{Addresses: []resolver.Address{{Addr: "addr-a"}}},
+		{Addresses: []resolver.Address{{Addr: "addr-b"}}},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() { es.ResolverError(errors.New("resolver error")); close(done) }()
+	select {
+	case <-heldCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for held ResolverError")
+	}
+	inhibited, notInhibited := 0, 0
+	for ep, bw := range es.children.Load().All() {
+		v := bw.inhibitUpdates.Load()
+		t.Logf("TRACE mid fan-out: child %s inhibitUpdates=%v", ep.Addresses[0].Addr, v)
+		if v {
+			inhibited++
+		} else {
+			notInhibited++
+		}
+	}
+	if notInhibited != 0 {
+		t.Errorf("SUPPRESSION LIFTED EARLY: %d of 2 children have inhibitUpdates=false while ResolverError fan-out is still in progress (%d still inhibited)", notInhibited, inhibited)
+	}
+	close(release)
+	<-done
+	es.Close()
+}
