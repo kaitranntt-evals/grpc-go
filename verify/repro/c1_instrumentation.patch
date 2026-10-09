@@ -1,0 +1,172 @@
+Run: applied by verify/repro/c1_run.sh (git apply onto claim branch evalon/grpc-go-xd-acf71ed1 @ c0650988); audit instrumentation only, not a fix.
+
+diff --git a/internal/xds/server/filter_chain_manager.go b/internal/xds/server/filter_chain_manager.go
+index b992e774..40086087 100644
+--- a/internal/xds/server/filter_chain_manager.go
++++ b/internal/xds/server/filter_chain_manager.go
+@@ -121,7 +121,12 @@ func (fcm *filterChainManager) filterChainFromConfig(config *xdsresource.Network
+ }
+ 
+ func (fcm *filterChainManager) stop() {
++	if verifyMode != "" {
++		fcm.verifyStop()
++		return
++	}
+ 	for _, fc := range fcm.filterChains {
++		vtrace("shutdown begin mode=%q", verifyMode)
+ 		fc.usableRouteConfiguration.Load().closeInterceptors()
+ 		fc.stop()
+ 	}
+@@ -165,6 +170,7 @@ type filterChain struct {
+ 	securityCfg              *xdsresource.SecurityConfig
+ 	httpFilters              []xdsresource.HTTPFilter
+ 	serverFilters            []httpfilter.ServerFilter // Server filters with reference counts, stored for cleanup purposes.
++	verifyRetiredFilters     []httpfilter.ServerFilter // AUDIT INSTRUMENTATION: old filter refs whose release is deferred to verifyReplace.
+ 	routeConfigName          string
+ 	inlineRouteConfig        *xdsresource.RouteConfigUpdate
+ 	usableRouteConfiguration *atomic.Pointer[usableRouteConfiguration]
+@@ -383,6 +389,10 @@ func (fc *filterChain) stop() {
+ // the filter chain with urc, and closes the interceptors of the replaced
+ // configuration.
+ func (fc *filterChain) updateUsableRouteConfiguration(urc *usableRouteConfiguration) {
++	if verifyMode != "" {
++		fc.verifyReplace(urc)
++		return
++	}
+ 	fc.usableRouteConfiguration.Swap(urc).closeInterceptors()
+ }
+ 
+@@ -415,8 +425,13 @@ func (fc *filterChain) constructUsableRouteConfiguration(config xdsresource.Rout
+ 	}
+ 
+ 	// Release references to old server filters before replacing with new ones.
+-	for _, sf := range fc.serverFilters {
+-		sf.Close()
++	if verifyMode != "" {
++		fc.verifyRetiredFilters = fc.serverFilters
++	} else {
++		vtrace("replacement begin mode=%q (solution order: old filter refs released first)", verifyMode)
++		for _, sf := range fc.serverFilters {
++			sf.Close()
++		}
+ 	}
+ 	fc.serverFilters = serverFilters
+ 
+@@ -530,6 +545,7 @@ func (il *interceptorList) AllowRPC(ctx context.Context) error {
+ }
+ 
+ func (il *interceptorList) Close() {
++	vtrace("icpt-close list=%p members=%d", il, len(il.interceptors))
+ 	for _, i := range il.interceptors {
+ 		i.Close()
+ 	}
+@@ -548,7 +564,9 @@ func (rsf *refCountedServerFilter) incRef() {
+ }
+ 
+ func (rsf *refCountedServerFilter) Close() {
+-	if rsf.refCnt.Add(-1) == 0 {
++	n := rsf.refCnt.Add(-1)
++	vtrace("filter-release filter=%p refcnt-after=%d underlying-close=%v", rsf, n, n == 0)
++	if n == 0 {
+ 		rsf.ServerFilter.Close()
+ 	}
+ }
+diff --git a/internal/xds/server/verify_instrumentation.go b/internal/xds/server/verify_instrumentation.go
+new file mode 100644
+index 00000000..bc2bde85
+--- /dev/null
++++ b/internal/xds/server/verify_instrumentation.go
+@@ -0,0 +1,93 @@
++// AUDIT INSTRUMENTATION (verify run v-0faf5638) - not part of the solution.
++//
++// VERIFY_MODE selects a controlled release order; every mode emits an
++// independent lifecycle trace ("XTRACE ...") on stderr.
++//
++//	(unset)         solution's own ordering, trace only
++//	control         replacement: all retired interceptors, then old filters
++//	repl-mid        replacement: first retired interceptor, then old filters,
++//	                then the remaining retired interceptors
++//	shutdown-early  replacement as control; shutdown: filters released
++//	                before the interceptors of the active configuration
++
++package server
++
++import (
++	"fmt"
++	"os"
++
++	"google.golang.org/grpc/internal/resolver"
++	"google.golang.org/grpc/internal/xds/httpfilter"
++)
++
++var verifyMode = os.Getenv("VERIFY_MODE")
++
++func vtrace(format string, a ...any) {
++	fmt.Fprintf(os.Stderr, "XTRACE "+format+"\n", a...)
++}
++
++func (rc *usableRouteConfiguration) verifyInterceptors() []resolver.ServerInterceptor {
++	if rc == nil {
++		return nil
++	}
++	var is []resolver.ServerInterceptor
++	for _, vh := range rc.vhs {
++		for _, r := range vh.routes {
++			if r.interceptor != nil {
++				is = append(is, r.interceptor)
++			}
++		}
++	}
++	return is
++}
++
++func verifyRelease(sfs []httpfilter.ServerFilter) {
++	for _, sf := range sfs {
++		sf.Close()
++	}
++}
++
++func (fc *filterChain) verifyReplace(urc *usableRouteConfiguration) {
++	old := fc.usableRouteConfiguration.Swap(urc)
++	is := old.verifyInterceptors()
++	retired := fc.verifyRetiredFilters
++	fc.verifyRetiredFilters = nil
++	vtrace("replacement begin mode=%q retired-interceptors=%d retired-filter-refs=%d", verifyMode, len(is), len(retired))
++	switch verifyMode {
++	case "repl-mid":
++		for n, i := range is {
++			i.Close()
++			if n == 0 {
++				verifyRelease(retired)
++			}
++		}
++		if len(is) == 0 {
++			verifyRelease(retired)
++		}
++	default: // control, shutdown-early
++		for _, i := range is {
++			i.Close()
++		}
++		verifyRelease(retired)
++	}
++	vtrace("replacement end")
++}
++
++func (fcm *filterChainManager) verifyStop() {
++	for _, fc := range fcm.filterChains {
++		is := fc.usableRouteConfiguration.Load().verifyInterceptors()
++		vtrace("shutdown begin mode=%q active-interceptors=%d filter-refs=%d", verifyMode, len(is), len(fc.serverFilters))
++		if verifyMode == "shutdown-early" {
++			fc.stop()
++			for _, i := range is {
++				i.Close()
++			}
++		} else {
++			for _, i := range is {
++				i.Close()
++			}
++			fc.stop()
++		}
++		vtrace("shutdown end")
++	}
++}

@@ -1,0 +1,433 @@
+// Run: verify/repro/c1_run.sh <fixture path> (copies this file to test/xds/verify_order_variants_test.go)
+// AUDIT VARIANT (verify run v-0faf5638). Generated from the fixture's
+// TestEval_ServerSideXDS_InterceptorBeforeFilterCloseOrder: only the route
+// configuration differs (see VARIANT comments); the event collection and the
+// assertions are the fixture's own text, unchanged. A strict, non-failing
+// independent check is appended and logged as STRICT-CHECK.
+
+package xds_test
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/internal/envconfig"
+	"google.golang.org/grpc/internal/testutils"
+	"google.golang.org/grpc/internal/testutils/xds/e2e"
+	"google.golang.org/grpc/internal/testutils/xds/e2e/setup"
+	"google.golang.org/grpc/internal/xds/httpfilter"
+	"google.golang.org/grpc/xds"
+
+	v3corepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	v3listenerpb "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	v3routerpb "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/router/v3"
+	v3httppb "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	testgrpc "google.golang.org/grpc/interop/grpc_testing"
+	testpb "google.golang.org/grpc/interop/grpc_testing"
+	"google.golang.org/protobuf/types/known/anypb"
+)
+
+// verifyStrictOrderCheck is the independent check: every interceptor built by
+// a filter must be closed before that filter is closed.
+func verifyStrictOrderCheck(t *testing.T, events []evalOrderEvent) {
+	t.Helper()
+	t.Logf("STRICT-CHECK events: %+v", events)
+	closedFilters := map[string]int{}
+	violations := 0
+	for idx, e := range events {
+		switch e.kind {
+		case "filter-close":
+			closedFilters[e.id] = idx
+		case "icpt-close":
+			fid := e.id[:strings.Index(e.id, "/")]
+			if fidx, ok := closedFilters[fid]; ok {
+				violations++
+				t.Logf("STRICT-CHECK VIOLATION: filter %s closed at event #%d while interceptor %s was still open (closed at event #%d)", fid, fidx, e.id, idx)
+			}
+		}
+	}
+	t.Logf("STRICT-CHECK violations=%d", violations)
+}
+
+var _ = anypb.New
+
+// TestVerify_OrderVariant_TwoRoutesReplacement verifies that when an
+// in-place RDS replacement disables a server filter on all routes, all retired
+// interceptors are closed before the server filter they depend on is closed.
+func (s) TestVerify_OrderVariant_TwoRoutesReplacement(t *testing.T) {
+	testutils.SetEnvConfig(t, &envconfig.XDSClientExtProcEnabled, true)
+	orderLog := &evalOrderLog{}
+	fb := &evalOrderBuilder{typeURL: t.Name(), log: orderLog}
+	httpfilter.Register(fb)
+	defer httpfilter.UnregisterForTesting(fb.typeURL)
+
+	managementServer, nodeID, bootstrapContents, xdsResolver := setup.ManagementServerAndResolver(t)
+
+	servingCh := make(chan struct{})
+	var once sync.Once
+	opt := xds.ServingModeCallback(func(_ net.Addr, args xds.ServingModeChangeArgs) {
+		if args.Mode == connectivity.ServingModeServing {
+			once.Do(func() { close(servingCh) })
+		}
+	})
+	lis, stopServer := setupGRPCServer(t, bootstrapContents, opt)
+
+	host, port, err := hostPortFromListener(lis)
+	if err != nil {
+		stopServer()
+		t.Fatalf("failed to retrieve host/port: %v", err)
+	}
+	const serviceName = "my-service"
+	resources := e2e.DefaultClientResources(e2e.ResourceParams{
+		DialTarget: serviceName,
+		NodeID:     nodeID,
+		Host:       host,
+		Port:       port,
+		SecLevel:   e2e.SecurityLevelNone,
+	})
+
+	const routeConfigName = "routeName"
+	const filterName = "orderTracker"
+
+	resources.Listeners = append(resources.Listeners, &v3listenerpb.Listener{
+		Name: fmt.Sprintf(e2e.ServerListenerResourceNameTemplate, net.JoinHostPort(host, fmt.Sprint(port))),
+		Address: &v3corepb.Address{Address: &v3corepb.Address_SocketAddress{SocketAddress: &v3corepb.SocketAddress{
+			Address: host, PortSpecifier: &v3corepb.SocketAddress_PortValue{PortValue: port}}}},
+		FilterChains: []*v3listenerpb.FilterChain{{
+			Name: "only-chain",
+			Filters: []*v3listenerpb.Filter{{
+				Name: "hcm",
+				ConfigType: &v3listenerpb.Filter_TypedConfig{
+					TypedConfig: testutils.MarshalAny(t, &v3httppb.HttpConnectionManager{
+						HttpFilters: []*v3httppb.HttpFilter{
+							evalNewHTTPFilter(t, filterName, fb.typeURL, "initial"),
+							e2e.HTTPFilter("router", &v3routerpb.Router{}),
+						},
+						RouteSpecifier: &v3httppb.HttpConnectionManager_Rds{Rds: &v3httppb.Rds{
+							ConfigSource:    &v3corepb.ConfigSource{ConfigSourceSpecifier: &v3corepb.ConfigSource_Ads{Ads: &v3corepb.AggregatedConfigSource{}}},
+							RouteConfigName: routeConfigName,
+						}},
+					}),
+				},
+			}},
+		}},
+	})
+
+	// Initial route config: filter enabled on the route.
+	resources.Routes = []*v3routepb.RouteConfiguration{resources.Routes[0], &v3routepb.RouteConfiguration{
+		Name: routeConfigName,
+		VirtualHosts: []*v3routepb.VirtualHost{{
+			Domains: []string{"*"},
+			// VARIANT: two routes, so two interceptors depend on the shared filter.
+			Routes: []*v3routepb.Route{{
+				Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: "/grpc.testing.TestService/EmptyCall"}},
+				Action: &v3routepb.Route_NonForwardingAction{},
+			}, {
+				Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: "/"}},
+				Action: &v3routepb.Route_NonForwardingAction{},
+			}},
+		}},
+	}}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	defer cancel()
+
+	if err := managementServer.Update(ctx, resources); err != nil {
+		stopServer()
+		t.Fatal(err)
+	}
+
+	cc, err := grpc.NewClient(fmt.Sprintf("xds:///%s", serviceName), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithResolvers(xdsResolver))
+	if err != nil {
+		stopServer()
+		t.Fatal(err)
+	}
+	defer cc.Close()
+
+	select {
+	case <-servingCh:
+	case <-ctx.Done():
+		stopServer()
+		t.Fatal("timeout waiting for SERVING mode")
+	}
+
+	client := testgrpc.NewTestServiceClient(cc)
+	if _, err := client.EmptyCall(ctx, &testpb.Empty{}, grpc.WaitForReady(true)); err != nil {
+		stopServer()
+		t.Fatalf("initial EmptyCall failed: %v", err)
+	}
+
+	// Step 2: Push replacement RDS update that disables the filter on all routes via TypedPerFilterConfig.
+	// This retires the initial configuration's interceptors.
+	disabledConfig := testutils.MarshalAny(t, &v3routepb.FilterConfig{Disabled: true})
+	rds2 := &v3routepb.RouteConfiguration{
+		Name: routeConfigName,
+		VirtualHosts: []*v3routepb.VirtualHost{{
+			Domains: []string{"*"},
+			// VARIANT: two routes, so two interceptors depend on the shared filter.
+			Routes: []*v3routepb.Route{{
+				Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: "/grpc.testing.TestService/EmptyCall"}},
+				Action: &v3routepb.Route_NonForwardingAction{},
+			}, {
+				Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: "/"}},
+				Action: &v3routepb.Route_NonForwardingAction{},
+			}},
+			TypedPerFilterConfig: map[string]*anypb.Any{filterName: disabledConfig},
+		}},
+	}
+	resources.Routes = []*v3routepb.RouteConfiguration{resources.Routes[0], rds2}
+	if err := managementServer.Update(ctx, resources); err != nil {
+		stopServer()
+		t.Fatal(err)
+	}
+
+	// Poll until replacement route is active and retired interceptor closure is observed.
+	pollCtx, pollCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer pollCancel()
+
+	for {
+		client.EmptyCall(pollCtx, &testpb.Empty{}, grpc.WaitForReady(true))
+		events := orderLog.snapshot()
+		var hasIcptClose bool
+		for _, e := range events {
+			if e.kind == "icpt-close" {
+				hasIcptClose = true
+				break
+			}
+		}
+		if hasIcptClose {
+			break
+		}
+		select {
+		case <-pollCtx.Done():
+			stopServer()
+			t.Fatal("timed out waiting for retired interceptor closure upon RDS replacement (interceptor leak)")
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+
+	// Step 3: Now stop the server to trigger final listener and filter teardown (if filter was retained by LDS).
+	stopServer()
+
+	// Snapshot all events across replacement and server shutdown.
+	events := orderLog.snapshot()
+	firstFilterCloseIdx := -1
+	lastRetiredIcptCloseIdx := -1
+	icptCloseCount := 0
+
+	for idx, e := range events {
+		if e.kind == "filter-close" && firstFilterCloseIdx == -1 {
+			firstFilterCloseIdx = idx
+		}
+		if e.kind == "icpt-close" && lastRetiredIcptCloseIdx == -1 {
+			// First interceptor was the retired one from initial configuration.
+			lastRetiredIcptCloseIdx = idx
+			icptCloseCount++
+		}
+	}
+
+	if icptCloseCount == 0 {
+		t.Fatal("no interceptors were closed upon replacement (leak defect)")
+	}
+	if firstFilterCloseIdx < 0 {
+		t.Fatal("filter-close was not observed even after server shutdown")
+	}
+	if firstFilterCloseIdx < lastRetiredIcptCloseIdx {
+		t.Fatalf("dependency order violation: filter closed at event #%d before retired interceptor closed at event #%d (events: %+v)",
+			firstFilterCloseIdx, lastRetiredIcptCloseIdx, events)
+	}
+	verifyStrictOrderCheck(t, events)
+}
+
+// TestVerify_OrderVariant_FilterEnabledAtShutdown verifies that when an
+// in-place RDS replacement disables a server filter on all routes, all retired
+// interceptors are closed before the server filter they depend on is closed.
+func (s) TestVerify_OrderVariant_FilterEnabledAtShutdown(t *testing.T) {
+	testutils.SetEnvConfig(t, &envconfig.XDSClientExtProcEnabled, true)
+	orderLog := &evalOrderLog{}
+	fb := &evalOrderBuilder{typeURL: t.Name(), log: orderLog}
+	httpfilter.Register(fb)
+	defer httpfilter.UnregisterForTesting(fb.typeURL)
+
+	managementServer, nodeID, bootstrapContents, xdsResolver := setup.ManagementServerAndResolver(t)
+
+	servingCh := make(chan struct{})
+	var once sync.Once
+	opt := xds.ServingModeCallback(func(_ net.Addr, args xds.ServingModeChangeArgs) {
+		if args.Mode == connectivity.ServingModeServing {
+			once.Do(func() { close(servingCh) })
+		}
+	})
+	lis, stopServer := setupGRPCServer(t, bootstrapContents, opt)
+
+	host, port, err := hostPortFromListener(lis)
+	if err != nil {
+		stopServer()
+		t.Fatalf("failed to retrieve host/port: %v", err)
+	}
+	const serviceName = "my-service"
+	resources := e2e.DefaultClientResources(e2e.ResourceParams{
+		DialTarget: serviceName,
+		NodeID:     nodeID,
+		Host:       host,
+		Port:       port,
+		SecLevel:   e2e.SecurityLevelNone,
+	})
+
+	const routeConfigName = "routeName"
+	const filterName = "orderTracker"
+
+	resources.Listeners = append(resources.Listeners, &v3listenerpb.Listener{
+		Name: fmt.Sprintf(e2e.ServerListenerResourceNameTemplate, net.JoinHostPort(host, fmt.Sprint(port))),
+		Address: &v3corepb.Address{Address: &v3corepb.Address_SocketAddress{SocketAddress: &v3corepb.SocketAddress{
+			Address: host, PortSpecifier: &v3corepb.SocketAddress_PortValue{PortValue: port}}}},
+		FilterChains: []*v3listenerpb.FilterChain{{
+			Name: "only-chain",
+			Filters: []*v3listenerpb.Filter{{
+				Name: "hcm",
+				ConfigType: &v3listenerpb.Filter_TypedConfig{
+					TypedConfig: testutils.MarshalAny(t, &v3httppb.HttpConnectionManager{
+						HttpFilters: []*v3httppb.HttpFilter{
+							evalNewHTTPFilter(t, filterName, fb.typeURL, "initial"),
+							e2e.HTTPFilter("router", &v3routerpb.Router{}),
+						},
+						RouteSpecifier: &v3httppb.HttpConnectionManager_Rds{Rds: &v3httppb.Rds{
+							ConfigSource:    &v3corepb.ConfigSource{ConfigSourceSpecifier: &v3corepb.ConfigSource_Ads{Ads: &v3corepb.AggregatedConfigSource{}}},
+							RouteConfigName: routeConfigName,
+						}},
+					}),
+				},
+			}},
+		}},
+	})
+
+	// Initial route config: filter enabled on the route.
+	resources.Routes = []*v3routepb.RouteConfiguration{resources.Routes[0], &v3routepb.RouteConfiguration{
+		Name: routeConfigName,
+		VirtualHosts: []*v3routepb.VirtualHost{{
+			Domains: []string{"*"},
+			Routes: []*v3routepb.Route{{
+				Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: "/"}},
+				Action: &v3routepb.Route_NonForwardingAction{},
+			}},
+		}},
+	}}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	defer cancel()
+
+	if err := managementServer.Update(ctx, resources); err != nil {
+		stopServer()
+		t.Fatal(err)
+	}
+
+	cc, err := grpc.NewClient(fmt.Sprintf("xds:///%s", serviceName), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithResolvers(xdsResolver))
+	if err != nil {
+		stopServer()
+		t.Fatal(err)
+	}
+	defer cc.Close()
+
+	select {
+	case <-servingCh:
+	case <-ctx.Done():
+		stopServer()
+		t.Fatal("timeout waiting for SERVING mode")
+	}
+
+	client := testgrpc.NewTestServiceClient(cc)
+	if _, err := client.EmptyCall(ctx, &testpb.Empty{}, grpc.WaitForReady(true)); err != nil {
+		stopServer()
+		t.Fatalf("initial EmptyCall failed: %v", err)
+	}
+
+	// Step 2: Push replacement RDS update that disables the filter on all routes via TypedPerFilterConfig.
+	// This retires the initial configuration's interceptors.
+	// VARIANT: no disabling override.
+	rds2 := &v3routepb.RouteConfiguration{
+		Name: routeConfigName,
+		VirtualHosts: []*v3routepb.VirtualHost{{
+			Domains: []string{"*"},
+			// VARIANT: two routes, so two interceptors depend on the shared filter.
+			Routes: []*v3routepb.Route{{
+				Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: "/grpc.testing.TestService/EmptyCall"}},
+				Action: &v3routepb.Route_NonForwardingAction{},
+			}, {
+				Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: "/"}},
+				Action: &v3routepb.Route_NonForwardingAction{},
+			}},
+			// VARIANT: filter stays enabled, so interceptors exist at shutdown.
+		}},
+	}
+	resources.Routes = []*v3routepb.RouteConfiguration{resources.Routes[0], rds2}
+	if err := managementServer.Update(ctx, resources); err != nil {
+		stopServer()
+		t.Fatal(err)
+	}
+
+	// Poll until replacement route is active and retired interceptor closure is observed.
+	pollCtx, pollCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer pollCancel()
+
+	for {
+		client.EmptyCall(pollCtx, &testpb.Empty{}, grpc.WaitForReady(true))
+		events := orderLog.snapshot()
+		var hasIcptClose bool
+		for _, e := range events {
+			if e.kind == "icpt-close" {
+				hasIcptClose = true
+				break
+			}
+		}
+		if hasIcptClose {
+			break
+		}
+		select {
+		case <-pollCtx.Done():
+			stopServer()
+			t.Fatal("timed out waiting for retired interceptor closure upon RDS replacement (interceptor leak)")
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+
+	// Step 3: Now stop the server to trigger final listener and filter teardown (if filter was retained by LDS).
+	stopServer()
+
+	// Snapshot all events across replacement and server shutdown.
+	events := orderLog.snapshot()
+	firstFilterCloseIdx := -1
+	lastRetiredIcptCloseIdx := -1
+	icptCloseCount := 0
+
+	for idx, e := range events {
+		if e.kind == "filter-close" && firstFilterCloseIdx == -1 {
+			firstFilterCloseIdx = idx
+		}
+		if e.kind == "icpt-close" && lastRetiredIcptCloseIdx == -1 {
+			// First interceptor was the retired one from initial configuration.
+			lastRetiredIcptCloseIdx = idx
+			icptCloseCount++
+		}
+	}
+
+	if icptCloseCount == 0 {
+		t.Fatal("no interceptors were closed upon replacement (leak defect)")
+	}
+	if firstFilterCloseIdx < 0 {
+		t.Fatal("filter-close was not observed even after server shutdown")
+	}
+	if firstFilterCloseIdx < lastRetiredIcptCloseIdx {
+		t.Fatalf("dependency order violation: filter closed at event #%d before retired interceptor closed at event #%d (events: %+v)",
+			firstFilterCloseIdx, lastRetiredIcptCloseIdx, events)
+	}
+	verifyStrictOrderCheck(t, events)
+}
