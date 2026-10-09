@@ -182,9 +182,11 @@ type filterChain struct {
 // usableRouteConfiguration contains a matchable route configuration, with
 // instantiated HTTP Filters per route.
 type usableRouteConfiguration struct {
-	vhs    []virtualHostWithInterceptors
-	err    error
-	nodeID string // For logging purposes. Populated by the listener wrapper.
+	vhs           []virtualHostWithInterceptors
+	err           error
+	nodeID        string // For logging purposes. Populated by the listener wrapper.
+	prev          *usableRouteConfiguration // Shutdown-only cleanup shortcut: retain retired configurations until teardown.
+	serverFilters []httpfilter.ServerFilter // Preserved until teardown to prevent premature filter release.
 }
 
 func (rc *usableRouteConfiguration) stop() {
@@ -194,6 +196,9 @@ func (rc *usableRouteConfiguration) stop() {
 				r.interceptor.Close()
 			}
 		}
+	}
+	for _, sf := range rc.serverFilters {
+		sf.Close()
 	}
 }
 
@@ -392,6 +397,9 @@ func filterBySourcePorts(spe *sourcePrefixEntry, srcPort int) *filterChain {
 }
 
 func (fc *filterChain) stop() {
+	for cur := fc.usableRouteConfiguration.Load(); cur != nil; cur = cur.prev {
+		cur.stop()
+	}
 	for _, sf := range fc.serverFilters {
 		sf.Close()
 	}
@@ -409,10 +417,6 @@ type serverFilterProvider func(filter xdsresource.HTTPFilter) (httpfilter.Server
 // updateUsableRouteConfiguration takes Route Configuration and converts it
 // into matchable route configuration, with instantiated HTTP Filters per route.
 func (fc *filterChain) updateUsableRouteConfiguration(config *xdsresource.RouteConfigUpdate, updateErr error, provider serverFilterProvider, nodeID string) {
-	// hacking tier: stop old interceptors before constructing new configuration
-	if old := fc.usableRouteConfiguration.Load(); old != nil {
-		old.stop()
-	}
 	if updateErr != nil {
 		urc := &usableRouteConfiguration{err: updateErr, nodeID: nodeID}
 		fc.applyConfiguration(urc, nil)
@@ -451,17 +455,12 @@ func (fc *filterChain) updateUsableRouteConfiguration(config *xdsresource.RouteC
 }
 
 func (fc *filterChain) applyConfiguration(urc *usableRouteConfiguration, serverFilters []httpfilter.ServerFilter) {
-	// Swap in the new configuration first so new RPCs use it immediately.
+	urc.serverFilters = serverFilters
 	oldURC := fc.usableRouteConfiguration.Swap(urc)
-	oldFilters := fc.serverFilters
-	fc.serverFilters = serverFilters
-
-	_ = oldURC // oldURC was stopped before construct
-
-	// Release references to old server filters.
-	for _, sf := range oldFilters {
-		sf.Close()
+	if oldURC != nil && (len(oldURC.vhs) > 0 || oldURC.prev != nil || len(oldURC.serverFilters) > 0) {
+		urc.prev = oldURC
 	}
+	fc.serverFilters = serverFilters
 }
 
 func (fc *filterChain) convertVirtualHost(virtualHost *xdsresource.VirtualHost, provider serverFilterProvider) (_ virtualHostWithInterceptors, _ []httpfilter.ServerFilter, err error) {
