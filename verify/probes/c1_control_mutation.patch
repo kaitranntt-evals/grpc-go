@@ -1,0 +1,16 @@
+diff --git a/internal/xds/server/filter_chain_manager.go b/internal/xds/server/filter_chain_manager.go
+index 7d7a34f1..ca3a7742 100644
+--- a/internal/xds/server/filter_chain_manager.go
++++ b/internal/xds/server/filter_chain_manager.go
+@@ -396,8 +396,9 @@ func (fc *filterChain) stop() {
+ // that is already serving would leave behind a set of interceptors that are
+ // never closed.
+ func (fc *filterChain) updateUsableRouteConfiguration(urc *usableRouteConfiguration) {
+-	old := fc.usableRouteConfiguration.Swap(urc)
+-	old.close()
++	// VERIFY CONTROL MUTATION (C1): retire before publishing.
++	fc.usableRouteConfiguration.Load().close()
++	fc.usableRouteConfiguration.Store(urc)
+ }
+ 
+ // close closes the interceptors instantiated for every route in every virtual
