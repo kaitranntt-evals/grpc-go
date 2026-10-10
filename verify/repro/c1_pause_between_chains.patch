@@ -1,0 +1,74 @@
+# Run: verify/repro/c1_run.sh (applies this audit-only instrumentation to branch evalon/grpc-go-xd-c08e0d0f; never apply to production)
+diff --git a/internal/xds/server/listener_wrapper.go b/internal/xds/server/listener_wrapper.go
+index 989bdf7c..0539095a 100644
+--- a/internal/xds/server/listener_wrapper.go
++++ b/internal/xds/server/listener_wrapper.go
+@@ -24,7 +24,10 @@ import (
+ 	"fmt"
+ 	"net"
+ 	"net/netip"
++	"os"
++	"strconv"
+ 	"sync"
++	"sync/atomic"
+ 	"time"
+ 
+ 	"google.golang.org/grpc/backoff"
+@@ -204,11 +207,20 @@ func (l *listenerWrapper) maybeUpdateFilterChains() {
+ func (l *listenerWrapper) handleRDSUpdate(routeName string, rcu rdsWatcherUpdate) {
+ 	// Update any filter chains that point to this route configuration.
+ 	l.mu.Lock()
++	verifyCall := verifyRDSCalls.Add(1)
++	if os.Getenv("VERIFY_RDS_TRACE") != "" {
++		fmt.Fprintf(os.Stderr, "VERIFY: handleRDSUpdate call #%d route=%q activeFCM=%v\n", verifyCall, routeName, l.activeFilterChainManager != nil)
++	}
+ 	if l.activeFilterChainManager != nil {
+-		for _, fc := range l.activeFilterChainManager.filterChains {
++		for verifyIdx, fc := range l.activeFilterChainManager.filterChains {
+ 			if fc.routeConfigName != routeName {
+ 				continue
+ 			}
++			if verifyIdx > 0 {
++				// VERIFY INSTRUMENTATION (audit only): optionally pause between
++				// per-filter-chain updates of one RDS update.
++				verifyPauseBetweenChains(verifyCall, verifyIdx)
++			}
+ 			var urc *usableRouteConfiguration
+ 			if rcu.err != nil && rcu.data == nil { // Either NACK before update, or resource not found triggers this conditional.
+ 				urc = &usableRouteConfiguration{err: rcu.err}
+@@ -517,3 +529,21 @@ func (lw *ldsWatcher) AmbientError(err error, onDone func()) {
+ 		lw.logger.Infof("LDS watch for resource %q reported ambient error: %v", lw.name, err)
+ 	}
+ }
++
++// VERIFY INSTRUMENTATION (audit only, not part of the audited solution).
++var verifyRDSCalls atomic.Int64
++
++// verifyPauseBetweenChains sleeps VERIFY_RDS_PAUSE before the idx'th filter
++// chain of the VERIFY_RDS_PAUSE_CALL'th handleRDSUpdate call is updated.
++func verifyPauseBetweenChains(call int64, idx int) {
++	d, err := time.ParseDuration(os.Getenv("VERIFY_RDS_PAUSE"))
++	if err != nil || d <= 0 {
++		return
++	}
++	if want, _ := strconv.ParseInt(os.Getenv("VERIFY_RDS_PAUSE_CALL"), 10, 64); want != call {
++		return
++	}
++	fmt.Fprintf(os.Stderr, "VERIFY: handleRDSUpdate call #%d: pausing %v before updating filter chain index %d\n", call, d, idx)
++	time.Sleep(d)
++	fmt.Fprintf(os.Stderr, "VERIFY: handleRDSUpdate call #%d: resuming, updating filter chain index %d\n", call, idx)
++}
+diff --git a/test/xds/xds_server_filter_state_retention_test.go b/test/xds/xds_server_filter_state_retention_test.go
+index 07cae63a..3d1c6ffd 100644
+--- a/test/xds/xds_server_filter_state_retention_test.go
++++ b/test/xds/xds_server_filter_state_retention_test.go
+@@ -814,7 +814,8 @@ func (s) TestServerSideXDS_FilterStateRetention_AcrossUpdates_RouteConfigChange(
+ 	waitForLiveInterceptors := func() {
+ 		t.Helper()
+ 		for ; ctx.Err() == nil; <-time.After(defaultTestShortTimeout) {
+-			if interceptorsCreated.Load()-interceptorsDestroyed.Load() == wantLiveInterceptors {
++			if c, d := interceptorsCreated.Load(), interceptorsDestroyed.Load(); c-d == wantLiveInterceptors {
++				t.Logf("VERIFY: live-count poll released with created=%d destroyed=%d", c, d)
+ 				return
+ 			}
+ 		}

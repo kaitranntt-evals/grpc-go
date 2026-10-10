@@ -1,0 +1,22 @@
+diff --git a/internal/xds/server/routing_test.go b/internal/xds/server/routing_test.go
+index 2fa0fd68..8d8f655e 100644
+--- a/internal/xds/server/routing_test.go
++++ b/internal/xds/server/routing_test.go
+@@ -23,6 +23,7 @@ import (
+ 	"sync"
+ 	"sync/atomic"
+ 	"testing"
++	"time"
+ 
+ 	"github.com/google/go-cmp/cmp"
+ )
+@@ -230,7 +231,9 @@ func (s) TestAcquireRouteConfiguration_ConcurrentReplacements(t *testing.T) {
+ 		p.Swap(newUsableRouteConfigurationForTesting(cis[i])).release()
+ 	}
+ 	close(done)
++	verifyStart := time.Now()
+ 	wg.Wait()
++	t.Logf("VERIFY: wg.Wait() returned %v after close(done)", time.Since(verifyStart))
+ 
+ 	for i, ci := range cis[:numUpdates] {
+ 		if got := ci.closed.Load(); got != 1 {
