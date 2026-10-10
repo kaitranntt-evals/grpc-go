@@ -1,0 +1,188 @@
+// Run: on branch evalon/grpc-go-xd-73f6da56, copy the eval fixture tests/eval_rds_error_after_success_test.go to internal/xds/server/, copy this file to internal/xds/server/verify_c1c2_pointer_test.go, then: go test -v -race -count=1 -run '^Test$/^Verify_C1C2_RoutePointer' ./internal/xds/server
+
+package server
+
+import (
+	"context"
+	"net"
+	"strconv"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/connectivity"
+	iresolver "google.golang.org/grpc/internal/resolver"
+	"google.golang.org/grpc/internal/testutils"
+	"google.golang.org/grpc/internal/testutils/xds/e2e"
+	"google.golang.org/grpc/internal/xds/httpfilter"
+	"google.golang.org/grpc/internal/xds/xdsclient/xdsresource"
+	"google.golang.org/protobuf/types/known/structpb"
+
+	v3xdsxdstypepb "github.com/cncf/xds/go/xds/type/v3"
+	v3corepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	v3listenerpb "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	v3httppb "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+)
+
+type verifyPtrFilter struct {
+	evalRDSFilterBuilder
+	filterClose func()
+	icptClose   func()
+}
+
+func (f *verifyPtrFilter) BuildServerFilter() httpfilter.ServerFilter { return f }
+func (f *verifyPtrFilter) Close() {
+	if f.filterClose != nil {
+		f.filterClose()
+	}
+}
+func (f *verifyPtrFilter) BuildServerInterceptor(httpfilter.FilterConfig, httpfilter.FilterConfig) (iresolver.ServerInterceptor, error) {
+	return &verifyPtrInterceptor{f: f}, nil
+}
+
+type verifyPtrInterceptor struct{ f *verifyPtrFilter }
+
+func (i *verifyPtrInterceptor) AllowRPC(context.Context) error { return nil }
+func (i *verifyPtrInterceptor) Close() {
+	if i.f.icptClose != nil {
+		i.f.icptClose()
+	}
+}
+
+func verifyRoutePointer(t *testing.T, holdFilterClose bool, replacement *xdsresource.RouteConfigUpdate) {
+	entered := make(chan struct{}, 4)
+	release := make(chan struct{})
+	hold := func() { entered <- struct{}{}; <-release }
+	filter := &verifyPtrFilter{evalRDSFilterBuilder: evalRDSFilterBuilder{typeURL: t.Name()}}
+	if holdFilterClose {
+		filter.filterClose = hold
+	} else {
+		filter.icptClose = hold
+	}
+	httpfilter.Register(filter)
+	defer httpfilter.UnregisterForTesting(filter.typeURL)
+
+	mgmtServer, nodeID, _, _, xdsC := xdsSetupForTests(t)
+	lis, err := testutils.LocalTCPListener()
+	if err != nil {
+		t.Fatal(err)
+	}
+	host, p, _ := net.SplitHostPort(lis.Addr().String())
+	port, _ := strconv.Atoi(p)
+	modeCh := make(chan connectivity.ServingMode, 1)
+	lw := NewListenerWrapper(ListenerWrapperParams{
+		Listener:             lis,
+		ListenerResourceName: listenerName,
+		XDSClient:            xdsC,
+		ModeCallback: func(_ net.Addr, mode connectivity.ServingMode, _ error) {
+			select {
+			case modeCh <- mode:
+			default:
+			}
+		},
+	}).(*listenerWrapper)
+	defer lw.Close()
+	defer close(release)
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	defer cancel()
+	resources := e2e.UpdateOptions{
+		NodeID: nodeID,
+		Listeners: []*v3listenerpb.Listener{{
+			Name: listenerName,
+			Address: &v3corepb.Address{Address: &v3corepb.Address_SocketAddress{SocketAddress: &v3corepb.SocketAddress{
+				Address: host, PortSpecifier: &v3corepb.SocketAddress_PortValue{PortValue: uint32(port)},
+			}}},
+			FilterChains: []*v3listenerpb.FilterChain{{
+				Name: "fc-1",
+				Filters: []*v3listenerpb.Filter{{
+					Name: "hcm-1",
+					ConfigType: &v3listenerpb.Filter_TypedConfig{TypedConfig: testutils.MarshalAny(t, &v3httppb.HttpConnectionManager{
+						RouteSpecifier: &v3httppb.HttpConnectionManager_Rds{Rds: &v3httppb.Rds{
+							ConfigSource:    &v3corepb.ConfigSource{ConfigSourceSpecifier: &v3corepb.ConfigSource_Ads{Ads: &v3corepb.AggregatedConfigSource{}}},
+							RouteConfigName: route1,
+						}},
+						HttpFilters: []*v3httppb.HttpFilter{
+							{Name: "count", ConfigType: &v3httppb.HttpFilter_TypedConfig{TypedConfig: testutils.MarshalAny(t, &v3xdsxdstypepb.TypedStruct{TypeUrl: filter.typeURL, Value: &structpb.Struct{}})}},
+							e2e.RouterHTTPFilter,
+						},
+					})},
+				}},
+			}},
+		}},
+		Routes: []*v3routepb.RouteConfiguration{{
+			Name: route1,
+			VirtualHosts: []*v3routepb.VirtualHost{{
+				Domains: []string{"*"},
+				Routes: []*v3routepb.Route{{
+					Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: "/"}},
+					Action: &v3routepb.Route_NonForwardingAction{},
+				}},
+			}},
+		}},
+		SkipValidation: true,
+	}
+	if err := mgmtServer.Update(ctx, resources); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-modeCh:
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for SERVING")
+	}
+
+	lw.mu.Lock()
+	fc := lw.activeFilterChainManager.filterChains[0]
+	lw.mu.Unlock()
+	before := fc.usableRouteConfiguration.Load()
+	t.Logf("active route pointer before replacement: %p (routes in vh[0]: %d)", before, len(before.vhs[0].routes))
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		rwu := rdsWatcherUpdate{data: replacement}
+		lw.handleRDSUpdate(route1, rwu)
+	}()
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("held Close() was never invoked")
+	}
+	time.Sleep(500 * time.Millisecond)
+	during := fc.usableRouteConfiguration.Load()
+	t.Logf("route pointer 500ms into held Close(): %p (routes in vh[0]: %d); published replacement = %v", during, len(during.vhs[0].routes), during != before)
+	select {
+	case <-done:
+		t.Logf("handleRDSUpdate returned while Close() held")
+	default:
+		t.Logf("handleRDSUpdate still blocked while Close() held")
+	}
+	release <- struct{}{}
+	<-done
+	after := fc.usableRouteConfiguration.Load()
+	t.Logf("route pointer after Close() released: %p (routes in vh[0]: %d); published replacement = %v", after, len(after.vhs[0].routes), after != before)
+	if during == before {
+		t.Errorf("STALL: replacement route pointer was not published while Close() was pending")
+	}
+}
+
+// Server filter retired by the replacement (replacement has no routes):
+// ServerFilter.Close() is held.
+func (s) TestVerify_C1C2_RoutePointer_ServerFilterCloseHeld(t *testing.T) {
+	verifyRoutePointer(t, true, &xdsresource.RouteConfigUpdate{
+		VirtualHosts: []*xdsresource.VirtualHost{{Domains: []string{"*"}}},
+	})
+}
+
+// Control: ordinary replacement, retired interceptor's Close() is held.
+func (s) TestVerify_C1C2_RoutePointer_Control_InterceptorCloseHeld(t *testing.T) {
+	verifyRoutePointer(t, false, &xdsresource.RouteConfigUpdate{
+		VirtualHosts: []*xdsresource.VirtualHost{{
+			Domains: []string{"*"},
+			Routes: []*xdsresource.Route{{
+				Prefix:     newStringP("/"),
+				ActionType: xdsresource.RouteActionNonForwardingAction,
+			}},
+		}},
+	})
+}

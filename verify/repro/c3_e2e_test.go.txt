@@ -1,0 +1,25 @@
+// Run via verify/repro/c3_run.sh (copies this file to test/xds/verify_c3_test.go and runs: go test -v -race -count=1 -run '^TestVerifyC3' ./test/xds)
+
+package xds_test
+
+import (
+	"testing"
+	"time"
+)
+
+func verifyC3RunE2E(t *testing.T, force bool) {
+	before := verifyC3ListeningSockets()
+	verifyC3ForceFail = force
+	failed := false
+	t.Run("RDSUpdates_ReleaseSupersededInterceptors", func(st *testing.T) {
+		defer func() { failed = st.Failed() }()
+		s{}.TestServerSideXDS_RDSUpdates_ReleaseSupersededInterceptors(st)
+	})
+	verifyC3ForceFail = false
+	time.Sleep(500 * time.Millisecond)
+	leaked := verifyC3Diff(before, verifyC3ListeningSockets())
+	t.Logf("C3 e2e force=%v: subtest failed=%v; listening sockets still open after the test ended: %d %v", force, failed, len(leaked), leaked)
+}
+
+func TestVerifyC3_E2E_Control_NoForcedFailure(t *testing.T)   { verifyC3RunE2E(t, false) }
+func TestVerifyC3_E2E_ForcedIntermediateFailure(t *testing.T) { verifyC3RunE2E(t, true) }

@@ -1,0 +1,45 @@
+// Run via verify/repro/c3_run.sh (it mutates the lifecycle tests to insert a forced t.Fatalf after resource acquisition, copies this file to internal/xds/server/verify_c3_test.go and runs: go test -v -race -count=1 -run '^TestVerifyC3' ./internal/xds/server)
+
+package server
+
+import (
+	"net"
+	"testing"
+	"time"
+)
+
+func verifyC3Run(t *testing.T, name string, force bool, body func(*testing.T)) {
+	before := verifyC3ListeningSockets()
+	verifyC3ForceFail = force
+	failed := false
+	// The body runs as a subtest which has fully ended (including its
+	// deferred functions and t.Cleanup callbacks) once t.Run returns. The
+	// subtest is detached from this test's failure state by running it under
+	// a throwaway testing.T tree is not possible, so the parent is expected
+	// to be reported as FAIL when force is set.
+	t.Run(name, func(st *testing.T) {
+		defer func() { failed = st.Failed() }()
+		body(st)
+	})
+	verifyC3ForceFail = false
+	time.Sleep(200 * time.Millisecond)
+	leaked := verifyC3Diff(before, verifyC3ListeningSockets())
+	t.Logf("C3 %s force=%v: subtest failed=%v; listening sockets still open after the test ended: %d %v", name, force, failed, len(leaked), leaked)
+	for _, a := range leaked {
+		c, err := net.DialTimeout("tcp", a, time.Second)
+		t.Logf("C3 %s: dial %s after test end -> err=%v (nil err == listener still accepting in kernel)", name, a, err)
+		if err == nil {
+			c.Close()
+		}
+	}
+}
+
+func TestVerifyC3_Unit_Control_NoForcedFailure(t *testing.T) {
+	verifyC3Run(t, "RDSUpdatesReleaseSupersededInterceptors", false, s{}.TestListenerWrapper_RDSUpdatesReleaseSupersededInterceptors)
+	verifyC3Run(t, "RDSErrorReleasesSupersededResources", false, s{}.TestListenerWrapper_RDSErrorReleasesSupersededResources)
+}
+
+func TestVerifyC3_Unit_ForcedIntermediateFailure(t *testing.T) {
+	verifyC3Run(t, "RDSUpdatesReleaseSupersededInterceptors", true, s{}.TestListenerWrapper_RDSUpdatesReleaseSupersededInterceptors)
+	verifyC3Run(t, "RDSErrorReleasesSupersededResources", true, s{}.TestListenerWrapper_RDSErrorReleasesSupersededResources)
+}

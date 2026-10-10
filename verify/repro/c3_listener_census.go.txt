@@ -1,0 +1,56 @@
+// Shared helper for the C3 repros (copied next to each verify_c3 test file by c3_run.sh; package name is rewritten by the script).
+
+package PKG
+
+import (
+	"fmt"
+	"os"
+	"sort"
+	"strconv"
+	"syscall"
+)
+
+// verifyC3ForceFail makes the mutated lifecycle tests fail right after they
+// acquired their resources.
+var verifyC3ForceFail bool
+
+// verifyC3ListeningSockets returns "fd=N addr=IP:PORT" for every socket in
+// LISTEN state (SO_ACCEPTCONN) owned by this process.
+func verifyC3ListeningSockets() map[string]bool {
+	out := map[string]bool{}
+	ents, _ := os.ReadDir("/proc/self/fd")
+	for _, e := range ents {
+		fd, err := strconv.Atoi(e.Name())
+		if err != nil {
+			continue
+		}
+		v, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_ACCEPTCONN)
+		if err != nil || v != 1 {
+			continue
+		}
+		sa, err := syscall.Getsockname(fd)
+		if err != nil {
+			continue
+		}
+		addr := "?"
+		switch a := sa.(type) {
+		case *syscall.SockaddrInet4:
+			addr = fmt.Sprintf("%d.%d.%d.%d:%d", a.Addr[0], a.Addr[1], a.Addr[2], a.Addr[3], a.Port)
+		case *syscall.SockaddrInet6:
+			addr = fmt.Sprintf("[%x]:%d", a.Addr, a.Port)
+		}
+		out[addr] = true
+	}
+	return out
+}
+
+func verifyC3Diff(before, after map[string]bool) []string {
+	var d []string
+	for a := range after {
+		if !before[a] {
+			d = append(d, a)
+		}
+	}
+	sort.Strings(d)
+	return d
+}

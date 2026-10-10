@@ -1,0 +1,170 @@
+// Run: on branch evalon/grpc-go-xd-73f6da56, copy the eval fixture tests/eval_xds_server_interceptor_leak_test.go to test/xds/, copy this file to test/xds/verify_c1c2_test.go, then: go test -v -race -count=1 -run '^Test$/^Verify_C1C2_' ./test/xds
+
+package xds_test
+
+import (
+	"context"
+	"sync"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/internal/envconfig"
+	"google.golang.org/grpc/internal/testutils"
+	"google.golang.org/grpc/status"
+
+	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	testpb "google.golang.org/grpc/interop/grpc_testing"
+	"google.golang.org/protobuf/types/known/anypb"
+)
+
+// verifyC1C2Probe replaces the active RDS route configuration with
+// replacement (which must not reference the server filter any more, so that
+// the server filter's last reference is dropped and ServerFilter.Close() is
+// invoked), holds ServerFilter.Close() pending, and probes routing through the
+// existing connection before and after releasing Close().
+//
+// If blockInterceptor is true, the retired *interceptor's* Close() is held
+// instead (control experiment).
+func verifyC1C2Probe(t *testing.T, replacement func(typeURL string) *v3routepb.RouteConfiguration, blockInterceptor bool) {
+	pathCh := make(chan string, 64)
+	closeEntered := make(chan struct{}, 4)
+	releaseClose := make(chan struct{})
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(releaseClose) }) }
+	defer release()
+
+	start := time.Now()
+	since := func() time.Duration { return time.Since(start).Round(time.Millisecond) }
+
+	fb := &evalC2C3FilterBuilder{
+		typeURL: t.Name(),
+		allowRPC: func(_ context.Context, path string) error {
+			select {
+			case pathCh <- path:
+			default:
+			}
+			return nil
+		},
+		onClose: func(path string) {
+			t.Logf("[%v] interceptor(%s).Close() entered", since(), path)
+			if blockInterceptor && path == "path1" {
+				closeEntered <- struct{}{}
+				<-releaseClose
+				t.Logf("[%v] interceptor(%s).Close() returning", since(), path)
+			}
+		},
+	}
+	if !blockInterceptor {
+		fb.onFilterClose = func() {
+			t.Logf("[%v] ServerFilter.Close() entered", since())
+			closeEntered <- struct{}{}
+			<-releaseClose
+			t.Logf("[%v] ServerFilter.Close() returning", since())
+		}
+	}
+	e := evalC2C3Setup(t, fb)
+	defer func() { release(); e.stop() }()
+
+	// probe issues one RPC on the existing ClientConn and reports which
+	// interceptor (if any) served it and the RPC status.
+	probe := func() (string, string) {
+		for len(pathCh) > 0 {
+			<-pathCh
+		}
+		rctx, cancel := context.WithTimeout(e.ctx, 2*time.Second)
+		defer cancel()
+		_, err := e.client.EmptyCall(rctx, &testpb.Empty{})
+		served := "<no interceptor>"
+		select {
+		case served = <-pathCh:
+		default:
+		}
+		return served, status.Convert(err).Message()
+	}
+
+	if _, err := e.client.EmptyCall(e.ctx, &testpb.Empty{}, grpc.WaitForReady(true)); err != nil {
+		t.Fatalf("EmptyCall() on original route failed: %v", err)
+	}
+	served, msg := probe()
+	t.Logf("[%v] BEFORE replacement: served by %q, status msg %q", since(), served, msg)
+
+	e.update(replacement(fb.typeURL))
+	t.Logf("[%v] replacement RouteConfiguration pushed to management server", since())
+	select {
+	case <-closeEntered:
+	case <-time.After(10 * time.Second):
+		t.Fatalf("[%v] the held Close() was never invoked for this replacement", since())
+	}
+
+	stalled := false
+	for i := 0; i < 5; i++ {
+		served, msg := probe()
+		t.Logf("[%v] WHILE Close() HELD probe #%d: served by %q, status msg %q", since(), i, served, msg)
+		if served == "path1" {
+			stalled = true
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+
+	release()
+	t.Logf("[%v] Close() released", since())
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		served, msg := probe()
+		if served != "path1" {
+			t.Logf("[%v] AFTER release: served by %q, status msg %q", since(), served, msg)
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if stalled {
+		t.Errorf("STALL: RPCs on the existing connection were still routed by the superseded route configuration (interceptor path1) while Close() was pending")
+	} else {
+		t.Logf("NO STALL: replacement was routing RPCs while Close() was pending")
+	}
+}
+
+func verifyC1C2NoRoutes(string) *v3routepb.RouteConfiguration {
+	return &v3routepb.RouteConfiguration{
+		Name:         "concurrencyRouteName",
+		VirtualHosts: []*v3routepb.VirtualHost{{Domains: []string{"*"}}},
+	}
+}
+
+// Replacement has a virtual host without routes => server filter unreferenced.
+// Default configuration (no env vars).
+func (s) TestVerify_C1C2_ServerFilterCloseHeld_ReplacementWithoutRoutes(t *testing.T) {
+	verifyC1C2Probe(t, verifyC1C2NoRoutes, false)
+}
+
+// Replacement disables the filter on its only route via
+// envoy.config.route.v3.FilterConfig{disabled: true} => server filter
+// unreferenced. Requires GRPC_EXPERIMENTAL_XDS_EXT_PROC_ON_CLIENT.
+func (s) TestVerify_C1C2_ServerFilterCloseHeld_ReplacementDisablesFilter(t *testing.T) {
+	testutils.SetEnvConfig(t, &envconfig.XDSClientExtProcEnabled, true)
+	verifyC1C2Probe(t, func(typeURL string) *v3routepb.RouteConfiguration {
+		rc := evalC2C3RouteConfig(t, typeURL, "")
+		rc.VirtualHosts[0].Routes[0].TypedPerFilterConfig = map[string]*anypb.Any{
+			"concurrency-filter": testutils.MarshalAny(t, &v3routepb.FilterConfig{Disabled: true}),
+		}
+		return rc
+	}, false)
+}
+
+// Control: the ordinary replacement (filter still referenced, config path1 ->
+// path2); the retired interceptor's Close() is held instead.
+func (s) TestVerify_C1C2_Control_InterceptorCloseHeld_OrdinaryReplacement(t *testing.T) {
+	verifyC1C2Probe(t, func(typeURL string) *v3routepb.RouteConfiguration {
+		return evalC2C3RouteConfig(t, typeURL, "path2")
+	}, true)
+}
+
+// Control: ordinary replacement, hook on ServerFilter.Close(): it is never
+// invoked, because the replacement still references the filter. Expected to
+// fail with "the held Close() was never invoked".
+func (s) TestVerify_C1C2_Control_ServerFilterCloseNotInvoked_OrdinaryReplacement(t *testing.T) {
+	verifyC1C2Probe(t, func(typeURL string) *v3routepb.RouteConfiguration {
+		return evalC2C3RouteConfig(t, typeURL, "path2")
+	}, false)
+}
