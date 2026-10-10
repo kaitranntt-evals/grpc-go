@@ -1,0 +1,11 @@
+--- a/internal/xds/server/filter_chain_manager.go
++++ b/internal/xds/server/filter_chain_manager.go
+@@ -400,7 +400,7 @@
+ // replaces. Must be called with the parent listener wrapper's mutex held.
+ func (fc *filterChain) setUsableRouteConfiguration(urc *usableRouteConfiguration) {
+ 	if old := fc.usableRouteConfiguration.Swap(urc); old != nil {
+-		old.closeInterceptors()
++		_ = old // VERIFY MUTATION: reintroduce the leak so the added regression tests' assertions fail.
+ 	}
+ }
+ 

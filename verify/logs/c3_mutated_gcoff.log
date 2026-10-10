@@ -1,0 +1,26 @@
+=== RUN   TestVerifyC3
+=== RUN   TestVerifyC3/TestListenerWrapper_RDSUpdatesReleaseSupersededInterceptors
+    listener_wrapper_test.go:137: After 2 RDS updates, 6 interceptors are live, want 3
+VC3 TestListenerWrapper_RDSUpdatesReleaseSupersededInterceptors      passed=false atExit: listenersStillOpen=[37033] tcpSockets(before=0 after=1)
+VC3   dial still-open listener 127.0.0.1:37033 after the test exited: err=<nil>
+VC3 TestListenerWrapper_RDSUpdatesReleaseSupersededInterceptors      passed=false settled(<=3s): listenersStillOpen=[37033] tcpSockets(before=0 after=1)
+=== RUN   TestVerifyC3/TestListenerWrapper_RDSErrorReleasesSupersededResources
+    listener_wrapper_test.go:180: After RDS error, 2 interceptors are live, want 0
+VC3 TestListenerWrapper_RDSErrorReleasesSupersededResources          passed=false atExit: listenersStillOpen=[41571] tcpSockets(before=1 after=2)
+VC3   dial still-open listener 127.0.0.1:41571 after the test exited: err=<nil>
+VC3 TestListenerWrapper_RDSErrorReleasesSupersededResources          passed=false settled(<=3s): listenersStillOpen=[41571] tcpSockets(before=1 after=2)
+--- FAIL: TestVerifyC3 (6.06s)
+    --- FAIL: TestVerifyC3/TestListenerWrapper_RDSUpdatesReleaseSupersededInterceptors (0.00s)
+    --- FAIL: TestVerifyC3/TestListenerWrapper_RDSErrorReleasesSupersededResources (0.00s)
+FAIL
+FAIL	google.golang.org/grpc/internal/xds/server	6.071s
+=== RUN   TestVerifyC3
+=== RUN   TestVerifyC3/TestServerSideXDS_FilterStateRetention_AcrossRDSUpdates
+    xds_server_filter_state_retention_test.go:794: After 1 RDS updates, 2 interceptor instances are live (created: 2, destroyed: 0), want 1
+VC3 TestServerSideXDS_FilterStateRetention_AcrossRDSUpdates          passed=false atExit: listenersStillOpen=[] tcpSockets(before=0 after=0)
+VC3 TestServerSideXDS_FilterStateRetention_AcrossRDSUpdates          passed=false settled(<=3s): listenersStillOpen=[] tcpSockets(before=0 after=0)
+--- FAIL: TestVerifyC3 (0.01s)
+    --- FAIL: TestVerifyC3/TestServerSideXDS_FilterStateRetention_AcrossRDSUpdates (0.01s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	0.021s
+FAIL

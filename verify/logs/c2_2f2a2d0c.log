@@ -1,0 +1,122 @@
+=== RUN   Test
+=== RUN   Test/VerifyC2_HeldAllowRPCBlocksReplacement
+    xds_server_integration_test.go:61: Serving mode for listener "127.0.0.1:36265" changed to "SERVING", err: <nil>
+    c2_held_allowrpc_blocks_replacement_test.go:284: 01 +   19.3ms Interceptor.Build(old)       server constructed the "old" route configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 02 +   33.3ms AllowRPC(old).enter          HELD OPEN
+    c2_held_allowrpc_blocks_replacement_test.go:284: 03 +   33.4ms Update.submit                management server now serves the "new" route configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 04 +   34.4ms Interceptor.Build(new)       server constructed the "new" route configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 05 +  242.8ms Goroutines.whileHeld         
+        goroutine 15 [sync.RWMutex.Lock]:
+            sync.runtime_SemacquireRWMutex
+            sync.(*RWMutex).Lock
+            google.golang.org/grpc/internal/xds/server.(*safeRouteConfiguration).update
+            google.golang.org/grpc/internal/xds/server.(*listenerWrapper).handleRDSUpdate
+            google.golang.org/grpc/internal/xds/server.(*rdsWatcher).ResourceChanged
+            google.golang.org/grpc/internal/xds/xdsclient/xdsresource.(*delegatingRouteConfigWatcher).ResourceChanged
+            google.golang.org/grpc/internal/xds/clients/xdsclient.(*authority).handleADSResourceUpdate.func5
+            google.golang.org/grpc/internal/xds/clients/internal/syncutil.(*CallbackSerializer).run
+        goroutine 30 [chan receive]:
+            google.golang.org/grpc/test/xds_test.(*vc2Interceptor).AllowRPC
+            google.golang.org/grpc/internal/xds/server.(*interceptorList).AllowRPC
+            google.golang.org/grpc/internal/xds/server.RouteAndProcess
+            google.golang.org/grpc/xds.xdsUnaryInterceptor
+            google.golang.org/grpc/interop/grpc_testing._TestService_EmptyCall_Handler
+            google.golang.org/grpc.(*Server).processUnaryRPC
+            google.golang.org/grpc.(*Server).handleStream
+            google.golang.org/grpc.(*Server).serveStreams.func2.1
+    c2_held_allowrpc_blocks_replacement_test.go:284: 06 +  743.1ms Probe.whileHeld              #1 err=rpc error: code = DeadlineExceeded desc = context deadline exceeded reachedNewConfig=false
+    c2_held_allowrpc_blocks_replacement_test.go:284: 07 + 1245.8ms Probe.whileHeld              #2 err=rpc error: code = DeadlineExceeded desc = context deadline exceeded reachedNewConfig=false
+    c2_held_allowrpc_blocks_replacement_test.go:284: 08 + 1747.7ms Probe.whileHeld              #3 err=rpc error: code = DeadlineExceeded desc = context deadline exceeded reachedNewConfig=false
+    c2_held_allowrpc_blocks_replacement_test.go:284: 09 + 2250.0ms Probe.whileHeld              #4 err=rpc error: code = DeadlineExceeded desc = context deadline exceeded reachedNewConfig=false
+    c2_held_allowrpc_blocks_replacement_test.go:284: 10 + 2752.5ms Probe.whileHeld              #5 err=rpc error: code = DeadlineExceeded desc = context deadline exceeded reachedNewConfig=false
+    c2_held_allowrpc_blocks_replacement_test.go:284: 11 + 3254.8ms Probe.whileHeld              #6 err=rpc error: code = DeadlineExceeded desc = context deadline exceeded reachedNewConfig=false
+    c2_held_allowrpc_blocks_replacement_test.go:284: 12 + 3255.7ms Goroutines.afterProbes       
+        goroutine 15 [sync.RWMutex.Lock]:
+            sync.runtime_SemacquireRWMutex
+            sync.(*RWMutex).Lock
+            google.golang.org/grpc/internal/xds/server.(*safeRouteConfiguration).update
+            google.golang.org/grpc/internal/xds/server.(*listenerWrapper).handleRDSUpdate
+            google.golang.org/grpc/internal/xds/server.(*rdsWatcher).ResourceChanged
+            google.golang.org/grpc/internal/xds/xdsclient/xdsresource.(*delegatingRouteConfigWatcher).ResourceChanged
+            google.golang.org/grpc/internal/xds/clients/xdsclient.(*authority).handleADSResourceUpdate.func5
+            google.golang.org/grpc/internal/xds/clients/internal/syncutil.(*CallbackSerializer).run
+        goroutine 102 [sync.RWMutex.RLock]:
+            sync.runtime_SemacquireRWMutexR
+            sync.(*RWMutex).RLock
+            google.golang.org/grpc/internal/xds/server.RouteAndProcess
+            google.golang.org/grpc/xds.xdsUnaryInterceptor
+            google.golang.org/grpc/interop/grpc_testing._TestService_EmptyCall_Handler
+            google.golang.org/grpc.(*Server).processUnaryRPC
+            google.golang.org/grpc.(*Server).handleStream
+            google.golang.org/grpc.(*Server).serveStreams.func2.1
+        goroutine 120 [sync.RWMutex.RLock]:
+            sync.runtime_SemacquireRWMutexR
+            sync.(*RWMutex).RLock
+            google.golang.org/grpc/internal/xds/server.RouteAndProcess
+            google.golang.org/grpc/xds.xdsUnaryInterceptor
+            google.golang.org/grpc/interop/grpc_testing._TestService_EmptyCall_Handler
+            google.golang.org/grpc.(*Server).processUnaryRPC
+            google.golang.org/grpc.(*Server).handleStream
+            google.golang.org/grpc.(*Server).serveStreams.func2.1
+        goroutine 30 [chan receive]:
+            google.golang.org/grpc/test/xds_test.(*vc2Interceptor).AllowRPC
+            google.golang.org/grpc/internal/xds/server.(*interceptorList).AllowRPC
+            google.golang.org/grpc/internal/xds/server.RouteAndProcess
+            google.golang.org/grpc/xds.xdsUnaryInterceptor
+            google.golang.org/grpc/interop/grpc_testing._TestService_EmptyCall_Handler
+            google.golang.org/grpc.(*Server).processUnaryRPC
+            google.golang.org/grpc.(*Server).handleStream
+            google.golang.org/grpc.(*Server).serveStreams.func2.1
+        goroutine 147 [sync.RWMutex.RLock]:
+            sync.runtime_SemacquireRWMutexR
+            sync.(*RWMutex).RLock
+            google.golang.org/grpc/internal/xds/server.RouteAndProcess
+            google.golang.org/grpc/xds.xdsUnaryInterceptor
+            google.golang.org/grpc/interop/grpc_testing._TestService_EmptyCall_Handler
+            google.golang.org/grpc.(*Server).processUnaryRPC
+            google.golang.org/grpc.(*Server).handleStream
+            google.golang.org/grpc.(*Server).serveStreams.func2.1
+        goroutine 100 [sync.RWMutex.RLock]:
+            sync.runtime_SemacquireRWMutexR
+            sync.(*RWMutex).RLock
+            google.golang.org/grpc/internal/xds/server.RouteAndProcess
+            google.golang.org/grpc/xds.xdsUnaryInterceptor
+            google.golang.org/grpc/interop/grpc_testing._TestService_EmptyCall_Handler
+            google.golang.org/grpc.(*Server).processUnaryRPC
+            google.golang.org/grpc.(*Server).handleStream
+            google.golang.org/grpc.(*Server).serveStreams.func2.1
+        goroutine 47 [sync.RWMutex.RLock]:
+            sync.runtime_SemacquireRWMutexR
+            sync.(*RWMutex).RLock
+            google.golang.org/grpc/internal/xds/server.RouteAndProcess
+            google.golang.org/grpc/xds.xdsUnaryInterceptor
+            google.golang.org/grpc/interop/grpc_testing._TestService_EmptyCall_Handler
+            google.golang.org/grpc.(*Server).processUnaryRPC
+            google.golang.org/grpc.(*Server).handleStream
+            google.golang.org/grpc.(*Server).serveStreams.func2.1
+        goroutine 103 [sync.RWMutex.RLock]:
+            sync.runtime_SemacquireRWMutexR
+            sync.(*RWMutex).RLock
+            google.golang.org/grpc/internal/xds/server.RouteAndProcess
+            google.golang.org/grpc/xds.xdsUnaryInterceptor
+            google.golang.org/grpc/interop/grpc_testing._TestService_EmptyCall_Handler
+            google.golang.org/grpc.(*Server).processUnaryRPC
+            google.golang.org/grpc.(*Server).handleStream
+            google.golang.org/grpc.(*Server).serveStreams.func2.1
+    c2_held_allowrpc_blocks_replacement_test.go:284: 13 + 3255.8ms Release                      letting the held AllowRPC(old) return
+    c2_held_allowrpc_blocks_replacement_test.go:284: 14 + 3255.8ms AllowRPC(old).return         held call returns
+    c2_held_allowrpc_blocks_replacement_test.go:284: 15 + 3255.9ms Interceptor.Close(old)       
+    c2_held_allowrpc_blocks_replacement_test.go:284: 16 + 3255.9ms AllowRPC(new)                new RPC routed through "new" configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 17 + 3255.9ms AllowRPC(new)                new RPC routed through "new" configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 18 + 3256.0ms AllowRPC(new)                new RPC routed through "new" configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 19 + 3256.0ms AllowRPC(new)                new RPC routed through "new" configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 20 + 3256.0ms AllowRPC(new)                new RPC routed through "new" configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 21 + 3256.1ms AllowRPC(new)                new RPC routed through "new" configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 22 + 3256.8ms AllowRPC(new)                new RPC routed through "new" configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 23 + 3257.5ms Probe.afterRelease           #1 err=<nil> reachedNewConfig=true
+    c2_held_allowrpc_blocks_replacement_test.go:287: OBSERVED replacement used by a newly routed RPC while old AllowRPC was held: false
+    c2_held_allowrpc_blocks_replacement_test.go:288: OBSERVED replacement used by a newly routed RPC after old AllowRPC returned: true
+--- PASS: Test (3.32s)
+    --- PASS: Test/VerifyC2_HeldAllowRPCBlocksReplacement (3.31s)
+PASS
+ok  	google.golang.org/grpc/test/xds	4.373s

@@ -1,0 +1,12 @@
+=== RUN   Test
+=== RUN   Test/Eval_ServerSideXDS_ReplacementRPCWhileRetiredCloseBlocked
+    xds_server_integration_test.go:61: Serving mode for listener "127.0.0.1:38639" changed to "SERVING", err: <nil>
+=== RUN   Test/Eval_ServerSideXDS_StopWithAllowRPCAwaitingContextCancel
+    xds_server_integration_test.go:61: Serving mode for listener "127.0.0.1:40581" changed to "SERVING", err: <nil>
+    eval_xds_server_interceptor_leak_test.go:1836: Stop() did not return within 5s while AllowRPC was waiting for context cancellation (shutdown deadlock defect)
+--- FAIL: Test (5.13s)
+    --- PASS: Test/Eval_ServerSideXDS_ReplacementRPCWhileRetiredCloseBlocked (0.03s)
+    --- FAIL: Test/Eval_ServerSideXDS_StopWithAllowRPCAwaitingContextCancel (5.09s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	5.168s
+FAIL

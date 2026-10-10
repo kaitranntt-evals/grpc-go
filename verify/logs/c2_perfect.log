@@ -1,0 +1,50 @@
+=== RUN   Test
+=== RUN   Test/VerifyC2_HeldAllowRPCBlocksReplacement
+    xds_server_integration_test.go:61: Serving mode for listener "127.0.0.1:33709" changed to "SERVING", err: <nil>
+    c2_held_allowrpc_blocks_replacement_test.go:284: 01 +   13.1ms Interceptor.Build(old)       server constructed the "old" route configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 02 +   22.4ms AllowRPC(old).enter          HELD OPEN
+    c2_held_allowrpc_blocks_replacement_test.go:284: 03 +   22.5ms Update.submit                management server now serves the "new" route configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 04 +   23.7ms Interceptor.Build(new)       server constructed the "new" route configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 05 +   23.7ms Interceptor.Close(old)       
+    c2_held_allowrpc_blocks_replacement_test.go:284: 06 +  230.0ms Goroutines.whileHeld         
+        goroutine 117 [chan receive]:
+            google.golang.org/grpc/test/xds_test.(*vc2Interceptor).AllowRPC
+            google.golang.org/grpc/internal/xds/server.(*interceptorList).AllowRPC
+            google.golang.org/grpc/internal/xds/server.RouteAndProcess
+            google.golang.org/grpc/xds.xdsUnaryInterceptor
+            google.golang.org/grpc/interop/grpc_testing._TestService_EmptyCall_Handler
+            google.golang.org/grpc.(*Server).processUnaryRPC
+            google.golang.org/grpc.(*Server).handleStream
+            google.golang.org/grpc.(*Server).serveStreams.func2.1
+    c2_held_allowrpc_blocks_replacement_test.go:284: 07 +  231.0ms AllowRPC(new)                new RPC routed through "new" configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 08 +  231.3ms Probe.whileHeld              #1 err=<nil> reachedNewConfig=true
+    c2_held_allowrpc_blocks_replacement_test.go:284: 09 +  231.7ms AllowRPC(new)                new RPC routed through "new" configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 10 +  232.0ms Probe.whileHeld              #2 err=<nil> reachedNewConfig=true
+    c2_held_allowrpc_blocks_replacement_test.go:284: 11 +  232.2ms AllowRPC(new)                new RPC routed through "new" configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 12 +  232.3ms Probe.whileHeld              #3 err=<nil> reachedNewConfig=true
+    c2_held_allowrpc_blocks_replacement_test.go:284: 13 +  232.5ms AllowRPC(new)                new RPC routed through "new" configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 14 +  232.7ms Probe.whileHeld              #4 err=<nil> reachedNewConfig=true
+    c2_held_allowrpc_blocks_replacement_test.go:284: 15 +  232.9ms AllowRPC(new)                new RPC routed through "new" configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 16 +  233.0ms Probe.whileHeld              #5 err=<nil> reachedNewConfig=true
+    c2_held_allowrpc_blocks_replacement_test.go:284: 17 +  233.2ms AllowRPC(new)                new RPC routed through "new" configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 18 +  233.3ms Probe.whileHeld              #6 err=<nil> reachedNewConfig=true
+    c2_held_allowrpc_blocks_replacement_test.go:284: 19 +  234.2ms Goroutines.afterProbes       
+        goroutine 117 [chan receive]:
+            google.golang.org/grpc/test/xds_test.(*vc2Interceptor).AllowRPC
+            google.golang.org/grpc/internal/xds/server.(*interceptorList).AllowRPC
+            google.golang.org/grpc/internal/xds/server.RouteAndProcess
+            google.golang.org/grpc/xds.xdsUnaryInterceptor
+            google.golang.org/grpc/interop/grpc_testing._TestService_EmptyCall_Handler
+            google.golang.org/grpc.(*Server).processUnaryRPC
+            google.golang.org/grpc.(*Server).handleStream
+            google.golang.org/grpc.(*Server).serveStreams.func2.1
+    c2_held_allowrpc_blocks_replacement_test.go:284: 20 +  234.3ms Release                      letting the held AllowRPC(old) return
+    c2_held_allowrpc_blocks_replacement_test.go:284: 21 +  234.3ms AllowRPC(old).return         held call returns
+    c2_held_allowrpc_blocks_replacement_test.go:284: 22 +  234.7ms AllowRPC(new)                new RPC routed through "new" configuration
+    c2_held_allowrpc_blocks_replacement_test.go:284: 23 +  234.9ms Probe.afterRelease           #1 err=<nil> reachedNewConfig=true
+    c2_held_allowrpc_blocks_replacement_test.go:287: OBSERVED replacement used by a newly routed RPC while old AllowRPC was held: true
+    c2_held_allowrpc_blocks_replacement_test.go:288: OBSERVED replacement used by a newly routed RPC after old AllowRPC returned: true
+--- PASS: Test (0.24s)
+    --- PASS: Test/VerifyC2_HeldAllowRPCBlocksReplacement (0.24s)
+PASS
+ok  	google.golang.org/grpc/test/xds	1.273s

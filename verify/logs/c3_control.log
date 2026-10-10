@@ -1,0 +1,20 @@
+=== RUN   TestVerifyC3
+=== RUN   TestVerifyC3/TestListenerWrapper_RDSUpdatesReleaseSupersededInterceptors
+VC3 TestListenerWrapper_RDSUpdatesReleaseSupersededInterceptors      passed=true  atExit: listenersStillOpen=[] tcpSockets(before=0 after=0)
+VC3 TestListenerWrapper_RDSUpdatesReleaseSupersededInterceptors      passed=true  settled(<=3s): listenersStillOpen=[] tcpSockets(before=0 after=0)
+=== RUN   TestVerifyC3/TestListenerWrapper_RDSErrorReleasesSupersededResources
+VC3 TestListenerWrapper_RDSErrorReleasesSupersededResources          passed=true  atExit: listenersStillOpen=[] tcpSockets(before=0 after=0)
+VC3 TestListenerWrapper_RDSErrorReleasesSupersededResources          passed=true  settled(<=3s): listenersStillOpen=[] tcpSockets(before=0 after=0)
+--- PASS: TestVerifyC3 (0.01s)
+    --- PASS: TestVerifyC3/TestListenerWrapper_RDSUpdatesReleaseSupersededInterceptors (0.00s)
+    --- PASS: TestVerifyC3/TestListenerWrapper_RDSErrorReleasesSupersededResources (0.00s)
+PASS
+ok  	google.golang.org/grpc/internal/xds/server	0.020s
+=== RUN   TestVerifyC3
+=== RUN   TestVerifyC3/TestServerSideXDS_FilterStateRetention_AcrossRDSUpdates
+VC3 TestServerSideXDS_FilterStateRetention_AcrossRDSUpdates          passed=true  atExit: listenersStillOpen=[] tcpSockets(before=0 after=0)
+VC3 TestServerSideXDS_FilterStateRetention_AcrossRDSUpdates          passed=true  settled(<=3s): listenersStillOpen=[] tcpSockets(before=0 after=0)
+--- PASS: TestVerifyC3 (0.11s)
+    --- PASS: TestVerifyC3/TestServerSideXDS_FilterStateRetention_AcrossRDSUpdates (0.10s)
+PASS
+ok  	google.golang.org/grpc/test/xds	0.113s

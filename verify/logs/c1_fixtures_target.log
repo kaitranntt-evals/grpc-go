@@ -1,0 +1,37 @@
+=== RUN   Test
+=== RUN   Test/Eval_ServerSideXDS_InterceptorBeforeFilterCloseOrder
+    eval_xds_server_interceptor_leak_test.go:1624: dependency order violation: filter closed at event #0 before retired interceptor closed at event #2 (events: [{kind:filter-close id:F1} {kind:icpt-close id:F1/I1} {kind:icpt-close id:F1/I2}])
+=== RUN   Test/Eval_ServerSideXDS_InterceptorLeak_MultiGenerationRDSUpdate
+=== RUN   Test/Eval_ServerSideXDS_InterceptorLeak_RDSUpdate
+=== RUN   Test/Eval_ServerSideXDS_InterceptorSwapOrder
+=== RUN   Test/Eval_ServerSideXDS_PartialRouteFailure_ClosesInterceptors
+    eval_xds_server_interceptor_leak_test.go:1190: Partial route conversion failure leaked interceptor: destroyed=1, want=2 (created=2)
+=== RUN   Test/Eval_ServerSideXDS_PartialVirtualHostFailure_ClosesInterceptors
+    eval_xds_server_interceptor_leak_test.go:1374: Partial virtual host conversion failure leaked interceptor: destroyed=1, want=2 (created=2)
+=== RUN   Test/Eval_ServerSideXDS_ReplacementRPCWhileRetiredCloseBlocked
+    xds_server_integration_test.go:61: Serving mode for listener "127.0.0.1:37099" changed to "SERVING", err: <nil>
+=== RUN   Test/Eval_ServerSideXDS_StopWithAllowRPCAwaitingContextCancel
+    xds_server_integration_test.go:61: Serving mode for listener "127.0.0.1:34005" changed to "SERVING", err: <nil>
+--- FAIL: Test (4.20s)
+    --- FAIL: Test/Eval_ServerSideXDS_InterceptorBeforeFilterCloseOrder (0.03s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_MultiGenerationRDSUpdate (0.03s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorLeak_RDSUpdate (0.03s)
+    --- PASS: Test/Eval_ServerSideXDS_InterceptorSwapOrder (0.03s)
+    --- FAIL: Test/Eval_ServerSideXDS_PartialRouteFailure_ClosesInterceptors (2.02s)
+    --- FAIL: Test/Eval_ServerSideXDS_PartialVirtualHostFailure_ClosesInterceptors (2.02s)
+    --- PASS: Test/Eval_ServerSideXDS_ReplacementRPCWhileRetiredCloseBlocked (0.02s)
+    --- PASS: Test/Eval_ServerSideXDS_StopWithAllowRPCAwaitingContextCancel (0.02s)
+FAIL
+FAIL	google.golang.org/grpc/test/xds	4.234s
+=== RUN   Test
+=== RUN   Test/Eval_ServerSideXDS_ErrorUpdateReleasesServerFilterReferences
+    eval_rds_error_after_success_test.go:86: Created new snapshot cache...
+    eval_rds_error_after_success_test.go:86: Registered Aggregated Discovery Service (ADS)...
+    eval_rds_error_after_success_test.go:86: xDS management server serving at: 127.0.0.1:39595...
+    eval_rds_error_after_success_test.go:224: after route1 error: filter ref count = 2, want 1 (route1 hold not released)
+    eval_rds_error_after_success_test.go:241: after route2 error: filter ref count = 2, want 0 (route2 hold not released)
+--- FAIL: Test (2.06s)
+    --- FAIL: Test/Eval_ServerSideXDS_ErrorUpdateReleasesServerFilterReferences (2.06s)
+FAIL
+FAIL	google.golang.org/grpc/internal/xds/server	2.087s
+FAIL

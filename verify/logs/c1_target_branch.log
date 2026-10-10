@@ -1,0 +1,57 @@
+=== RUN   Test
+=== RUN   Test/VerifyC1_GracefulStopWhileRPCInHandler
+    xds_server_integration_test.go:61: Serving mode for listener "127.0.0.1:35265" changed to "SERVING", err: <nil>
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 01 +   12.9ms ServerFilter.Build     
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 02 +   13.0ms Interceptor.Build      
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 03 +   22.6ms AllowRPC.enter         
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 04 +   22.6ms AllowRPC.return        nil (RPC proceeds to handler)
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 05 +   22.6ms Handler.enter          
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 06 +   27.9ms Stop.call              GracefulStop; activeRPC ctx.Err()=<nil>
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 07 +   28.9ms Interceptor.Close      activeRPC ctx.Err()=<nil> | stack: /internal/xds/server.(*interceptorList).Close <- /internal/xds/server.(*usableRouteConfiguration).closeInterceptors <- /internal/xds/server.(*usableRouteConfiguration).retire <- /internal/xds/server.(*filterChain).stop <- /internal/xds/server.(*filterChainManager).stop <- /internal/xds/server.(*listenerWrapper).Close <- .(*listenSocket).Close <- .(*Server).closeListenersLocked <- .(*Server).stop <- .(*Server).GracefulStop <- /xds.(*GRPCServer).GracefulStop <- /test/xds_test.s.TestVerifyC1_GracefulStopWhileRPCInHandler.func1
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 08 +   28.9ms ServerFilter.Close     activeRPC ctx.Err()=<nil> | stack: /internal/xds/server.(*refCountedServerFilter).Close <- /internal/xds/server.(*filterChain).stop <- /internal/xds/server.(*filterChainManager).stop <- /internal/xds/server.(*listenerWrapper).Close <- .(*listenSocket).Close <- .(*Server).closeListenersLocked <- .(*Server).stop <- .(*Server).GracefulStop <- /xds.(*GRPCServer).GracefulStop <- /test/xds_test.s.TestVerifyC1_GracefulStopWhileRPCInHandler.func1
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 09 +  329.1ms ServerFilter.Close+300ms activeRPC ctx.Err()=<nil>
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 10 + 1030.5ms Handler.release        activeRPC ctx.Err()=<nil>
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 11 + 1030.5ms Handler.return         ctx.Err()=<nil>
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 12 + 1031.2ms Client.RPCDone         err=EOF
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 13 + 1031.5ms Stop.return            activeRPC ctx.Err()=context canceled
+    c1_stop_closes_filter_while_rpc_active_test.go:252: OBSERVED order indexes: Stop.call=6 ServerFilter.Close=8 Interceptor.Close=7 Handler.return=11
+    c1_stop_closes_filter_while_rpc_active_test.go:253: OBSERVED ServerFilter.Close ran before the active RPC ended: true
+    c1_stop_closes_filter_while_rpc_active_test.go:254: OBSERVED Interceptor.Close ran before the active RPC ended: true
+=== RUN   Test/VerifyC1_StopWhileRPCInAllowRPC
+    xds_server_integration_test.go:61: Serving mode for listener "127.0.0.1:37909" changed to "SERVING", err: <nil>
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 01 +    6.0ms ServerFilter.Build     
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 02 +    6.0ms Interceptor.Build      
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 03 +   12.4ms AllowRPC.enter         
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 04 +   12.4ms Stop.call              activeRPC ctx.Err()=<nil>
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 05 +   13.3ms ServerFilter.Close     activeRPC ctx.Err()=<nil> | stack: /internal/xds/server.(*refCountedServerFilter).Close <- /internal/xds/server.(*filterChain).stop <- /internal/xds/server.(*filterChainManager).stop <- /internal/xds/server.(*listenerWrapper).Close <- .(*listenSocket).Close <- .(*Server).closeListenersLocked <- .(*Server).stop <- .(*Server).Stop <- /xds.(*GRPCServer).Stop <- /test/xds_test.s.TestVerifyC1_StopWhileRPCInAllowRPC <- /internal/grpctest.RunSubTests.func1
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 06 +  314.0ms ServerFilter.Close+300ms activeRPC ctx.Err()=<nil>
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 07 +  314.2ms AllowRPC.return        ctx.Err()=context canceled
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 08 +  314.3ms Interceptor.Close      activeRPC ctx.Err()=context canceled | stack: /internal/xds/server.(*interceptorList).Close <- /internal/xds/server.(*usableRouteConfiguration).closeInterceptors <- /internal/xds/server.(*usableRouteConfiguration).release <- /internal/xds/server.RouteAndProcess <- /xds.xdsUnaryInterceptor <- /interop/grpc_testing._TestService_EmptyCall_Handler <- .(*Server).processUnaryRPC <- .(*Server).handleStream <- .(*Server).serveStreams.func2.1
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 09 +  314.5ms Stop.return            activeRPC ctx.Err()=context canceled
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 10 +  314.5ms Client.RPCDone         err=rpc error: code = Unavailable desc = error reading from server: EOF
+    c1_stop_closes_filter_while_rpc_active_test.go:252: OBSERVED order indexes: Stop.call=4 ServerFilter.Close=5 Interceptor.Close=8 AllowRPC.return=7
+    c1_stop_closes_filter_while_rpc_active_test.go:253: OBSERVED ServerFilter.Close ran before the active RPC ended: true
+    c1_stop_closes_filter_while_rpc_active_test.go:254: OBSERVED Interceptor.Close ran before the active RPC ended: false
+=== RUN   Test/VerifyC1_StopWhileRPCInHandler
+    xds_server_integration_test.go:61: Serving mode for listener "127.0.0.1:36605" changed to "SERVING", err: <nil>
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 01 +    5.5ms ServerFilter.Build     
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 02 +    5.5ms Interceptor.Build      
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 03 +   11.0ms AllowRPC.enter         
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 04 +   11.1ms AllowRPC.return        nil (RPC proceeds to handler)
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 05 +   11.1ms Handler.enter          
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 06 +   11.1ms Stop.call              activeRPC ctx.Err()=<nil>
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 07 +   11.9ms Interceptor.Close      activeRPC ctx.Err()=<nil> | stack: /internal/xds/server.(*interceptorList).Close <- /internal/xds/server.(*usableRouteConfiguration).closeInterceptors <- /internal/xds/server.(*usableRouteConfiguration).retire <- /internal/xds/server.(*filterChain).stop <- /internal/xds/server.(*filterChainManager).stop <- /internal/xds/server.(*listenerWrapper).Close <- .(*listenSocket).Close <- .(*Server).closeListenersLocked <- .(*Server).stop <- .(*Server).Stop <- /xds.(*GRPCServer).Stop <- /test/xds_test.s.TestVerifyC1_StopWhileRPCInHandler <- /internal/grpctest.RunSubTests.func1
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 08 +   11.9ms ServerFilter.Close     activeRPC ctx.Err()=<nil> | stack: /internal/xds/server.(*refCountedServerFilter).Close <- /internal/xds/server.(*filterChain).stop <- /internal/xds/server.(*filterChainManager).stop <- /internal/xds/server.(*listenerWrapper).Close <- .(*listenSocket).Close <- .(*Server).closeListenersLocked <- .(*Server).stop <- .(*Server).Stop <- /xds.(*GRPCServer).Stop <- /test/xds_test.s.TestVerifyC1_StopWhileRPCInHandler <- /internal/grpctest.RunSubTests.func1
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 09 +  312.6ms ServerFilter.Close+300ms activeRPC ctx.Err()=<nil>
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 10 +  312.7ms Handler.return         ctx.Err()=context canceled
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 11 +  312.9ms Stop.return            activeRPC ctx.Err()=context canceled
+    c1_stop_closes_filter_while_rpc_active_test.go:68: 12 +  313.1ms Client.RPCDone         err=rpc error: code = Unavailable desc = error reading from server: EOF
+    c1_stop_closes_filter_while_rpc_active_test.go:252: OBSERVED order indexes: Stop.call=6 ServerFilter.Close=8 Interceptor.Close=7 Handler.return=10
+    c1_stop_closes_filter_while_rpc_active_test.go:253: OBSERVED ServerFilter.Close ran before the active RPC ended: true
+    c1_stop_closes_filter_while_rpc_active_test.go:254: OBSERVED Interceptor.Close ran before the active RPC ended: true
+--- PASS: Test (2.12s)
+    --- PASS: Test/VerifyC1_GracefulStopWhileRPCInHandler (1.03s)
+    --- PASS: Test/VerifyC1_StopWhileRPCInAllowRPC (0.52s)
+    --- PASS: Test/VerifyC1_StopWhileRPCInHandler (0.57s)
+PASS
+ok  	google.golang.org/grpc/test/xds	3.153s
