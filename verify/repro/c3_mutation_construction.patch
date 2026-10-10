@@ -1,0 +1,19 @@
+diff --git a/internal/xds/server/listener_wrapper.go b/internal/xds/server/listener_wrapper.go
+index 0177a378..23bc55a5 100644
+--- a/internal/xds/server/listener_wrapper.go
++++ b/internal/xds/server/listener_wrapper.go
+@@ -417,11 +417,10 @@ func (l *listenerWrapper) getOrCreateServerFilterLocked(filter xdsresource.HTTPF
+ // This functionality is put in a separate function to allow for testing with a
+ // custom map.
+ func getOrCreateServerFilterWithMap(httpFilters map[serverFilterKey]*refCountedServerFilter, builder httpfilter.ServerFilterBuilder, key serverFilterKey) httpfilter.ServerFilter {
++	// VERIFY MUTATION (C3, construction): never reuse a cached parent
++	// filter; every call constructs a new one.
+ 	serverFilter, ok := httpFilters[key]
+-	if ok {
+-		serverFilter.incRef()
+-		return serverFilter
+-	}
++	_ = ok
+ 
+ 	sf := builder.BuildServerFilter()
+ 	serverFilter = &refCountedServerFilter{ServerFilter: sf}

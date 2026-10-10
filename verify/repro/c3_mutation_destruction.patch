@@ -1,0 +1,16 @@
+diff --git a/internal/xds/server/filter_chain_manager.go b/internal/xds/server/filter_chain_manager.go
+index 2b5cd0aa..f77659f7 100644
+--- a/internal/xds/server/filter_chain_manager.go
++++ b/internal/xds/server/filter_chain_manager.go
+@@ -586,9 +586,8 @@ func (rsf *refCountedServerFilter) incRef() {
+ }
+ 
+ func (rsf *refCountedServerFilter) Close() {
+-	if rsf.refCnt.Add(-1) == 0 {
+-		rsf.ServerFilter.Close()
+-	}
++	// VERIFY MUTATION (C3, destruction): never destroy the parent filter.
++	rsf.refCnt.Add(-1)
+ }
+ 
+ // newServerFilterKey generates a key for the given filter using the filter name
