@@ -1,0 +1,80 @@
+// Run: on branch evalon/grpc-go-xd-2ba766a0, copy to internal/xds/server/verify_c3_wrapper_teardown_leak_test.go, then: go test -race -v -count=1 -run '^Test$/^VerifyC3_' ./internal/xds/server  (PASS + "LEAK" log lines = problem reproduced; see c3_repro.sh for the full sequence)
+package server
+
+import (
+	"errors"
+	"net"
+	"testing"
+
+	"google.golang.org/grpc/internal/xds/xdsclient/xdsresource"
+)
+
+// c3State is what a test using newTestListenerWrapperWithRDS leaves behind.
+type c3State struct {
+	fb  *countingFilterBuilder
+	l   *listenerWrapper
+	rsf *refCountedServerFilter
+}
+
+func c3Report(t *testing.T, label string, st c3State) (leaked bool) {
+	t.Helper()
+	_, acceptErr := st.l.Listener.Accept()
+	rawClosed := errors.Is(acceptErr, net.ErrClosed)
+	t.Logf("%s: after ALL registered cleanups ran: rawListenerClosed=%v wrapper.closed.HasFired=%v | filtersCreated=%d filtersClosed=%d interceptorsBuilt=%d interceptorsClosed=%d sharedFilter.refCnt=%d",
+		label, rawClosed, st.l.closed.HasFired(), st.fb.filtersCreated.Load(), st.fb.filtersClosed.Load(), st.fb.interceptorsBuilt.Load(), st.fb.interceptorsClosed.Load(), st.rsf.refCnt.Load())
+	if !rawClosed {
+		t.Errorf("%s: raw listener not closed by the helper's cleanup", label)
+	}
+	return st.fb.filtersClosed.Load() < st.fb.filtersCreated.Load() || st.fb.interceptorsClosed.Load() < st.fb.interceptorsBuilt.Load()
+}
+
+// Cleanup part: use the helper exactly as the solution's tests do, acquire
+// wrapper-owned filter resources via an RDS update, and return WITHOUT the
+// explicit l.Close(). Only the helper's registered cleanup runs.
+func (s) TestVerifyC3_CleanupWithoutExplicitWrapperClose(t *testing.T) {
+	var st c3State
+	t.Run("body", func(t *testing.T) {
+		fb := &countingFilterBuilder{}
+		filters := []xdsresource.HTTPFilter{{Name: "counting", Filter: fb, Config: filterCfg{}}}
+		l := newTestListenerWrapperWithRDS(t, "route", filters)
+		t.Logf("right after helper returned: filtersCreated=%d interceptorsBuilt=%d len(l.httpFilters)=%d", fb.filtersCreated.Load(), fb.interceptorsBuilt.Load(), len(l.httpFilters))
+		l.handleRDSUpdate("route", rdsWatcherUpdate{data: routeConfigWithRoutes(3)})
+		st = c3State{fb: fb, l: l, rsf: l.httpFilters[newServerFilterKey(&filters[0])]}
+		t.Logf("after first RDS update: filtersCreated=%d interceptorsBuilt=%d sharedFilter.refCnt=%d", fb.filtersCreated.Load(), fb.interceptorsBuilt.Load(), st.rsf.refCnt.Load())
+		// explicit l.Close() deliberately skipped
+	})
+	if c3Report(t, "cleanup-part", st) {
+		t.Log("LEAK (cleanup part): helper cleanup closed only the raw listener; wrapper-owned filter + interceptors still live")
+	} else {
+		t.Error("not reproduced: all wrapper-owned filter resources were released without explicit l.Close()")
+	}
+	// Control: the explicit wrapper Close is what releases them.
+	st.l.Close()
+	t.Logf("control, after explicit l.Close(): filtersClosed=%d interceptorsClosed=%d sharedFilter.refCnt=%d", st.fb.filtersClosed.Load(), st.fb.interceptorsClosed.Load(), st.rsf.refCnt.Load())
+	if st.fb.filtersClosed.Load() != 1 || st.fb.interceptorsClosed.Load() != 3 {
+		t.Error("control failed: explicit l.Close() did not release the resources")
+	}
+}
+
+// Failure-path part: same shape as
+// TestListenerWrapper_RouteConfigUpdate_ReleasesSupersededResources, with a
+// goroutine exit at the position of its fatal assertions (t.Fatalf/t.FailNow
+// both end the test via runtime.Goexit, as t.SkipNow does here; SkipNow is
+// used only so this repro itself stays green).
+func (s) TestVerifyC3_GoexitBeforeExplicitWrapperClose(t *testing.T) {
+	var st c3State
+	t.Run("body", func(t *testing.T) {
+		fb := &countingFilterBuilder{}
+		filters := []xdsresource.HTTPFilter{{Name: "counting", Filter: fb, Config: filterCfg{}}}
+		l := newTestListenerWrapperWithRDS(t, "route", filters)
+		l.handleRDSUpdate("route", rdsWatcherUpdate{data: routeConfigWithRoutes(3)})
+		st = c3State{fb: fb, l: l, rsf: l.httpFilters[newServerFilterKey(&filters[0])]}
+		t.SkipNow() // stands in for verifyCounts' t.FailNow() / t.Fatalf
+		l.Close()   // never reached, as in the solution's test
+	})
+	if c3Report(t, "failure-path", st) {
+		t.Log("LEAK (failure path): test goroutine exited before l.Close(); no failure-safe wrapper teardown ran")
+	} else {
+		t.Error("not reproduced: wrapper teardown ran despite early exit")
+	}
+}

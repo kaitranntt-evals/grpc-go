@@ -1,0 +1,304 @@
+// Run: copy this file plus the matching verify_c1_helpers_<branch>_test.go.txt (renamed to _test.go) into internal/xds/server on the target branch, then: go test -race -v -count=1 -run '^Test$/^VerifyC1_FilterReferenceOwnershipTrace$' ./internal/xds/server
+/*
+ *
+ * Copyright 2026 gRPC authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+package server
+
+import (
+	"context"
+	"errors"
+	"net"
+	"strconv"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/connectivity"
+	iresolver "google.golang.org/grpc/internal/resolver"
+	"google.golang.org/grpc/internal/testutils"
+	"google.golang.org/grpc/internal/testutils/xds/e2e"
+	"google.golang.org/grpc/internal/xds/httpfilter"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	v3xdsxdstypepb "github.com/cncf/xds/go/xds/type/v3"
+	v3corepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	v3listenerpb "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	v3httppb "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+)
+
+type verifyC1FilterCfg struct{ httpfilter.FilterConfig }
+
+type verifyC1FilterBuilder struct {
+	httpfilter.Builder
+	typeURL         string
+	created         atomic.Int32
+	closed          atomic.Int32
+	filterDestroyed atomic.Int32
+}
+
+func (f *verifyC1FilterBuilder) TypeURLs() []string { return []string{f.typeURL} }
+func (f *verifyC1FilterBuilder) IsTerminal() bool   { return false }
+func (f *verifyC1FilterBuilder) ParseFilterConfig(proto.Message) (httpfilter.FilterConfig, error) {
+	return verifyC1FilterCfg{}, nil
+}
+func (f *verifyC1FilterBuilder) ParseFilterConfigOverride(proto.Message) (httpfilter.FilterConfig, error) {
+	return verifyC1FilterCfg{}, nil
+}
+func (f *verifyC1FilterBuilder) BuildServerFilter() httpfilter.ServerFilter { return f }
+func (f *verifyC1FilterBuilder) Close()                                     { f.filterDestroyed.Add(1) }
+func (f *verifyC1FilterBuilder) BuildServerInterceptor(httpfilter.FilterConfig, httpfilter.FilterConfig) (iresolver.ServerInterceptor, error) {
+	f.created.Add(1)
+	return &verifyC1Interceptor{f: f}, nil
+}
+
+type verifyC1Interceptor struct{ f *verifyC1FilterBuilder }
+
+func (i *verifyC1Interceptor) AllowRPC(context.Context) error { return nil }
+func (i *verifyC1Interceptor) Close()                         { i.f.closed.Add(1) }
+
+func (s) TestVerifyC1_FilterReferenceOwnershipTrace(t *testing.T) {
+	filter := &verifyC1FilterBuilder{typeURL: t.Name()}
+	httpfilter.Register(filter)
+	defer httpfilter.UnregisterForTesting(filter.typeURL)
+
+	mgmtServer, nodeID, _, _, xdsC := xdsSetupForTests(t)
+	lis, err := testutils.LocalTCPListener()
+	if err != nil {
+		t.Fatal(err)
+	}
+	host, p, _ := net.SplitHostPort(lis.Addr().String())
+	port, _ := strconv.Atoi(p)
+	modeCh := make(chan connectivity.ServingMode, 1)
+	lw := NewListenerWrapper(ListenerWrapperParams{
+		Listener:             lis,
+		ListenerResourceName: listenerName,
+		XDSClient:            xdsC,
+		ModeCallback: func(_ net.Addr, mode connectivity.ServingMode, _ error) {
+			select {
+			case modeCh <- mode:
+			default:
+			}
+		},
+	}).(*listenerWrapper)
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	defer cancel()
+
+	hcmForRoute := func(rName string) *v3httppb.HttpConnectionManager {
+		return &v3httppb.HttpConnectionManager{
+			RouteSpecifier: &v3httppb.HttpConnectionManager_Rds{Rds: &v3httppb.Rds{
+				ConfigSource:    &v3corepb.ConfigSource{ConfigSourceSpecifier: &v3corepb.ConfigSource_Ads{Ads: &v3corepb.AggregatedConfigSource{}}},
+				RouteConfigName: rName,
+			}},
+			HttpFilters: []*v3httppb.HttpFilter{
+				{Name: "count", ConfigType: &v3httppb.HttpFilter_TypedConfig{TypedConfig: testutils.MarshalAny(t, &v3xdsxdstypepb.TypedStruct{TypeUrl: filter.typeURL, Value: &structpb.Struct{}})}},
+				e2e.RouterHTTPFilter,
+			},
+		}
+	}
+
+	resources := e2e.UpdateOptions{
+		NodeID: nodeID,
+		Listeners: []*v3listenerpb.Listener{{
+			Name: listenerName,
+			Address: &v3corepb.Address{Address: &v3corepb.Address_SocketAddress{SocketAddress: &v3corepb.SocketAddress{
+				Address: host, PortSpecifier: &v3corepb.SocketAddress_PortValue{PortValue: uint32(port)},
+			}}},
+			FilterChains: []*v3listenerpb.FilterChain{
+				{
+					Name: "fc-1",
+					FilterChainMatch: &v3listenerpb.FilterChainMatch{
+						PrefixRanges: []*v3corepb.CidrRange{{AddressPrefix: "0.0.0.0", PrefixLen: &wrapperspb.UInt32Value{Value: 0}}},
+					},
+					Filters: []*v3listenerpb.Filter{{
+						Name:       "hcm-1",
+						ConfigType: &v3listenerpb.Filter_TypedConfig{TypedConfig: testutils.MarshalAny(t, hcmForRoute(route1))},
+					}},
+				},
+				{
+					Name: "fc-2",
+					FilterChainMatch: &v3listenerpb.FilterChainMatch{
+						PrefixRanges: []*v3corepb.CidrRange{{AddressPrefix: "::", PrefixLen: &wrapperspb.UInt32Value{Value: 0}}},
+					},
+					Filters: []*v3listenerpb.Filter{{
+						Name:       "hcm-2",
+						ConfigType: &v3listenerpb.Filter_TypedConfig{TypedConfig: testutils.MarshalAny(t, hcmForRoute(route2))},
+					}},
+				},
+			},
+		}},
+		Routes: []*v3routepb.RouteConfiguration{
+			{
+				Name: route1,
+				VirtualHosts: []*v3routepb.VirtualHost{{
+					Domains: []string{"*"},
+					Routes: []*v3routepb.Route{{
+						Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: "/route1"}},
+						Action: &v3routepb.Route_NonForwardingAction{},
+					}},
+				}},
+			},
+			{
+				Name: route2,
+				VirtualHosts: []*v3routepb.VirtualHost{{
+					Domains: []string{"*"},
+					Routes: []*v3routepb.Route{{
+						Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: "/route2"}},
+						Action: &v3routepb.Route_NonForwardingAction{},
+					}},
+				}},
+			},
+		},
+		SkipValidation: true,
+	}
+
+	if err := mgmtServer.Update(ctx, resources); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-modeCh:
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for SERVING")
+	}
+	for ; filter.created.Load() < 2 && ctx.Err() == nil; <-time.After(defaultTestShortTimeout) {
+	}
+	if got := filter.created.Load(); got != 2 {
+		t.Fatalf("created %d interceptors, want 2 (one per filter chain)", got)
+	}
+
+	// ---- ownership trace (verify run v-6feee980) ----
+	// snapshot logs, for every listener-cache entry, its refCnt next to the
+	// number of live configurations holding a reference to it, and returns
+	// the refCnt of the shared "count" filter under test.
+	snapshot := func(stage string) (cacheEntries int, sfRef int32) {
+		lw.mu.Lock()
+		defer lw.mu.Unlock()
+		cacheEntries = len(lw.httpFilters)
+		liveHolders := 0
+		for _, fc := range lw.activeFilterChainManager.filterChains {
+			rc := probeCurrentRC(fc)
+			if len(rc.serverFilters) > 0 {
+				liveHolders++
+			}
+			t.Logf("TRACE %-22s chain route=%s currentRC{err=%v, heldFilterRefs=%d, rcRefs=%d}", stage, fc.routeConfigName, rc.err, len(rc.serverFilters), probeRCRefs(rc))
+		}
+		for key, sf := range lw.httpFilters {
+			ref := sf.refCnt.Load()
+			t.Logf("TRACE %-22s cache[%s].refCnt=%d = liveConfigHolders(%d) + %d", stage, key.name, ref, liveHolders, int(ref)-liveHolders)
+			if int(ref)-liveHolders != 1 {
+				t.Errorf("%s: cache[%s] has %d refs beyond live configurations, want exactly 1 (the listener cache's own)", stage, key.name, int(ref)-liveHolders)
+			}
+			if key.name == "count" {
+				sfRef = ref
+			}
+		}
+		t.Logf("TRACE %-22s interceptors created=%d closed=%d filterDestroyed=%d", stage, filter.created.Load(), filter.closed.Load(), filter.filterDestroyed.Load())
+		return cacheEntries, sfRef
+	}
+	rcFor := func(route string) *usableRouteConfiguration {
+		lw.mu.Lock()
+		defer lw.mu.Unlock()
+		for _, fc := range lw.activeFilterChainManager.filterChains {
+			if fc.routeConfigName == route {
+				return probeCurrentRC(fc)
+			}
+		}
+		t.Fatalf("no filter chain for %s", route)
+		return nil
+	}
+	data1 := lw.rdsHandler.updates[route1]
+	data2 := lw.rdsHandler.updates[route2]
+
+	if _, ref := snapshot("after-install"); ref != 3 {
+		t.Errorf("after install: shared filter refCnt=%d, want 3 (1 cache + 1 per configuration)", ref)
+	}
+
+	retired1 := rcFor(route1)
+	rwu1 := rdsWatcherUpdate{err: errors.New("verify: route1 withdrawn")}
+	lw.rdsHandler.updates[route1] = rwu1
+	lw.handleRDSUpdate(route1, rwu1)
+	t.Logf("TRACE retired route1 configuration: rcRefs=%d heldFilterRefs(recorded)=%d", probeRCRefs(retired1), len(retired1.serverFilters))
+	if got := probeRCRefs(retired1); got != 0 {
+		t.Errorf("retired route1 configuration still has %d refs after error update", got)
+	}
+	if _, ref := snapshot("after-route1-error"); ref != 2 {
+		t.Errorf("after route1 error: shared filter refCnt=%d, want 2 (cache + route2 config)", ref)
+	}
+
+	retired2 := rcFor(route2)
+	rwu2 := rdsWatcherUpdate{err: errors.New("verify: route2 withdrawn")}
+	lw.rdsHandler.updates[route2] = rwu2
+	lw.handleRDSUpdate(route2, rwu2)
+	t.Logf("TRACE retired route2 configuration: rcRefs=%d heldFilterRefs(recorded)=%d", probeRCRefs(retired2), len(retired2.serverFilters))
+	if got := probeRCRefs(retired2); got != 0 {
+		t.Errorf("retired route2 configuration still has %d refs after error update", got)
+	}
+	entries, ref := snapshot("after-route2-error")
+	if ref != 1 || entries != 2 {
+		t.Errorf("after route2 error: cacheEntries=%d shared filter refCnt=%d, want 2 entries (count, router) and exactly 1 ref (the listener cache's own)", entries, ref)
+	}
+	if got := filter.closed.Load(); got != 2 {
+		t.Errorf("after both errors: %d interceptors closed, want 2", got)
+	}
+
+	// Repeat install->error cycles: a per-retirement leak would grow refCnt.
+	const cycles = 50
+	for i := 0; i < cycles; i++ {
+		for _, u := range []struct {
+			name string
+			upd  rdsWatcherUpdate
+		}{{route1, data1}, {route2, data2}, {route1, rwu1}, {route2, rwu2}} {
+			lw.rdsHandler.updates[u.name] = u.upd
+			lw.handleRDSUpdate(u.name, u.upd)
+		}
+	}
+	entries, ref = snapshot("after-50-cycles")
+	if ref != 1 || entries != 2 {
+		t.Errorf("after %d cycles: cacheEntries=%d refCnt=%d, want 2/1", cycles, entries, ref)
+	}
+	if c, d := filter.created.Load(), filter.closed.Load(); c != d || c != 2+2*cycles {
+		t.Errorf("after %d cycles: interceptors created=%d closed=%d, want both %d", cycles, c, d, 2+2*cycles)
+	}
+	if got := filter.filterDestroyed.Load(); got != 0 {
+		t.Errorf("filter destroyed %d times while listener cache still live", got)
+	}
+
+	// Dropping the listener cache's reference alone must destroy the filter:
+	// proves the single remaining reference was the cache's.
+	cached := func() *refCountedServerFilter {
+		lw.mu.Lock()
+		defer lw.mu.Unlock()
+		for key, sf := range lw.httpFilters {
+			if key.name == "count" {
+				return sf
+			}
+		}
+		return nil
+	}()
+	lw.Close()
+	t.Logf("TRACE %-28s sharedFilter.refCnt=%d filterDestroyed=%d", "after-listener-Close", cached.refCnt.Load(), filter.filterDestroyed.Load())
+	if got := filter.filterDestroyed.Load(); got != 1 {
+		t.Errorf("after listener Close: filter destroyed %d times, want 1", got)
+	}
+	if got := cached.refCnt.Load(); got != 0 {
+		t.Errorf("after listener Close: refCnt=%d, want 0", got)
+	}
+}

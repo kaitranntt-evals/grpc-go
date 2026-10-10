@@ -1,0 +1,15 @@
+diff --git a/internal/xds/server/listener_wrapper_test.go b/internal/xds/server/listener_wrapper_test.go
+index 4724c451..5833f0a6 100644
+--- a/internal/xds/server/listener_wrapper_test.go
++++ b/internal/xds/server/listener_wrapper_test.go
+@@ -145,6 +145,10 @@ func (s) TestListenerWrapper_RouteConfigUpdate_ReleasesSupersededResources(t *te
+ 		numRoutesLast = 1
+ 	)
+ 	fb := &countingFilterBuilder{}
++	// VERIFY C3 observer: registered before the helper's cleanup, so it runs after it (LIFO).
++	t.Cleanup(func() {
++		t.Logf("VERIFY C3 observer, after all other cleanups: test failed=%v | filtersCreated=%d filtersClosed=%d interceptorsBuilt=%d interceptorsClosed=%d", t.Failed(), fb.filtersCreated.Load(), fb.filtersClosed.Load(), fb.interceptorsBuilt.Load(), fb.interceptorsClosed.Load())
++	})
+ 	filters := []xdsresource.HTTPFilter{{Name: "counting", Filter: fb, Config: filterCfg{}}}
+ 	l := newTestListenerWrapperWithRDS(t, routeName, filters)
+ 	fc := l.activeFilterChainManager.filterChains[0]

@@ -1,0 +1,67 @@
+diff --git a/internal/xds/server/conn_wrapper.go b/internal/xds/server/conn_wrapper.go
+index ce210af8..fc5a8138 100644
+--- a/internal/xds/server/conn_wrapper.go
++++ b/internal/xds/server/conn_wrapper.go
+@@ -156,6 +156,7 @@ func (c *connWrapper) Close() error {
+ 			c.rootProvider.Close()
+ 		}
+ 		c.parent.removeConn(c)
++		time.Sleep(200 * time.Millisecond) // VERIFY C2: delay drain-time retirement.
+ 		c.urc.removeConn()
+ 	})
+ 	return c.Conn.Close()
+diff --git a/internal/xds/server/filter_chain_manager.go b/internal/xds/server/filter_chain_manager.go
+index 6ceaee43..4a0d4c94 100644
+--- a/internal/xds/server/filter_chain_manager.go
++++ b/internal/xds/server/filter_chain_manager.go
+@@ -26,6 +26,7 @@ import (
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
++	"time"
+ 
+ 	"google.golang.org/grpc/codes"
+ 	"google.golang.org/grpc/internal/resolver"
+@@ -241,6 +242,7 @@ type usableRouteConfiguration struct {
+ }
+ 
+ func (rc *usableRouteConfiguration) release() {
++	time.Sleep(30 * time.Millisecond) // VERIFY C2: widen every retirement window.
+ 	if rc.refCnt.Add(-1) == 0 {
+ 		rc.close()
+ 	}
+diff --git a/test/xds/xds_server_filter_state_retention_test.go b/test/xds/xds_server_filter_state_retention_test.go
+index f8839ae8..7b254496 100644
+--- a/test/xds/xds_server_filter_state_retention_test.go
++++ b/test/xds/xds_server_filter_state_retention_test.go
+@@ -183,8 +183,13 @@ func (s) TestServerSideXDS_FilterStateRetention_AcrossRDSUpdates(t *testing.T) {
+ 
+ 	managementServer, nodeID, bootstrapContents, _ := setup.ManagementServerAndResolver(t)
+ 	servingCh := make(chan struct{}, 1)
++	var servingSends, rpcs, maxBefore, maxAfter atomic.Int32
++	defer func() {
++		t.Logf("VERIFY C2: servingCh sends=%d; RPCs=%d; max len(pathCh) before RPC=%d, after RPC=%d (cap=%d)", servingSends.Load(), rpcs.Load(), maxBefore.Load(), maxAfter.Load(), cap(pathCh))
++	}()
+ 	lis, stopServer := setupGRPCServer(t, bootstrapContents, xds.ServingModeCallback(func(_ net.Addr, args xds.ServingModeChangeArgs) {
+ 		if args.Mode == connectivity.ServingModeServing {
++			t.Logf("VERIFY C2: servingCh send #%d, len(servingCh)=%d cap=%d before send", servingSends.Add(1), len(servingCh), cap(servingCh))
+ 			servingCh <- struct{}{}
+ 		}
+ 	}))
+@@ -233,9 +238,16 @@ func (s) TestServerSideXDS_FilterStateRetention_AcrossRDSUpdates(t *testing.T) {
+ 		t.Helper()
+ 		for {
+ 			var p peer.Peer
++			rpcs.Add(1)
++			if n := int32(len(pathCh)); n > maxBefore.Load() {
++				maxBefore.Store(n)
++			}
+ 			if _, err := client.EmptyCall(ctx, &testpb.Empty{}, grpc.Peer(&p)); err != nil {
+ 				t.Fatalf("EmptyCall() failed during RDS update: %v", err)
+ 			}
++			if n := int32(len(pathCh)); n > maxAfter.Load() {
++				maxAfter.Store(n)
++			}
+ 			if localAddr == "" {
+ 				localAddr = p.LocalAddr.String()
+ 			} else if got := p.LocalAddr.String(); got != localAddr {

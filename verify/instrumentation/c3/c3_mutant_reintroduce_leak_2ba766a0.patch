@@ -1,0 +1,13 @@
+diff --git a/internal/xds/server/filter_chain_manager.go b/internal/xds/server/filter_chain_manager.go
+index 40bd717a..c714106e 100644
+--- a/internal/xds/server/filter_chain_manager.go
++++ b/internal/xds/server/filter_chain_manager.go
+@@ -425,7 +425,7 @@ func filterBySourcePorts(spe *sourcePrefixEntry, srcPort int) *filterChain {
+ // are retained across updates as required by gRFC A83.
+ func (fc *filterChain) storeUsableRouteConfiguration(urc *usableRouteConfiguration) {
+ 	old := fc.usableRouteConfiguration.Swap(urc)
+-	old.close()
++	_ = old // VERIFY C3 MUTANT: reintroduce the original leak so the regression assertion fires.
+ }
+ 
+ // setRouteConfigurationError marks the route configuration of this filter

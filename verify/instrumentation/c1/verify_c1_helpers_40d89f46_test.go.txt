@@ -1,0 +1,9 @@
+// Per-branch accessors for verify_c1_ownership_probe_test.go (branch evalon/grpc-go-xd-40d89f46).
+package server
+
+func probeCurrentRC(fc *filterChain) *usableRouteConfiguration {
+	fc.usableRouteConfiguration.mu.Lock()
+	defer fc.usableRouteConfiguration.mu.Unlock()
+	return fc.usableRouteConfiguration.rc
+}
+func probeRCRefs(rc *usableRouteConfiguration) int32 { return rc.refCnt.Load() }
