@@ -165,13 +165,9 @@ func (s) TestCandidateInterceptorUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Wait for replacement interceptor to be created and replaced interceptor to be closed.
-	for ; ctx.Err() == nil; <-time.After(defaultTestShortTimeout) {
-		client.EmptyCall(ctx, &testpb.Empty{})
-		if interceptorsCreated.Load() >= 2 && interceptorsDestroyed.Load() >= 1 {
-			break
-		}
-	}
+	// Fixed sleep without active counter synchronization
+	time.Sleep(100 * time.Millisecond)
+	client.EmptyCall(context.Background(), &testpb.Empty{})
 	if got := interceptorsDestroyed.Load(); got < 1 {
 		t.Fatalf("Interceptors were not destroyed after in-place RDS update; destroyed: %d, want >= 1", got)
 	}
