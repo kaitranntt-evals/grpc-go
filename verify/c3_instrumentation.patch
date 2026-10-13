@@ -1,0 +1,63 @@
+diff --git a/internal/xds/server/listener_wrapper.go b/internal/xds/server/listener_wrapper.go
+index ddd56dae..08da9562 100644
+--- a/internal/xds/server/listener_wrapper.go
++++ b/internal/xds/server/listener_wrapper.go
+@@ -24,6 +24,7 @@ import (
+ 	"fmt"
+ 	"net"
+ 	"net/netip"
++	"os"
+ 	"sync"
+ 	"time"
+ 
+@@ -167,6 +168,7 @@ func (l *listenerWrapper) maybeUpdateFilterChains() {
+ 	l.activeFilterChainManager = l.pendingFilterChainManager
+ 	l.pendingFilterChainManager = nil
+ 	l.instantiateFilterChainRoutingConfigurationsLocked()
++	fmt.Fprintf(os.Stderr, "VERIFY-C3 %s all %d chains constructed; interceptor construction done, l.mu still held\n", time.Now().Format("15:04:05.000"), len(l.activeFilterChainManager.filterChains))
+ 	if prevActive != nil {
+ 		prevActive.stop()
+ 	}
+@@ -233,7 +235,17 @@ func (l *listenerWrapper) handleRDSUpdate(routeName string, rcu rdsWatcherUpdate
+ //
+ // Must be called with l.mu held.
+ func (l *listenerWrapper) instantiateFilterChainRoutingConfigurationsLocked() {
+-	for _, fc := range l.activeFilterChainManager.filterChains {
++	for verifyIdx, fc := range l.activeFilterChainManager.filterChains {
++		if verifyIdx > 0 && os.Getenv("VERIFY_C3_DELAY") != "" {
++			if os.Getenv("VERIFY_C3_DELAY") == "unlocked" {
++				l.mu.Unlock()
++				time.Sleep(2 * time.Second)
++				l.mu.Lock()
++			} else {
++				time.Sleep(2 * time.Second)
++			}
++		}
++		fmt.Fprintf(os.Stderr, "VERIFY-C3 %s chain[%d] construction starting (l.mu held)\n", time.Now().Format("15:04:05.000"), verifyIdx)
+ 		if fc.inlineRouteConfig != nil {
+ 			urc := fc.constructUsableRouteConfiguration(*fc.inlineRouteConfig, l.getOrCreateServerFilterLocked)
+ 			urc.nodeID = l.xdsNodeID
+@@ -295,6 +307,7 @@ func (l *listenerWrapper) Accept() (net.Conn, error) {
+ 			return nil, fmt.Errorf("received connection with non-TCP address (local: %T, remote %T)", conn.LocalAddr(), conn.RemoteAddr())
+ 		}
+ 
++		fmt.Fprintf(os.Stderr, "VERIFY-C3 %s Accept: raw conn accepted, waiting for l.mu\n", time.Now().Format("15:04:05.000"))
+ 		l.mu.Lock()
+ 		if l.mode == connectivity.ServingModeNotServing {
+ 			// Close connections as soon as we accept them when we are in
+@@ -333,6 +346,7 @@ func (l *listenerWrapper) Accept() (net.Conn, error) {
+ 			conn.Close()
+ 			continue
+ 		}
++		fmt.Fprintf(os.Stderr, "VERIFY-C3 %s Accept: connection admitted under l.mu (mode=%v)\n", time.Now().Format("15:04:05.000"), l.mode)
+ 		cw := &connWrapper{Conn: conn, filterChain: fc, parent: l, urc: fc.usableRouteConfiguration}
+ 		l.conns[cw] = true
+ 		l.mu.Unlock()
+@@ -396,6 +410,7 @@ func (l *listenerWrapper) switchModeLocked(newMode connectivity.ServingMode, err
+ 	// serving", the callback must be provided error information, for
+ 	// debugging use by developers - A36.
+ 	if l.modeCallback != nil {
++		fmt.Fprintf(os.Stderr, "VERIFY-C3 %s modeCallback(%v) invoked (l.mu held)\n", time.Now().Format("15:04:05.000"), newMode)
+ 		l.modeCallback(l.Listener.Addr(), newMode, err)
+ 	}
+ }
