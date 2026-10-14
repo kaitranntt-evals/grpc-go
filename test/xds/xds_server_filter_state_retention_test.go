@@ -37,8 +37,10 @@ import (
 	"google.golang.org/grpc/internal/xds/httpfilter"
 	testgrpc "google.golang.org/grpc/interop/grpc_testing"
 	testpb "google.golang.org/grpc/interop/grpc_testing"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/xds"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
@@ -160,6 +162,129 @@ func newHTTPFilter(t *testing.T, name, typeURL, path string) *v3httppb.HttpFilte
 				},
 			}),
 		},
+	}
+}
+
+// RDS updates must release the superseded interceptors while retaining the
+// shared filter and continuing to serve RPCs on the same connection.
+func (s) TestServerSideXDS_FilterStateRetention_AcrossRouteUpdates(t *testing.T) {
+	var filtersCreated, filtersDestroyed, interceptorsCreated, interceptorsDestroyed atomic.Int32
+	pathCh := make(chan string, 1)
+	fb := &trackingHTTPFilterBuilder{
+		filtersCreated:        &filtersCreated,
+		filtersDestroyed:      &filtersDestroyed,
+		interceptorsCreated:   &interceptorsCreated,
+		interceptorsDestroyed: &interceptorsDestroyed,
+		typeURL:               t.Name(),
+		pathCh:                pathCh,
+	}
+	httpfilter.Register(fb)
+	defer httpfilter.UnregisterForTesting(fb.typeURL)
+
+	managementServer, nodeID, bootstrapContents, _ := setup.ManagementServerAndResolver(t)
+	serving := make(chan struct{}, 1)
+	lis, stopServer := setupGRPCServer(t, bootstrapContents, xds.ServingModeCallback(func(_ net.Addr, args xds.ServingModeChangeArgs) {
+		if args.Mode == connectivity.ServingModeServing {
+			serving <- struct{}{}
+		}
+	}))
+	defer stopServer()
+	host, port, err := hostPortFromListener(lis)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const routeName = "server-route"
+	listener := e2e.DefaultServerListenerWithRouteConfigName(host, port, e2e.SecurityLevelNone, routeName)
+	hcm := &v3httppb.HttpConnectionManager{}
+	if err := listener.FilterChains[0].Filters[0].GetTypedConfig().UnmarshalTo(hcm); err != nil {
+		t.Fatal(err)
+	}
+	hcm.HttpFilters = append([]*v3httppb.HttpFilter{newHTTPFilter(t, "tracker", fb.typeURL, "base")}, hcm.HttpFilters...)
+	listener.DefaultFilterChain = &v3listenerpb.FilterChain{Filters: []*v3listenerpb.Filter{{
+		Name:       "hcm",
+		ConfigType: &v3listenerpb.Filter_TypedConfig{TypedConfig: testutils.MarshalAny(t, hcm)},
+	}}}
+	listener.FilterChains = nil
+	resources := e2e.UpdateOptions{
+		NodeID:    nodeID,
+		Listeners: []*v3listenerpb.Listener{listener},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	defer cancel()
+	cc, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cc.Close()
+	client := testgrpc.NewTestServiceClient(cc)
+	var connAddr string
+	const updates = 5
+	for version := range updates {
+		path := fmt.Sprintf("version-%d", version)
+		route := e2e.RouteConfigNonForwardingAction(routeName)
+		route.VirtualHosts[0].Routes[0].TypedPerFilterConfig = map[string]*anypb.Any{
+			"tracker": newHTTPFilter(t, "tracker", fb.typeURL, path).GetTypedConfig(),
+		}
+		resources.Routes = []*v3routepb.RouteConfiguration{route}
+		if err := managementServer.Update(ctx, resources); err != nil {
+			t.Fatal(err)
+		}
+		if version == 0 {
+			select {
+			case <-serving:
+			case <-ctx.Done():
+				t.Fatal("Timeout waiting for server to enter SERVING mode")
+			}
+		}
+
+		// Send requests while the update is being applied. Every request must
+		// succeed, and the interceptor must eventually observe the new config.
+	WaitForUpdatedConfig:
+		for {
+			var p peer.Peer
+			if _, err := client.EmptyCall(ctx, &testpb.Empty{}, grpc.Peer(&p)); err != nil {
+				t.Fatalf("EmptyCall() during update %d failed: %v", version, err)
+			}
+			if connAddr == "" {
+				connAddr = p.LocalAddr.String()
+			} else if got := p.LocalAddr.String(); got != connAddr {
+				t.Fatalf("RPC connection changed from %q to %q", connAddr, got)
+			}
+			select {
+			case got := <-pathCh:
+				if got == path {
+					break WaitForUpdatedConfig
+				}
+			case <-ctx.Done():
+				t.Fatal("Timeout waiting for interceptor invocation")
+			}
+		}
+		// Publication and cleanup can race with the RPC which observes the
+		// new config, so wait for the superseded interceptors to be closed.
+		for interceptorsDestroyed.Load() != int32(version) && ctx.Err() == nil {
+			time.Sleep(time.Millisecond)
+		}
+		if got := interceptorsDestroyed.Load(); got != int32(version) {
+			t.Fatalf("After update %d, closed %d interceptors, want %d", version, got, version)
+		}
+		if got := interceptorsCreated.Load(); got != int32(version+1) {
+			t.Fatalf("After update %d, created %d interceptors, want %d", version, got, version+1)
+		}
+		if got := filtersCreated.Load(); got != 1 {
+			t.Fatalf("Created %d filters, want 1", got)
+		}
+		if got := filtersDestroyed.Load(); got != 0 {
+			t.Fatalf("Closed %d filters while still serving, want 0", got)
+		}
+	}
+
+	stopServer()
+	if got := interceptorsDestroyed.Load(); got != updates {
+		t.Errorf("After shutdown, closed %d interceptors, want %d", got, updates)
+	}
+	if got := filtersDestroyed.Load(); got != 1 {
+		t.Errorf("After shutdown, closed %d filters, want 1", got)
 	}
 }
 

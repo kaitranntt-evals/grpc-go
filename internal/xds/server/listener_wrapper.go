@@ -212,12 +212,12 @@ func (l *listenerWrapper) handleRDSUpdate(routeName string, rcu rdsWatcherUpdate
 			if rcu.err != nil && rcu.data == nil { // Either NACK before update, or resource not found triggers this conditional.
 				urc := &usableRouteConfiguration{err: rcu.err}
 				urc.nodeID = l.xdsNodeID
-				fc.usableRouteConfiguration.Store(urc)
+				fc.updateUsableRouteConfiguration(urc)
 				continue
 			}
 			urc := fc.constructUsableRouteConfiguration(*rcu.data, l.getOrCreateServerFilterLocked)
 			urc.nodeID = l.xdsNodeID
-			fc.usableRouteConfiguration.Store(urc)
+			fc.updateUsableRouteConfiguration(urc)
 		}
 	}
 	l.mu.Unlock()
@@ -237,19 +237,19 @@ func (l *listenerWrapper) instantiateFilterChainRoutingConfigurationsLocked() {
 		if fc.inlineRouteConfig != nil {
 			urc := fc.constructUsableRouteConfiguration(*fc.inlineRouteConfig, l.getOrCreateServerFilterLocked)
 			urc.nodeID = l.xdsNodeID
-			fc.usableRouteConfiguration.Store(urc) // Can't race with an RPC coming in but no harm making atomic.
+			fc.updateUsableRouteConfiguration(urc)
 			continue
 		} // Inline configuration constructed once here, will remain for lifetime of filter chain.
 		rcu := l.rdsHandler.updates[fc.routeConfigName]
 		if rcu.err != nil && rcu.data == nil {
 			urc := &usableRouteConfiguration{err: rcu.err}
 			urc.nodeID = l.xdsNodeID
-			fc.usableRouteConfiguration.Store(urc)
+			fc.updateUsableRouteConfiguration(urc)
 			continue
 		}
 		urc := fc.constructUsableRouteConfiguration(*rcu.data, l.getOrCreateServerFilterLocked)
 		urc.nodeID = l.xdsNodeID
-		fc.usableRouteConfiguration.Store(urc) // Can't race with an RPC coming in but no harm making atomic.
+		fc.updateUsableRouteConfiguration(urc)
 	}
 }
 
@@ -418,7 +418,9 @@ func (l *listenerWrapper) getOrCreateServerFilterLocked(filter xdsresource.HTTPF
 // custom map.
 func getOrCreateServerFilterWithMap(httpFilters map[serverFilterKey]*refCountedServerFilter, builder httpfilter.ServerFilterBuilder, key serverFilterKey) httpfilter.ServerFilter {
 	serverFilter, ok := httpFilters[key]
-	if ok {
+	// A route error or disabled filter can release the last reference while
+	// leaving the filter in the cache. Such an instance has already been closed.
+	if ok && serverFilter.refCnt.Load() != 0 {
 		serverFilter.incRef()
 		return serverFilter
 	}

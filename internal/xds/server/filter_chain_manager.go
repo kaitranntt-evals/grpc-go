@@ -24,6 +24,7 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"google.golang.org/grpc/codes"
@@ -122,17 +123,6 @@ func (fcm *filterChainManager) filterChainFromConfig(config *xdsresource.Network
 
 func (fcm *filterChainManager) stop() {
 	for _, fc := range fcm.filterChains {
-		urc := fc.usableRouteConfiguration.Load()
-		if urc.err != nil {
-			continue
-		}
-		for _, vh := range urc.vhs {
-			for _, r := range vh.routes {
-				if r.interceptor != nil {
-					r.interceptor.Close()
-				}
-			}
-		}
 		fc.stop()
 	}
 }
@@ -174,7 +164,6 @@ type sourcePrefixEntry struct {
 type filterChain struct {
 	securityCfg              *xdsresource.SecurityConfig
 	httpFilters              []xdsresource.HTTPFilter
-	serverFilters            []httpfilter.ServerFilter // Server filters with reference counts, stored for cleanup purposes.
 	routeConfigName          string
 	inlineRouteConfig        *xdsresource.RouteConfigUpdate
 	usableRouteConfiguration *atomic.Pointer[usableRouteConfiguration]
@@ -186,6 +175,24 @@ type usableRouteConfiguration struct {
 	vhs    []virtualHostWithInterceptors
 	err    error
 	nodeID string // For logging purposes. Populated by the listener wrapper.
+
+	serverFilters []httpfilter.ServerFilter // References owned by this configuration.
+	closeOnce     sync.Once
+	mu            sync.RWMutex // Prevents cleanup while an RPC is using the interceptors.
+}
+
+// close releases interceptors before the filter references they depend on.
+func (rc *usableRouteConfiguration) close() {
+	rc.closeOnce.Do(func() {
+		rc.mu.Lock()
+		defer rc.mu.Unlock()
+		for _, vh := range rc.vhs {
+			vh.close()
+		}
+		for _, sf := range rc.serverFilters {
+			sf.Close()
+		}
+	})
 }
 
 // virtualHostWithInterceptors captures information present in a VirtualHost
@@ -193,6 +200,14 @@ type usableRouteConfiguration struct {
 type virtualHostWithInterceptors struct {
 	domains []string
 	routes  []routeWithInterceptors
+}
+
+func (vh *virtualHostWithInterceptors) close() {
+	for _, r := range vh.routes {
+		if r.interceptor != nil {
+			r.interceptor.Close()
+		}
+	}
 }
 
 // routeWithInterceptors captures information in a Route, and contains
@@ -383,9 +398,13 @@ func filterBySourcePorts(spe *sourcePrefixEntry, srcPort int) *filterChain {
 }
 
 func (fc *filterChain) stop() {
-	for _, sf := range fc.serverFilters {
-		sf.Close()
-	}
+	fc.usableRouteConfiguration.Load().close()
+}
+
+// updateUsableRouteConfiguration publishes the new configuration before
+// releasing the resources owned by the superseded configuration.
+func (fc *filterChain) updateUsableRouteConfiguration(rc *usableRouteConfiguration) {
+	fc.usableRouteConfiguration.Swap(rc).close()
 }
 
 // serverFilterProvider is used to get a ServerFilter.
@@ -400,53 +419,44 @@ type serverFilterProvider func(filter xdsresource.HTTPFilter) (httpfilter.Server
 // constructUsableRouteConfiguration takes Route Configuration and converts it
 // into matchable route configuration, with instantiated HTTP Filters per route.
 func (fc *filterChain) constructUsableRouteConfiguration(config xdsresource.RouteConfigUpdate, provider serverFilterProvider) *usableRouteConfiguration {
-	vhs := make([]virtualHostWithInterceptors, 0, len(config.VirtualHosts))
-	var serverFilters []httpfilter.ServerFilter
+	rc := &usableRouteConfiguration{vhs: make([]virtualHostWithInterceptors, 0, len(config.VirtualHosts))}
 	for _, vh := range config.VirtualHosts {
 		vhwi, sfs, err := fc.convertVirtualHost(vh, provider)
 		if err != nil {
-			for _, sf := range serverFilters {
-				sf.Close()
-			}
+			rc.close()
 			// Non nil if (lds + rds) fails, shouldn't happen since validated by
 			// xDS Client, treat as L7 error but shouldn't happen.
 			return &usableRouteConfiguration{err: fmt.Errorf("virtual host construction: %v", err)}
 		}
-		vhs = append(vhs, vhwi)
-		serverFilters = append(serverFilters, sfs...)
+		rc.vhs = append(rc.vhs, vhwi)
+		rc.serverFilters = append(rc.serverFilters, sfs...)
 	}
-
-	// Release references to old server filters before replacing with new ones.
-	for _, sf := range fc.serverFilters {
-		sf.Close()
-	}
-	fc.serverFilters = serverFilters
-
-	return &usableRouteConfiguration{vhs: vhs}
+	return rc
 }
 
 func (fc *filterChain) convertVirtualHost(virtualHost *xdsresource.VirtualHost, provider serverFilterProvider) (_ virtualHostWithInterceptors, _ []httpfilter.ServerFilter, err error) {
 	var serverFilters []httpfilter.ServerFilter
+	vh := virtualHostWithInterceptors{domains: virtualHost.Domains, routes: make([]routeWithInterceptors, len(virtualHost.Routes))}
 	defer func() {
 		if err != nil {
+			vh.close()
 			for _, sf := range serverFilters {
 				sf.Close()
 			}
 		}
 	}()
 
-	rs := make([]routeWithInterceptors, len(virtualHost.Routes))
 	for i, r := range virtualHost.Routes {
-		rs[i].actionType = r.ActionType
-		rs[i].matcher = xdsresource.RouteToMatcher(r)
+		vh.routes[i].actionType = r.ActionType
+		vh.routes[i].matcher = xdsresource.RouteToMatcher(r)
 		interceptor, sfs, err := fc.newInterceptor(r.HTTPFilterConfigOverride, virtualHost.HTTPFilterConfigOverride, provider)
 		if err != nil {
 			return virtualHostWithInterceptors{}, nil, err
 		}
 		serverFilters = append(serverFilters, sfs...)
-		rs[i].interceptor = interceptor
+		vh.routes[i].interceptor = interceptor
 	}
-	return virtualHostWithInterceptors{domains: virtualHost.Domains, routes: rs}, serverFilters, nil
+	return vh, serverFilters, nil
 }
 
 // statusErrWithNodeID returns an error produced by the status package with the
@@ -460,11 +470,11 @@ func (fc *filterChain) newInterceptor(routeOverride, virtualHostOverride map[str
 	interceptors := make([]resolver.ServerInterceptor, 0, len(fc.httpFilters))
 	defer func() {
 		if err != nil {
-			for _, sf := range serverFilters {
-				sf.Close()
-			}
 			for _, i := range interceptors {
 				i.Close()
+			}
+			for _, sf := range serverFilters {
+				sf.Close()
 			}
 		}
 	}()
