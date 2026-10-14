@@ -1,0 +1,58 @@
+diff --git a/internal/xds/server/filter_chain_manager.go b/internal/xds/server/filter_chain_manager.go
+index 6baa61b5..4edbddd5 100644
+--- a/internal/xds/server/filter_chain_manager.go
++++ b/internal/xds/server/filter_chain_manager.go
+@@ -22,6 +22,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"net/netip"
++	"runtime/debug"
+ 	"slices"
+ 	"strings"
+ 	"sync/atomic"
+@@ -122,7 +123,10 @@ func (fcm *filterChainManager) filterChainFromConfig(config *xdsresource.Network
+ 
+ func (fcm *filterChainManager) stop() {
+ 	for _, fc := range fcm.filterChains {
+-		fc.usableRouteConfiguration.Load().release()
++		urc := fc.usableRouteConfiguration.Load()
++		fmt.Printf("VERIFY-C1 fcm.stop: before release refs=%d released=%v\n", urc.refs.Load(), urc.released.Load())
++		urc.release()
++		fmt.Printf("VERIFY-C1 fcm.stop: after release refs=%d (interceptors closed synchronously iff 0)\n", urc.refs.Load())
+ 		fc.stop()
+ 	}
+ }
+@@ -220,6 +224,9 @@ func (rc *usableRouteConfiguration) release() {
+ }
+ 
+ func (rc *usableRouteConfiguration) closeInterceptors() {
++	if len(rc.vhs) > 0 {
++		fmt.Printf("VERIFY-C1 closeInterceptors called from:\n%s\n", debug.Stack())
++	}
+ 	for _, vh := range rc.vhs {
+ 		closeRouteInterceptors(vh.routes)
+ 	}
+diff --git a/internal/xds/server/routing.go b/internal/xds/server/routing.go
+index bc5ac48f..550573ff 100644
+--- a/internal/xds/server/routing.go
++++ b/internal/xds/server/routing.go
+@@ -23,6 +23,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"strings"
++	"time"
+ 
+ 	"google.golang.org/grpc"
+ 	"google.golang.org/grpc/codes"
+@@ -44,7 +45,10 @@ func RouteAndProcess(ctx context.Context) error {
+ 	}
+ 
+ 	rc, done := acquireUsableRouteConfiguration(cw.urc)
+-	defer done()
++	defer func() {
++		time.Sleep(200 * time.Millisecond) // VERIFY-C1: widen the window between routing and reference release
++		done()
++	}()
+ 	// Error out at routing l7 level with a status code UNAVAILABLE, represents
+ 	// an nack before usable route configuration or resource not found for RDS
+ 	// or error combining LDS + RDS (Shouldn't happen).
