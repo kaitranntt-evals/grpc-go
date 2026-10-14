@@ -1,0 +1,21 @@
+diff --git a/test/xds/xds_server_rds_update_test.go b/test/xds/xds_server_rds_update_test.go
+index 2ae99742..0168c5b4 100644
+--- a/test/xds/xds_server_rds_update_test.go
++++ b/test/xds/xds_server_rds_update_test.go
+@@ -22,6 +22,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"fmt"
++	"os"
+ 	"net"
+ 	"sync"
+ 	"sync/atomic"
+@@ -95,6 +96,8 @@ func (i *liveInterceptor) AllowRPC(context.Context) error {
+ func (i *liveInterceptor) Close() {
+ 	if !i.closed.Swap(true) {
+ 		i.parent.liveInterceptors.Add(-1)
++	} else {
++		fmt.Fprintf(os.Stderr, "C6OBS: duplicate Close on interceptor %p silently ignored by liveInterceptor.Close\n", i)
+ 	}
+ }
+ 

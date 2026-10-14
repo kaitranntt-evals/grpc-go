@@ -1,0 +1,29 @@
+diff --git a/internal/xds/server/listener_wrapper.go b/internal/xds/server/listener_wrapper.go
+index 7449bb90..d7132722 100644
+--- a/internal/xds/server/listener_wrapper.go
++++ b/internal/xds/server/listener_wrapper.go
+@@ -23,6 +23,7 @@ package server
+ import (
+ 	"fmt"
+ 	"net"
++	"os"
+ 	"net/netip"
+ 	"sync"
+ 	"time"
+@@ -224,6 +225,16 @@ func (l *listenerWrapper) handleRDSUpdate(routeName string, rcu rdsWatcherUpdate
+ 			fc.storeUsableRouteConfiguration(urc)
+ 		}
+ 	}
++	// verify C7 production mutation: drain every accepted connection on each
++	// RDS update (the regression the test's continuity assertion targets).
++	c7conns := l.conns
++	l.conns = make(map[*connWrapper]bool)
++	fmt.Fprintf(os.Stderr, "C7MUT: RDS update for %q draining %d accepted connection(s)\n", routeName, len(c7conns))
++	go func() {
++		for conn := range c7conns {
++			conn.Drain()
++		}
++	}()
+ 	l.mu.Unlock()
+ 
+ 	if l.rdsHandler.determineRouteConfigurationReady() {

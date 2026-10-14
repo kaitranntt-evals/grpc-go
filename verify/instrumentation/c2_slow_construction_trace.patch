@@ -1,0 +1,84 @@
+diff --git a/internal/xds/server/listener_wrapper_test.go b/internal/xds/server/listener_wrapper_test.go
+index 909d5ab2..7dd6fb62 100644
+--- a/internal/xds/server/listener_wrapper_test.go
++++ b/internal/xds/server/listener_wrapper_test.go
+@@ -21,6 +21,7 @@ package server
+ import (
+ 	"context"
+ 	"fmt"
++	"os"
+ 	"net"
+ 	"strconv"
+ 	"sync"
+@@ -87,11 +88,14 @@ func (b *lifecycleTrackingFilterBuilder) BuildServerFilter() httpfilter.ServerFi
+ func (b *lifecycleTrackingFilterBuilder) Close() { b.filtersClosed.Add(1) }
+ 
+ func (b *lifecycleTrackingFilterBuilder) BuildServerInterceptor(httpfilter.FilterConfig, httpfilter.FilterConfig) (iresolver.ServerInterceptor, error) {
++	verifyC2Trace("construct-begin")
++	time.Sleep(300 * time.Millisecond) // verify C2 mutation: slow construction
+ 	i := &lifecycleTrackingInterceptor{parent: b}
+ 	b.mu.Lock()
+ 	b.openInterceptors[i] = true
+ 	b.mu.Unlock()
+-	b.interceptorsCreated.Add(1)
++	n := b.interceptorsCreated.Add(1)
++	verifyC2Trace(fmt.Sprintf("construct-end created=%d", n))
+ 	return i, nil
+ }
+ 
+@@ -122,7 +126,14 @@ func (i *lifecycleTrackingInterceptor) Close() {
+ 		i.parent.doubleClosedIntercept.Add(1)
+ 		return
+ 	}
+-	i.parent.interceptorsClosed.Add(1)
++	n := i.parent.interceptorsClosed.Add(1)
++	verifyC2Trace(fmt.Sprintf("close closed=%d (created=%d at this instant)", n, i.parent.interceptorsCreated.Load()))
++}
++
++var verifyC2Start = time.Now()
++
++func verifyC2Trace(ev string) {
++	fmt.Fprintf(os.Stderr, "C2TRACE +%4dms %s\n", time.Since(verifyC2Start).Milliseconds(), ev)
+ }
+ 
+ // serverListenerWithRDS returns a server-side Listener resource with a default
+diff --git a/test/xds/xds_server_filter_state_retention_test.go b/test/xds/xds_server_filter_state_retention_test.go
+index ad800da5..4b8280d3 100644
+--- a/test/xds/xds_server_filter_state_retention_test.go
++++ b/test/xds/xds_server_filter_state_retention_test.go
+@@ -21,6 +21,7 @@ package xds_test
+ import (
+ 	"context"
+ 	"fmt"
++	"os"
+ 	"net"
+ 	"strconv"
+ 	"sync/atomic"
+@@ -113,7 +114,10 @@ func (t *trackingHTTPFilterBuilder) Close() {
+ var _ httpfilter.ServerFilterBuilder = &trackingHTTPFilterBuilder{}
+ 
+ func (t *trackingHTTPFilterBuilder) BuildServerInterceptor(config, override httpfilter.FilterConfig) (resolver.ServerInterceptor, error) {
+-	t.interceptorsCreated.Add(1)
++	verifyC2Trace("construct-begin")
++	time.Sleep(300 * time.Millisecond) // verify C2 mutation: slow construction
++	n := t.interceptorsCreated.Add(1)
++	defer verifyC2Trace(fmt.Sprintf("construct-end created=%d", n))
+ 
+ 	var effectiveCfg testFilterCfg
+ 	if override != nil {
+@@ -144,7 +148,14 @@ func (i *trackingInterceptor) AllowRPC(context.Context) error {
+ }
+ 
+ func (i *trackingInterceptor) Close() {
+-	i.parent.interceptorsDestroyed.Add(1)
++	n := i.parent.interceptorsDestroyed.Add(1)
++	verifyC2Trace(fmt.Sprintf("close destroyed=%d (created=%d at this instant)", n, i.parent.interceptorsCreated.Load()))
++}
++
++var verifyC2Start = time.Now()
++
++func verifyC2Trace(ev string) {
++	fmt.Fprintf(os.Stderr, "C2TRACE +%4dms %s\n", time.Since(verifyC2Start).Milliseconds(), ev)
+ }
+ 
+ func newHTTPFilter(t *testing.T, name, typeURL, path string) *v3httppb.HttpFilter {

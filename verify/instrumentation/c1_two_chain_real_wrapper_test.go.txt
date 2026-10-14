@@ -1,0 +1,281 @@
+// Run: copy to internal/xds/server/verify_c1_test.go on branch evalon/grpc-go-xd-92fef2df, then: go test -race -v -count=1 -run '^Test$/^VerifyC1_' ./internal/xds/server
+//
+// C1 probe: two filter chains built through the production constructor
+// (NewListenerWrapper + real xDS management server), an RPC held in AllowRPC
+// on the previous configuration of chain A, then a real RDS replacement.
+// Checks whether replacement RPCs (chain A and chain B) complete on the new
+// generation, within a bounded deadline, before the old RPC is released.
+
+package server
+
+import (
+	"context"
+	"net"
+	"strconv"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+	iresolver "google.golang.org/grpc/internal/resolver"
+	"google.golang.org/grpc/internal/testutils"
+	"google.golang.org/grpc/internal/testutils/xds/e2e"
+	"google.golang.org/grpc/internal/transport"
+	"google.golang.org/grpc/internal/xds/httpfilter"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	v3xdsxdstypepb "github.com/cncf/xds/go/xds/type/v3"
+	v3corepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	v3listenerpb "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	v3httppb "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+)
+
+type vc1Cfg struct{ httpfilter.FilterConfig }
+
+type vc1Filter struct {
+	httpfilter.Builder
+	typeURL string
+	gen     atomic.Int32
+
+	mu      sync.Mutex
+	holdGen int32 // interceptor generation whose first AllowRPC blocks
+	held    bool
+	entered chan struct{}
+	release chan struct{}
+	closed  []int32
+}
+
+func (f *vc1Filter) TypeURLs() []string { return []string{f.typeURL} }
+func (f *vc1Filter) IsTerminal() bool   { return false }
+func (f *vc1Filter) ParseFilterConfig(proto.Message) (httpfilter.FilterConfig, error) {
+	return vc1Cfg{}, nil
+}
+func (f *vc1Filter) ParseFilterConfigOverride(proto.Message) (httpfilter.FilterConfig, error) {
+	return vc1Cfg{}, nil
+}
+func (f *vc1Filter) BuildServerFilter() httpfilter.ServerFilter { return f }
+func (f *vc1Filter) Close()                                     {}
+func (f *vc1Filter) BuildServerInterceptor(_, _ httpfilter.FilterConfig) (iresolver.ServerInterceptor, error) {
+	return &vc1Interceptor{f: f, gen: f.gen.Add(1)}, nil
+}
+
+type vc1Interceptor struct {
+	f   *vc1Filter
+	gen int32
+}
+
+type vc1GenKey struct{}
+
+func (i *vc1Interceptor) AllowRPC(ctx context.Context) error {
+	if p, ok := ctx.Value(vc1GenKey{}).(*int32); ok {
+		*p = i.gen
+	}
+	i.f.mu.Lock()
+	block := i.gen == i.f.holdGen && !i.f.held
+	if block {
+		i.f.held = true
+	}
+	i.f.mu.Unlock()
+	if block {
+		close(i.f.entered)
+		select {
+		case <-i.f.release:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return nil
+}
+func (i *vc1Interceptor) Close() {
+	i.f.mu.Lock()
+	i.f.closed = append(i.f.closed, i.gen)
+	i.f.mu.Unlock()
+}
+
+type vc1Stream struct{ grpc.ServerTransportStream }
+
+func (vc1Stream) Method() string { return "/service/method" }
+
+// vc1RPC routes one RPC through fc the way a connection accepted on fc would,
+// and returns the interceptor generation that served it.
+func vc1RPC(ctx context.Context, fc *filterChain) (int32, error) {
+	var gen int32
+	ctx = context.WithValue(ctx, vc1GenKey{}, &gen)
+	ctx = transport.SetConnection(ctx, &connWrapper{urc: fc.usableRouteConfiguration})
+	ctx = grpc.NewContextWithServerTransportStream(ctx, vc1Stream{})
+	ctx = metadata.NewIncomingContext(ctx, metadata.Pairs(":authority", "server"))
+	err := RouteAndProcess(ctx)
+	return gen, err
+}
+
+func (s) TestVerifyC1_TwoChainReplacementViaRealListenerWrapper(t *testing.T) {
+	filter := &vc1Filter{typeURL: t.Name(), entered: make(chan struct{}), release: make(chan struct{})}
+	httpfilter.Register(filter)
+	defer httpfilter.UnregisterForTesting(filter.typeURL)
+
+	mgmtServer, nodeID, _, _, xdsC := xdsSetupForTests(t)
+	lis, err := testutils.LocalTCPListener()
+	if err != nil {
+		t.Fatal(err)
+	}
+	host, p, _ := net.SplitHostPort(lis.Addr().String())
+	port, _ := strconv.Atoi(p)
+	modeCh := make(chan connectivity.ServingMode, 1)
+	lw := NewListenerWrapper(ListenerWrapperParams{
+		Listener:             lis,
+		ListenerResourceName: listenerName,
+		XDSClient:            xdsC,
+		ModeCallback: func(_ net.Addr, mode connectivity.ServingMode, _ error) {
+			select {
+			case modeCh <- mode:
+			default:
+			}
+		},
+	}).(*listenerWrapper)
+	defer lw.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	hcm := &v3httppb.HttpConnectionManager{
+		RouteSpecifier: &v3httppb.HttpConnectionManager_Rds{Rds: &v3httppb.Rds{
+			ConfigSource:    &v3corepb.ConfigSource{ConfigSourceSpecifier: &v3corepb.ConfigSource_Ads{Ads: &v3corepb.AggregatedConfigSource{}}},
+			RouteConfigName: route1,
+		}},
+		HttpFilters: []*v3httppb.HttpFilter{
+			{Name: "vc1", ConfigType: &v3httppb.HttpFilter_TypedConfig{TypedConfig: testutils.MarshalAny(t, &v3xdsxdstypepb.TypedStruct{TypeUrl: filter.typeURL, Value: &structpb.Struct{}})}},
+			e2e.RouterHTTPFilter,
+		},
+	}
+	chain := func(name, prefix string) *v3listenerpb.FilterChain {
+		return &v3listenerpb.FilterChain{
+			Name: name,
+			FilterChainMatch: &v3listenerpb.FilterChainMatch{
+				PrefixRanges: []*v3corepb.CidrRange{{AddressPrefix: prefix, PrefixLen: &wrapperspb.UInt32Value{Value: 0}}},
+			},
+			Filters: []*v3listenerpb.Filter{{
+				Name:       "hcm",
+				ConfigType: &v3listenerpb.Filter_TypedConfig{TypedConfig: testutils.MarshalAny(t, hcm)},
+			}},
+		}
+	}
+	routeCfg := func(extra string) *v3routepb.RouteConfiguration {
+		routes := []*v3routepb.Route{{
+			Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: "/"}},
+			Action: &v3routepb.Route_NonForwardingAction{},
+		}}
+		if extra != "" {
+			// Extra route placed AFTER the catch-all so it changes the
+			// resource (forcing a replacement) without changing matching.
+			routes = append(routes, &v3routepb.Route{
+				Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: extra}},
+				Action: &v3routepb.Route_NonForwardingAction{},
+			})
+		}
+		return &v3routepb.RouteConfiguration{
+			Name:         route1,
+			VirtualHosts: []*v3routepb.VirtualHost{{Domains: []string{"*"}, Routes: routes}},
+		}
+	}
+	resources := e2e.UpdateOptions{
+		NodeID: nodeID,
+		Listeners: []*v3listenerpb.Listener{{
+			Name: listenerName,
+			Address: &v3corepb.Address{Address: &v3corepb.Address_SocketAddress{SocketAddress: &v3corepb.SocketAddress{
+				Address: host, PortSpecifier: &v3corepb.SocketAddress_PortValue{PortValue: uint32(port)},
+			}}},
+			FilterChains: []*v3listenerpb.FilterChain{chain("fc-A", "0.0.0.0"), chain("fc-B", "::")},
+		}},
+		Routes:         []*v3routepb.RouteConfiguration{routeCfg("")},
+		SkipValidation: true,
+	}
+	if err := mgmtServer.Update(ctx, resources); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-modeCh:
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for SERVING")
+	}
+
+	lw.mu.Lock()
+	chains := append([]*filterChain(nil), lw.activeFilterChainManager.filterChains...)
+	lw.mu.Unlock()
+	if len(chains) != 2 {
+		t.Fatalf("got %d active filter chains, want 2", len(chains))
+	}
+	fcA, fcB := chains[0], chains[1]
+
+	// Baseline: both chains serve, record the generation each is on.
+	genA1, err := vc1RPC(ctx, fcA)
+	if err != nil {
+		t.Fatalf("baseline RPC on chain A: %v", err)
+	}
+	genB1, err := vc1RPC(ctx, fcB)
+	if err != nil {
+		t.Fatalf("baseline RPC on chain B: %v", err)
+	}
+	t.Logf("baseline: chain A served by interceptor gen %d, chain B by gen %d", genA1, genB1)
+
+	// Hold an RPC on chain A's previous configuration.
+	filter.mu.Lock()
+	filter.holdGen = genA1
+	filter.mu.Unlock()
+	oldDone := make(chan error, 1)
+	go func() { _, err := vc1RPC(ctx, fcA); oldDone <- err }()
+	select {
+	case <-filter.entered:
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for old RPC to enter AllowRPC")
+	}
+	t.Logf("old RPC is held inside AllowRPC of chain A gen %d", genA1)
+
+	// Real RDS replacement through the management server.
+	resources.Routes = []*v3routepb.RouteConfiguration{routeCfg("/extra")}
+	if err := mgmtServer.Update(ctx, resources); err != nil {
+		t.Fatal(err)
+	}
+
+	// Bounded: replacement RPCs on BOTH chains must be served by a newer
+	// generation within 5s, while the old RPC is still held.
+	deadline := time.Now().Add(5 * time.Second)
+	var gotA, gotB int32
+	start := time.Now()
+	for time.Now().Before(deadline) && (gotA <= genB1 || gotB <= genB1 || gotA <= genA1) {
+		pctx, pcancel := context.WithTimeout(ctx, 200*time.Millisecond)
+		if g, err := vc1RPC(pctx, fcA); err == nil && g > gotA && g != genA1 {
+			gotA = g
+		}
+		if g, err := vc1RPC(pctx, fcB); err == nil && g != genB1 {
+			gotB = g
+		}
+		pcancel()
+		time.Sleep(10 * time.Millisecond)
+	}
+	select {
+	case err := <-oldDone:
+		t.Fatalf("old RPC finished before release (err=%v); hold was not maintained", err)
+	default:
+	}
+	t.Logf("after %v with old RPC STILL HELD: chain A replacement RPC served by gen %d, chain B replacement RPC served by gen %d", time.Since(start).Round(time.Millisecond), gotA, gotB)
+	if gotA == 0 || gotB == 0 {
+		t.Errorf("STALL: replacement RPCs did not complete on the new configuration while old RPC held (A gen=%d, B gen=%d)", gotA, gotB)
+	}
+
+	close(filter.release)
+	select {
+	case err := <-oldDone:
+		t.Logf("old RPC released, returned err=%v", err)
+	case <-ctx.Done():
+		t.Fatal("old RPC did not finish after release")
+	}
+	filter.mu.Lock()
+	t.Logf("interceptor generations closed so far: %v", filter.closed)
+	filter.mu.Unlock()
+}

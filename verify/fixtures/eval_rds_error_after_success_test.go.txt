@@ -1,0 +1,430 @@
+/*
+ *
+ * Copyright 2026 gRPC authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+package server
+
+import (
+	"sync"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/internal/transport"
+	"google.golang.org/grpc/internal/xds/xdsclient/xdsresource"
+	"google.golang.org/grpc/metadata"
+	"context"
+	"errors"
+	"net"
+	"strconv"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/connectivity"
+	iresolver "google.golang.org/grpc/internal/resolver"
+	"google.golang.org/grpc/internal/testutils"
+	"google.golang.org/grpc/internal/testutils/xds/e2e"
+	"google.golang.org/grpc/internal/xds/httpfilter"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	v3xdsxdstypepb "github.com/cncf/xds/go/xds/type/v3"
+	v3corepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	v3listenerpb "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	v3httppb "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+)
+
+type evalRDSFilterCfg struct{ httpfilter.FilterConfig }
+
+type evalRDSFilterBuilder struct {
+	httpfilter.Builder
+	typeURL         string
+	created         atomic.Int32
+	closed          atomic.Int32
+	filterDestroyed atomic.Int32
+}
+
+func (f *evalRDSFilterBuilder) TypeURLs() []string { return []string{f.typeURL} }
+func (f *evalRDSFilterBuilder) IsTerminal() bool   { return false }
+func (f *evalRDSFilterBuilder) ParseFilterConfig(proto.Message) (httpfilter.FilterConfig, error) {
+	return evalRDSFilterCfg{}, nil
+}
+func (f *evalRDSFilterBuilder) ParseFilterConfigOverride(proto.Message) (httpfilter.FilterConfig, error) {
+	return evalRDSFilterCfg{}, nil
+}
+func (f *evalRDSFilterBuilder) BuildServerFilter() httpfilter.ServerFilter { return f }
+func (f *evalRDSFilterBuilder) Close()                                     { f.filterDestroyed.Add(1) }
+func (f *evalRDSFilterBuilder) BuildServerInterceptor(httpfilter.FilterConfig, httpfilter.FilterConfig) (iresolver.ServerInterceptor, error) {
+	f.created.Add(1)
+	return &evalRDSInterceptor{f: f}, nil
+}
+
+type evalRDSInterceptor struct{ f *evalRDSFilterBuilder }
+
+func (i *evalRDSInterceptor) AllowRPC(context.Context) error { return nil }
+func (i *evalRDSInterceptor) Close()                         { i.f.closed.Add(1) }
+
+// TestEval_ServerSideXDS_ErrorUpdateReleasesServerFilterReferences verifies Finding 150:
+// When two route configurations share a server filter, retiring each configuration
+// via an error update must release its reference hold. An independent listener-level
+// cache hold is permitted to survive error updates, and all remaining holds must be
+// released on listener shutdown without leaks.
+func (s) TestEval_ServerSideXDS_ErrorUpdateReleasesServerFilterReferences(t *testing.T) {
+	filter := &evalRDSFilterBuilder{typeURL: t.Name()}
+	httpfilter.Register(filter)
+	defer httpfilter.UnregisterForTesting(filter.typeURL)
+
+	mgmtServer, nodeID, _, _, xdsC := xdsSetupForTests(t)
+	lis, err := testutils.LocalTCPListener()
+	if err != nil {
+		t.Fatal(err)
+	}
+	host, p, _ := net.SplitHostPort(lis.Addr().String())
+	port, _ := strconv.Atoi(p)
+	modeCh := make(chan connectivity.ServingMode, 1)
+	lw := NewListenerWrapper(ListenerWrapperParams{
+		Listener:             lis,
+		ListenerResourceName: listenerName,
+		XDSClient:            xdsC,
+		ModeCallback: func(_ net.Addr, mode connectivity.ServingMode, _ error) {
+			select {
+			case modeCh <- mode:
+			default:
+			}
+		},
+	}).(*listenerWrapper)
+	defer lw.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	defer cancel()
+
+	hcmForRoute := func(rName string) *v3httppb.HttpConnectionManager {
+		return &v3httppb.HttpConnectionManager{
+			RouteSpecifier: &v3httppb.HttpConnectionManager_Rds{Rds: &v3httppb.Rds{
+				ConfigSource:    &v3corepb.ConfigSource{ConfigSourceSpecifier: &v3corepb.ConfigSource_Ads{Ads: &v3corepb.AggregatedConfigSource{}}},
+				RouteConfigName: rName,
+			}},
+			HttpFilters: []*v3httppb.HttpFilter{
+				{Name: "count", ConfigType: &v3httppb.HttpFilter_TypedConfig{TypedConfig: testutils.MarshalAny(t, &v3xdsxdstypepb.TypedStruct{TypeUrl: filter.typeURL, Value: &structpb.Struct{}})}},
+				e2e.RouterHTTPFilter,
+			},
+		}
+	}
+
+	resources := e2e.UpdateOptions{
+		NodeID: nodeID,
+		Listeners: []*v3listenerpb.Listener{{
+			Name: listenerName,
+			Address: &v3corepb.Address{Address: &v3corepb.Address_SocketAddress{SocketAddress: &v3corepb.SocketAddress{
+				Address: host, PortSpecifier: &v3corepb.SocketAddress_PortValue{PortValue: uint32(port)},
+			}}},
+			FilterChains: []*v3listenerpb.FilterChain{
+				{
+					Name: "fc-1",
+					FilterChainMatch: &v3listenerpb.FilterChainMatch{
+						PrefixRanges: []*v3corepb.CidrRange{{AddressPrefix: "0.0.0.0", PrefixLen: &wrapperspb.UInt32Value{Value: 0}}},
+					},
+					Filters: []*v3listenerpb.Filter{{
+						Name:       "hcm-1",
+						ConfigType: &v3listenerpb.Filter_TypedConfig{TypedConfig: testutils.MarshalAny(t, hcmForRoute(route1))},
+					}},
+				},
+				{
+					Name: "fc-2",
+					FilterChainMatch: &v3listenerpb.FilterChainMatch{
+						PrefixRanges: []*v3corepb.CidrRange{{AddressPrefix: "::", PrefixLen: &wrapperspb.UInt32Value{Value: 0}}},
+					},
+					Filters: []*v3listenerpb.Filter{{
+						Name:       "hcm-2",
+						ConfigType: &v3listenerpb.Filter_TypedConfig{TypedConfig: testutils.MarshalAny(t, hcmForRoute(route2))},
+					}},
+				},
+			},
+		}},
+		Routes: []*v3routepb.RouteConfiguration{
+			{
+				Name: route1,
+				VirtualHosts: []*v3routepb.VirtualHost{{
+					Domains: []string{"*"},
+					Routes: []*v3routepb.Route{{
+						Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: "/route1"}},
+						Action: &v3routepb.Route_NonForwardingAction{},
+					}},
+				}},
+			},
+			{
+				Name: route2,
+				VirtualHosts: []*v3routepb.VirtualHost{{
+					Domains: []string{"*"},
+					Routes: []*v3routepb.Route{{
+						Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: "/route2"}},
+						Action: &v3routepb.Route_NonForwardingAction{},
+					}},
+				}},
+			},
+		},
+		SkipValidation: true,
+	}
+
+	if err := mgmtServer.Update(ctx, resources); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-modeCh:
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for SERVING")
+	}
+	for ; filter.created.Load() < 2 && ctx.Err() == nil; <-time.After(defaultTestShortTimeout) {
+	}
+	if got := filter.created.Load(); got != 2 {
+		t.Fatalf("created %d interceptors, want 2 (one per filter chain)", got)
+	}
+
+	// Capture initial reference count on the tracking server filter ("count").
+	lw.mu.Lock()
+	var rsf *refCountedServerFilter
+	for k, f := range lw.httpFilters {
+		if k.name == "count" || f.ServerFilter == filter {
+			rsf = f
+			break
+		}
+	}
+	lw.mu.Unlock()
+	if rsf == nil {
+		t.Fatal("tracking server filter (count) not found in listener wrapper httpFilters")
+	}
+	initialRefs := rsf.refCnt.Load()
+	if initialRefs < 2 {
+		t.Fatalf("initial server filter ref count = %d, want at least 2 (one per filter chain)", initialRefs)
+	}
+
+	// 1. Deliver a no-data error update to route1 only.
+	wantErr1 := errors.New("eval: route1 withdrawn")
+	rwu1 := rdsWatcherUpdate{err: wantErr1}
+	lw.rdsHandler.updates[route1] = rwu1
+	lw.handleRDSUpdate(route1, rwu1)
+
+	if got := filter.closed.Load(); got != 1 {
+		t.Errorf("after route1 error: %d interceptors closed, want 1", got)
+	}
+	// Verify that route1 released exactly one reference hold.
+	for i := 0; i < 100 && rsf.refCnt.Load() > initialRefs-1; i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := rsf.refCnt.Load(); got != initialRefs-1 {
+		t.Errorf("after route1 error: filter ref count = %d, want %d (route1 hold not released)", got, initialRefs-1)
+	}
+
+	// 2. Deliver a no-data error update to route2.
+	wantErr2 := errors.New("eval: route2 withdrawn")
+	rwu2 := rdsWatcherUpdate{err: wantErr2}
+	lw.rdsHandler.updates[route2] = rwu2
+	lw.handleRDSUpdate(route2, rwu2)
+
+	if got := filter.closed.Load(); got != 2 {
+		t.Errorf("after route2 error: %d interceptors closed, want 2", got)
+	}
+	// Verify that route2 released its reference hold as well.
+	for i := 0; i < 100 && rsf.refCnt.Load() > initialRefs-2; i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := rsf.refCnt.Load(); got != initialRefs-2 {
+		t.Errorf("after route2 error: filter ref count = %d, want %d (route2 hold not released)", got, initialRefs-2)
+	}
+
+	// Finally, close listener and verify that all holds (including any listener cache hold) are released.
+	lw.Close()
+	for i := 0; i < 100 && filter.filterDestroyed.Load() < 1; i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := filter.filterDestroyed.Load(); got != 1 {
+		t.Errorf("after listener shutdown: %d server filters destroyed, want 1 (server filter leaked beyond listener lifetime)", got)
+	}
+}
+
+type evalC4Filter struct {
+	httpfilter.Builder
+	chain    string
+	gen      atomic.Int32
+	hold     func(gen int32) (entered chan<- struct{}, release <-chan struct{})
+	onServed func(gen int32)
+}
+
+func (f *evalC4Filter) TypeURLs() []string                         { return []string{f.chain} }
+func (f *evalC4Filter) IsTerminal() bool                           { return false }
+func (f *evalC4Filter) BuildServerFilter() httpfilter.ServerFilter { return f }
+func (f *evalC4Filter) Close()                                     {}
+func (f *evalC4Filter) BuildServerInterceptor(_, _ httpfilter.FilterConfig) (iresolver.ServerInterceptor, error) {
+	g := f.gen.Add(1)
+	return &evalC4Interceptor{f: f, gen: g}, nil
+}
+
+type evalC4Interceptor struct {
+	f   *evalC4Filter
+	gen int32
+}
+
+func (i *evalC4Interceptor) AllowRPC(ctx context.Context) error {
+	if i.f.onServed != nil {
+		i.f.onServed(i.gen)
+	}
+	if i.f.hold != nil {
+		if entered, release := i.f.hold(i.gen); release != nil {
+			close(entered)
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+	return nil
+}
+
+func (i *evalC4Interceptor) Close() {}
+
+type evalC4Stream struct{ grpc.ServerTransportStream }
+
+func (evalC4Stream) Method() string { return "/service/method" }
+
+func evalC4RPC(ctx context.Context, fc *filterChain) error {
+	ctx = transport.SetConnection(ctx, &connWrapper{urc: fc.usableRouteConfiguration})
+	ctx = grpc.NewContextWithServerTransportStream(ctx, evalC4Stream{})
+	ctx = metadata.NewIncomingContext(ctx, metadata.Pairs(":authority", "server"))
+	return RouteAndProcess(ctx)
+}
+
+func (s) TestEval_ServerSideXDS_ReplacementRPCWhileTwoChainsActive(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	entered, release := make(chan struct{}), make(chan struct{})
+	var releaseOnce sync.Once
+	doRelease := func() { releaseOnce.Do(func() { close(release) }) }
+	defer doRelease()
+	t.Cleanup(doRelease)
+
+	var once sync.Once
+	var bServedGenerations []int32
+	var bMu sync.Mutex
+
+	fA := &evalC4Filter{chain: "chainA", hold: func(gen int32) (chan<- struct{}, <-chan struct{}) {
+		var e chan<- struct{}
+		var r <-chan struct{}
+		if gen == 1 {
+			once.Do(func() { e, r = entered, release })
+		}
+		return e, r
+	}}
+	fB := &evalC4Filter{
+		chain: "chainB",
+		onServed: func(gen int32) {
+			bMu.Lock()
+			bServedGenerations = append(bServedGenerations, gen)
+			bMu.Unlock()
+		},
+	}
+	mk := func(f *evalC4Filter) *filterChain {
+		fc := &filterChain{
+			httpFilters:              []xdsresource.HTTPFilter{{Name: f.chain, Filter: f}},
+			routeConfigName:          "route",
+			usableRouteConfiguration: &atomic.Pointer[usableRouteConfiguration]{},
+		}
+		fc.usableRouteConfiguration.Store(&usableRouteConfiguration{})
+		return fc
+	}
+	fcA, fcB := mk(fA), mk(fB)
+	l := &listenerWrapper{
+		activeFilterChainManager: &filterChainManager{filterChains: []*filterChain{fcA, fcB}},
+		httpFilters:              make(map[serverFilterKey]*refCountedServerFilter),
+		rdsHandler:               &rdsHandler{},
+	}
+	prefix := "/"
+	update := rdsWatcherUpdate{data: &xdsresource.RouteConfigUpdate{VirtualHosts: []*xdsresource.VirtualHost{{
+		Domains: []string{"*"},
+		Routes:  []*xdsresource.Route{{Prefix: &prefix, ActionType: xdsresource.RouteActionNonForwardingAction}},
+	}}}}
+	l.handleRDSUpdate("route", update) // generation 1 on both chains
+
+	// 1. Hold an in-flight RPC in AllowRPC on chain A generation 1.
+	rpcDone := make(chan error, 1)
+	go func() { rpcDone <- evalC4RPC(ctx, fcA) }()
+	select {
+	case <-entered:
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for chain A RPC to enter AllowRPC")
+	}
+
+	// 2. Deliver generation 2 RDS update.
+	updateDone := make(chan struct{})
+	go func() {
+		l.handleRDSUpdate("route", update)
+		close(updateDone)
+	}()
+
+	// 3. While chain A reader is held, route RPCs through chain B in bounded goroutines.
+	// Running each probe in a goroutine guarantees that if a candidate deadlocks on a mutex
+	// in RouteAndProcess, the probe call does not block the test runner from reaching doRelease().
+	chainBObservedGen2 := false
+	pollDeadline := time.Now().Add(1 * time.Second)
+	for time.Now().Before(pollDeadline) {
+		probeRes := make(chan error, 1)
+		pctx, pcancel := context.WithTimeout(ctx, 100*time.Millisecond)
+		go func() {
+			probeRes <- evalC4RPC(pctx, fcB)
+		}()
+		select {
+		case err := <-probeRes:
+			pcancel()
+			if err == nil {
+				bMu.Lock()
+				for _, g := range bServedGenerations {
+					if g >= 2 {
+						chainBObservedGen2 = true
+						break
+					}
+				}
+				bMu.Unlock()
+				if chainBObservedGen2 {
+					break
+				}
+			}
+		case <-time.After(100 * time.Millisecond):
+			pcancel()
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Release chain A reader to unblock updater and in-flight RPC.
+	doRelease()
+	select {
+	case <-updateDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("handleRDSUpdate did not return after releasing chain A reader")
+	}
+	if err := <-rpcDone; err != nil {
+		t.Fatalf("held RPC failed: %v", err)
+	}
+
+	bMu.Lock()
+	observed := append([]int32(nil), bServedGenerations...)
+	bMu.Unlock()
+
+	if !chainBObservedGen2 {
+		t.Fatalf("STALL: chain B did not observe replacement configuration while chain A reader was held (observed gens: %v)", observed)
+	}
+}

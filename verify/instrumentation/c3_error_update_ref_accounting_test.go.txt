@@ -1,0 +1,203 @@
+// Run: on branch evalon/grpc-go-xd-11f88c29 copy c3_fixture_trimmed_eval_rds_error_after_success_test.go.txt to internal/xds/server/eval_rds_error_after_success_test.go and this file to internal/xds/server/verify_c3_test.go, then: go test -race -v -count=1 -run '^Test$/^(VerifyC3_|Eval_ServerSideXDS_ErrorUpdate)' ./internal/xds/server
+// It is the fixture test body with OBS log lines added; it reuses the fixture's evalRDSFilterBuilder type.
+
+package server
+
+import (
+	"context"
+	"errors"
+	"net"
+	"strconv"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/internal/testutils"
+	"google.golang.org/grpc/internal/testutils/xds/e2e"
+	"google.golang.org/grpc/internal/xds/httpfilter"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	v3xdsxdstypepb "github.com/cncf/xds/go/xds/type/v3"
+	v3corepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	v3listenerpb "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	v3httppb "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+)
+
+func (s) TestVerifyC3_ErrorUpdateRefAccounting(t *testing.T) {
+	filter := &evalRDSFilterBuilder{typeURL: t.Name()}
+	httpfilter.Register(filter)
+	defer httpfilter.UnregisterForTesting(filter.typeURL)
+
+	mgmtServer, nodeID, _, _, xdsC := xdsSetupForTests(t)
+	lis, err := testutils.LocalTCPListener()
+	if err != nil {
+		t.Fatal(err)
+	}
+	host, p, _ := net.SplitHostPort(lis.Addr().String())
+	port, _ := strconv.Atoi(p)
+	modeCh := make(chan connectivity.ServingMode, 1)
+	lw := NewListenerWrapper(ListenerWrapperParams{
+		Listener:             lis,
+		ListenerResourceName: listenerName,
+		XDSClient:            xdsC,
+		ModeCallback: func(_ net.Addr, mode connectivity.ServingMode, _ error) {
+			select {
+			case modeCh <- mode:
+			default:
+			}
+		},
+	}).(*listenerWrapper)
+	defer lw.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	defer cancel()
+
+	hcmForRoute := func(rName string) *v3httppb.HttpConnectionManager {
+		return &v3httppb.HttpConnectionManager{
+			RouteSpecifier: &v3httppb.HttpConnectionManager_Rds{Rds: &v3httppb.Rds{
+				ConfigSource:    &v3corepb.ConfigSource{ConfigSourceSpecifier: &v3corepb.ConfigSource_Ads{Ads: &v3corepb.AggregatedConfigSource{}}},
+				RouteConfigName: rName,
+			}},
+			HttpFilters: []*v3httppb.HttpFilter{
+				{Name: "count", ConfigType: &v3httppb.HttpFilter_TypedConfig{TypedConfig: testutils.MarshalAny(t, &v3xdsxdstypepb.TypedStruct{TypeUrl: filter.typeURL, Value: &structpb.Struct{}})}},
+				e2e.RouterHTTPFilter,
+			},
+		}
+	}
+
+	resources := e2e.UpdateOptions{
+		NodeID: nodeID,
+		Listeners: []*v3listenerpb.Listener{{
+			Name: listenerName,
+			Address: &v3corepb.Address{Address: &v3corepb.Address_SocketAddress{SocketAddress: &v3corepb.SocketAddress{
+				Address: host, PortSpecifier: &v3corepb.SocketAddress_PortValue{PortValue: uint32(port)},
+			}}},
+			FilterChains: []*v3listenerpb.FilterChain{
+				{
+					Name: "fc-1",
+					FilterChainMatch: &v3listenerpb.FilterChainMatch{
+						PrefixRanges: []*v3corepb.CidrRange{{AddressPrefix: "0.0.0.0", PrefixLen: &wrapperspb.UInt32Value{Value: 0}}},
+					},
+					Filters: []*v3listenerpb.Filter{{
+						Name:       "hcm-1",
+						ConfigType: &v3listenerpb.Filter_TypedConfig{TypedConfig: testutils.MarshalAny(t, hcmForRoute(route1))},
+					}},
+				},
+				{
+					Name: "fc-2",
+					FilterChainMatch: &v3listenerpb.FilterChainMatch{
+						PrefixRanges: []*v3corepb.CidrRange{{AddressPrefix: "::", PrefixLen: &wrapperspb.UInt32Value{Value: 0}}},
+					},
+					Filters: []*v3listenerpb.Filter{{
+						Name:       "hcm-2",
+						ConfigType: &v3listenerpb.Filter_TypedConfig{TypedConfig: testutils.MarshalAny(t, hcmForRoute(route2))},
+					}},
+				},
+			},
+		}},
+		Routes: []*v3routepb.RouteConfiguration{
+			{
+				Name: route1,
+				VirtualHosts: []*v3routepb.VirtualHost{{
+					Domains: []string{"*"},
+					Routes: []*v3routepb.Route{{
+						Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: "/route1"}},
+						Action: &v3routepb.Route_NonForwardingAction{},
+					}},
+				}},
+			},
+			{
+				Name: route2,
+				VirtualHosts: []*v3routepb.VirtualHost{{
+					Domains: []string{"*"},
+					Routes: []*v3routepb.Route{{
+						Match:  &v3routepb.RouteMatch{PathSpecifier: &v3routepb.RouteMatch_Prefix{Prefix: "/route2"}},
+						Action: &v3routepb.Route_NonForwardingAction{},
+					}},
+				}},
+			},
+		},
+		SkipValidation: true,
+	}
+
+	if err := mgmtServer.Update(ctx, resources); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-modeCh:
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for SERVING")
+	}
+	for ; filter.created.Load() < 2 && ctx.Err() == nil; <-time.After(defaultTestShortTimeout) {
+	}
+	if got := filter.created.Load(); got != 2 {
+		t.Fatalf("created %d interceptors, want 2 (one per filter chain)", got)
+	}
+
+	// Capture initial reference count on the tracking server filter ("count").
+	lw.mu.Lock()
+	var rsf *refCountedServerFilter
+	for k, f := range lw.httpFilters {
+		if k.name == "count" || f.ServerFilter == filter {
+			rsf = f
+			break
+		}
+	}
+	lw.mu.Unlock()
+	if rsf == nil {
+		t.Fatal("tracking server filter (count) not found in listener wrapper httpFilters")
+	}
+	initialRefs := rsf.refCnt.Load()
+	t.Logf("OBS after successful config: refCnt=%d interceptorsCreated=%d interceptorsClosed=%d filterDestroyed=%d", initialRefs, filter.created.Load(), filter.closed.Load(), filter.filterDestroyed.Load())
+	if initialRefs < 2 {
+		t.Fatalf("initial server filter ref count = %d, want at least 2 (one per filter chain)", initialRefs)
+	}
+
+	// 1. Deliver a no-data error update to route1 only.
+	wantErr1 := errors.New("eval: route1 withdrawn")
+	rwu1 := rdsWatcherUpdate{err: wantErr1}
+	lw.rdsHandler.updates[route1] = rwu1
+	lw.handleRDSUpdate(route1, rwu1)
+
+	if got := filter.closed.Load(); got != 1 {
+		t.Errorf("after route1 error: %d interceptors closed, want 1", got)
+	}
+	// Verify that route1 released exactly one reference hold.
+	for i := 0; i < 100 && rsf.refCnt.Load() > initialRefs-1; i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := rsf.refCnt.Load(); got != initialRefs-1 {
+		t.Errorf("after route1 error: filter ref count = %d, want %d (route1 hold not released)", got, initialRefs-1)
+	}
+
+	t.Logf("OBS after route1 RDS error: refCnt=%d interceptorsClosed=%d filterDestroyed=%d", rsf.refCnt.Load(), filter.closed.Load(), filter.filterDestroyed.Load())
+	// 2. Deliver a no-data error update to route2.
+	wantErr2 := errors.New("eval: route2 withdrawn")
+	rwu2 := rdsWatcherUpdate{err: wantErr2}
+	lw.rdsHandler.updates[route2] = rwu2
+	lw.handleRDSUpdate(route2, rwu2)
+
+	if got := filter.closed.Load(); got != 2 {
+		t.Errorf("after route2 error: %d interceptors closed, want 2", got)
+	}
+	// Verify that route2 released its reference hold as well.
+	for i := 0; i < 100 && rsf.refCnt.Load() > initialRefs-2; i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := rsf.refCnt.Load(); got != initialRefs-2 {
+		t.Errorf("after route2 error: filter ref count = %d, want %d (route2 hold not released)", got, initialRefs-2)
+	}
+
+	t.Logf("OBS after route2 RDS error: refCnt=%d interceptorsClosed=%d filterDestroyed=%d", rsf.refCnt.Load(), filter.closed.Load(), filter.filterDestroyed.Load())
+	// Finally, close listener and verify that all holds (including any listener cache hold) are released.
+	lw.Close()
+	for i := 0; i < 100 && filter.filterDestroyed.Load() < 1; i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := filter.filterDestroyed.Load(); got != 1 {
+		t.Errorf("after listener shutdown: %d server filters destroyed, want 1 (server filter leaked beyond listener lifetime)", got)
+	}
+	t.Logf("OBS after listener Close: refCnt=%d interceptorsClosed=%d filterDestroyed=%d", rsf.refCnt.Load(), filter.closed.Load(), filter.filterDestroyed.Load())
+}

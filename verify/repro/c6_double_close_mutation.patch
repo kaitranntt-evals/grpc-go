@@ -1,0 +1,12 @@
+diff --git a/internal/xds/server/filter_chain_manager.go b/internal/xds/server/filter_chain_manager.go
+index 55164cfe..2827aa18 100644
+--- a/internal/xds/server/filter_chain_manager.go
++++ b/internal/xds/server/filter_chain_manager.go
+@@ -231,6 +231,7 @@ func closeVirtualHosts(vhs []virtualHostWithInterceptors) {
+ 		for _, r := range vh.routes {
+ 			if r.interceptor != nil {
+ 				r.interceptor.Close()
++				r.interceptor.Close() // verify C6 mutation: duplicate Close on the same instance
+ 			}
+ 		}
+ 	}

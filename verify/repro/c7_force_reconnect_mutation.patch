@@ -1,0 +1,70 @@
+diff --git a/test/xds/xds_server_rds_update_cleanup_test.go b/test/xds/xds_server_rds_update_cleanup_test.go
+index efd4e0d3..879cebce 100644
+--- a/test/xds/xds_server_rds_update_cleanup_test.go
++++ b/test/xds/xds_server_rds_update_cleanup_test.go
+@@ -23,6 +23,7 @@ import (
+ 	"fmt"
+ 	"net"
+ 	"strconv"
++	"sync"
+ 	"sync/atomic"
+ 	"testing"
+ 	"time"
+@@ -179,7 +180,40 @@ func (s) TestServerSideXDS_RouteConfigUpdates_ReleaseSupersededInterceptors(t *t
+ 		t.Fatal(err)
+ 	}
+ 
+-	cc, err := grpc.NewClient(fmt.Sprintf("xds:///%s", serviceName), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithResolvers(xdsResolver))
++	// verify C7 mutation: track every client transport dialed to the server
++	// listener so the test can force a reconnection to the same listener.
++	var (
++		c7mu    sync.Mutex
++		c7conns []net.Conn
++	)
++	c7dialer := func(dctx context.Context, addr string) (net.Conn, error) {
++		c, err := (&net.Dialer{}).DialContext(dctx, "tcp", addr)
++		if err == nil && addr == lis.Addr().String() {
++			c7mu.Lock()
++			c7conns = append(c7conns, c)
++			t.Logf("C7: client transport #%d dialed: local=%s remote=%s", len(c7conns), c.LocalAddr(), c.RemoteAddr())
++			c7mu.Unlock()
++		}
++		return c, err
++	}
++	c7forceReconnect := func() {
++		c7mu.Lock()
++		n := len(c7conns)
++		old := c7conns[n-1]
++		c7mu.Unlock()
++		t.Logf("C7: forcibly closing client transport #%d (local=%s)", n, old.LocalAddr())
++		old.Close()
++		for ; ctx.Err() == nil; <-time.After(defaultTestShortTimeout) {
++			c7mu.Lock()
++			m := len(c7conns)
++			c7mu.Unlock()
++			if m > n {
++				break
++			}
++		}
++		time.Sleep(200 * time.Millisecond) // let the new transport become READY
++	}
++	cc, err := grpc.NewClient(fmt.Sprintf("xds:///%s", serviceName), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithResolvers(xdsResolver), grpc.WithContextDialer(c7dialer))
+ 	if err != nil {
+ 		t.Fatalf("grpc.NewClient() failed: %v", err)
+ 	}
+@@ -220,6 +254,7 @@ func (s) TestServerSideXDS_RouteConfigUpdates_ReleaseSupersededInterceptors(t *t
+ 	const numUpdates = 3
+ 	for i := 1; i <= numUpdates; i++ {
+ 		wantPath := fmt.Sprintf("path-%d", i)
++		c7forceReconnect() // verify C7 mutation: the transport changes before every update
+ 		resources.Routes = append(clientRoutes[:len(clientRoutes):len(clientRoutes)], routeConfigWithPath(wantPath))
+ 		if err := managementServer.Update(ctx, resources); err != nil {
+ 			t.Fatal(err)
+@@ -248,6 +283,7 @@ func (s) TestServerSideXDS_RouteConfigUpdates_ReleaseSupersededInterceptors(t *t
+ 
+ 		// The update must be applied on the existing connection, without
+ 		// the connection being drained.
++		t.Logf("C7: continuity assertion operands after update %d: p.Addr=%q initialPeer.Addr=%q (server listener is %q)", i, p.Addr.String(), initialPeer.Addr.String(), lis.Addr().String())
+ 		if got, want := p.Addr.String(), initialPeer.Addr.String(); got != want {
+ 			t.Fatalf("RPC after RouteConfiguration update %d used connection to %q, want the original connection to %q", i, got, want)
+ 		}
