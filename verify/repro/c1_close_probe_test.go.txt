@@ -1,0 +1,38 @@
+// Instrumentation used by verify/repro/c1_probe.sh (copied to test/xds/zz_c1_close_probe_test.go in a claim-branch worktree).
+package xds_test
+
+import (
+	"fmt"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// c1Probe is called at the top of the tracking filter/interceptor Close()
+// methods, i.e. before the destruction counter the tests assert on is bumped.
+//   - C1_DELAY_MS: sleep first, so that any assertion not ordered after the
+//     cleanup (lock, completion event, polling) observes a stale count.
+//   - C1_DELAY_ONLY=interceptor|filter: restrict the delay to one kind.
+//   - C1_TRACE: print which goroutine/call path is performing the cleanup.
+func c1Probe(kind string) {
+	if os.Getenv("C1_TRACE") != "" {
+		buf := make([]byte, 1<<16)
+		st := string(buf[:runtime.Stack(buf, false)])
+		fmt.Printf("C1-PROBE %s.Close %s onTestGoroutine=%v viaGRPCServerStop=%v viaListenerClose=%v viaConnClose=%v viaHandleRDSUpdate=%v viaRouteAndProcess=%v\n",
+			kind, strings.TrimSuffix(strings.SplitN(st, "\n", 2)[0], ":"),
+			strings.Contains(st, "xds_test.s.Test"),
+			strings.Contains(st, "(*GRPCServer).Stop"),
+			strings.Contains(st, "(*listenerWrapper).Close"),
+			strings.Contains(st, "(*connWrapper).Close"),
+			strings.Contains(st, "handleRDSUpdate"),
+			strings.Contains(st, "RouteAndProcess"))
+	}
+	if only := os.Getenv("C1_DELAY_ONLY"); only != "" && only != kind {
+		return
+	}
+	if ms, _ := strconv.Atoi(os.Getenv("C1_DELAY_MS")); ms > 0 {
+		time.Sleep(time.Duration(ms) * time.Millisecond)
+	}
+}
