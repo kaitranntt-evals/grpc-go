@@ -44,6 +44,18 @@ func RouteAndProcess(ctx context.Context) error {
 	}
 
 	rc := cw.urc.Load()
+	for {
+		rc.mu.RLock()
+		// An RDS update may have replaced and closed this configuration
+		// between the load and the lock. Retry with the current one.
+		if current := cw.urc.Load(); current != rc {
+			rc.mu.RUnlock()
+			rc = current
+			continue
+		}
+		break
+	}
+	defer rc.mu.RUnlock()
 	// Error out at routing l7 level with a status code UNAVAILABLE, represents
 	// an nack before usable route configuration or resource not found for RDS
 	// or error combining LDS + RDS (Shouldn't happen).

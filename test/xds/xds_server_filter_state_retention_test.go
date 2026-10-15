@@ -39,6 +39,7 @@ import (
 	testpb "google.golang.org/grpc/interop/grpc_testing"
 	"google.golang.org/grpc/xds"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
@@ -160,6 +161,127 @@ func newHTTPFilter(t *testing.T, name, typeURL, path string) *v3httppb.HttpFilte
 				},
 			}),
 		},
+	}
+}
+
+// Repeated RDS updates must release the superseded interceptors, retain the
+// shared filter, and continue serving RPCs on the existing connection.
+func (s) TestServerSideXDS_FilterStateRetention_RDSUpdates(t *testing.T) {
+	var filtersCreated, filtersDestroyed, interceptorsCreated, interceptorsDestroyed atomic.Int32
+	pathCh := make(chan string, 1)
+	fb := &trackingHTTPFilterBuilder{
+		filtersCreated:        &filtersCreated,
+		filtersDestroyed:      &filtersDestroyed,
+		interceptorsCreated:   &interceptorsCreated,
+		interceptorsDestroyed: &interceptorsDestroyed,
+		typeURL:               t.Name(),
+		pathCh:                pathCh,
+	}
+	httpfilter.Register(fb)
+	defer httpfilter.UnregisterForTesting(fb.typeURL)
+
+	managementServer, nodeID, bootstrapContents, _ := setup.ManagementServerAndResolver(t)
+	servingCh := make(chan struct{})
+	lis, stopServer := setupGRPCServer(t, bootstrapContents, xds.ServingModeCallback(func(_ net.Addr, args xds.ServingModeChangeArgs) {
+		if args.Mode == connectivity.ServingModeServing {
+			close(servingCh)
+		}
+	}))
+	defer stopServer()
+	host, port, err := hostPortFromListener(lis)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const routeName = "server-route"
+	listener := e2e.DefaultServerListenerWithRouteConfigName(host, port, e2e.SecurityLevelNone, routeName)
+	for _, fc := range listener.FilterChains {
+		hcm := &v3httppb.HttpConnectionManager{}
+		if err := fc.Filters[0].GetTypedConfig().UnmarshalTo(hcm); err != nil {
+			t.Fatal(err)
+		}
+		hcm.HttpFilters = append([]*v3httppb.HttpFilter{newHTTPFilter(t, "tracker", fb.typeURL, "base-path")}, hcm.HttpFilters...)
+		fc.Filters[0].ConfigType = &v3listenerpb.Filter_TypedConfig{TypedConfig: testutils.MarshalAny(t, hcm)}
+	}
+	resources := e2e.UpdateOptions{NodeID: nodeID, Listeners: []*v3listenerpb.Listener{listener}}
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	defer cancel()
+	var dials atomic.Int32
+	cc, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+		dials.Add(1)
+		return (&net.Dialer{}).DialContext(ctx, "tcp", addr)
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cc.Close()
+	client := testgrpc.NewTestServiceClient(cc)
+
+	// Two virtual hosts with two routes each, in each of two filter chains.
+	// Only one route receives RPCs; unused routes must also be cleaned up.
+	const interceptorsPerUpdate = 8
+	const updates = 10
+	for n := 0; n < updates; n++ {
+		path := fmt.Sprintf("path-%d", n)
+		route := e2e.RouteConfigNonForwardingAction(routeName)
+		vh := route.VirtualHosts[0]
+		vh.TypedPerFilterConfig = map[string]*anypb.Any{"tracker": newHTTPFilter(t, "tracker", fb.typeURL, path).GetTypedConfig()}
+		vh.Routes = append(vh.Routes, proto.Clone(vh.Routes[0]).(*v3routepb.Route))
+		otherVH := proto.Clone(vh).(*v3routepb.VirtualHost)
+		otherVH.Domains = []string{"unused.example.com"}
+		route.VirtualHosts = append(route.VirtualHosts, otherVH)
+		resources.Routes = []*v3routepb.RouteConfiguration{route}
+		if err := managementServer.Update(ctx, resources); err != nil {
+			t.Fatal(err)
+		}
+		if n == 0 {
+			select {
+			case <-servingCh:
+			case <-ctx.Done():
+				t.Fatal("Timeout waiting for server to enter SERVING mode")
+			}
+		}
+		// Every RPC must succeed, including those racing with an RDS update.
+		for {
+			if _, err := client.EmptyCall(ctx, &testpb.Empty{}); err != nil {
+				t.Fatalf("EmptyCall() during update %d failed: %v", n, err)
+			}
+			var got string
+			select {
+			case got = <-pathCh:
+			case <-ctx.Done():
+				t.Fatal("Timeout waiting for interceptor to be invoked")
+			}
+			if got == path {
+				break
+			}
+		}
+		wantDestroyed := int32(n * interceptorsPerUpdate)
+		for interceptorsDestroyed.Load() != wantDestroyed {
+			select {
+			case <-time.After(time.Millisecond):
+			case <-ctx.Done():
+				t.Fatalf("Update %d: destroyed %d interceptors, want %d", n, interceptorsDestroyed.Load(), wantDestroyed)
+			}
+		}
+		if got, want := interceptorsCreated.Load(), int32((n+1)*interceptorsPerUpdate); got != want {
+			t.Fatalf("Update %d: created %d interceptors, want %d", n, got, want)
+		}
+		if got := filtersCreated.Load(); got != 1 {
+			t.Fatalf("Update %d: created %d filters, want 1", n, got)
+		}
+		if got := filtersDestroyed.Load(); got != 0 {
+			t.Fatalf("Update %d: destroyed %d filters, want 0", n, got)
+		}
+	}
+	if got := dials.Load(); got != 1 {
+		t.Errorf("Created %d connections across RDS updates, want 1", got)
+	}
+	stopServer()
+	if got, want := interceptorsDestroyed.Load(), int32(updates*interceptorsPerUpdate); got != want {
+		t.Errorf("Destroyed %d interceptors after Stop(), want %d", got, want)
+	}
+	if got := filtersDestroyed.Load(); got != 1 {
+		t.Errorf("Destroyed %d filters after Stop(), want 1", got)
 	}
 }
 
