@@ -1,0 +1,659 @@
+=== RUN   Test
+=== RUN   Test/VerifyC1_SolutionLifecycle_Diagnostics
+    setup.go:45: Created new snapshot cache...
+    tlogger.go:133: INFO server.go:732 [core] [Server #1] Server created  (t=+735.554µs)
+    setup.go:45: Registered Aggregated Discovery Service (ADS)...
+    setup.go:45: xDS management server serving at: 127.0.0.1:41551...
+    tlogger.go:133: INFO server.go:928 [core] [Server #1 ListenSocket #2] ListenSocket created  (t=+2.206037ms)
+    tlogger.go:133: INFO server.go:732 [core] [Server #3] Server created  (t=+2.278961ms)
+    tlogger.go:133: INFO pool.go:309 [xds] xDS node ID: 8065fc7d-b2d2-4143-b2ae-2145c1dac339  (t=+2.472091ms)
+    tlogger.go:133: INFO server.go:118 [xds] [xds-server 0xc0001bf680] Created xds.GRPCServer  (t=+2.503587ms)
+    stubserver.go:300: Started test service backend at "127.0.0.1:46141"
+    tlogger.go:133: INFO server.go:177 [xds] [xds-server 0xc0001bf680] Serve() passed a net.Listener on 127.0.0.1:46141  (t=+2.677067ms)
+    tlogger.go:133: INFO clientconn.go:1837 [core] original dial target is: "passthrough:///127.0.0.1:41551"  (t=+2.791028ms)
+    tlogger.go:133: INFO clientconn.go:516 [core] [Channel #4] Channel created for target "passthrough:///127.0.0.1:41551"  (t=+2.841969ms)
+    tlogger.go:133: INFO clientconn.go:247 [core] [Channel #4] parsed dial target is: resolver.Target{URL:url.URL{Scheme:"passthrough", Opaque:"", User:(*url.Userinfo)(nil), Host:"", Path:"/127.0.0.1:41551", Fragment:"", RawQuery:"", RawPath:"", RawFragment:"", ForceQuery:false, OmitHost:false}}  (t=+2.892655ms)
+    tlogger.go:133: INFO clientconn.go:248 [core] [Channel #4] Channel authority set to "127.0.0.1:41551"  (t=+2.926762ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #4] Channel Connectivity change to CONNECTING  (t=+3.100266ms)
+    tlogger.go:133: INFO server.go:928 [core] [Server #3 ListenSocket #5] ListenSocket created  (t=+3.137273ms)
+    tlogger.go:133: INFO resolver_wrapper.go:211 [core] [Channel #4] Resolver state updated: {
+          "Addresses": [
+            {
+              "Addr": "127.0.0.1:41551",
+              "ServerName": "",
+              "Attributes": null,
+              "BalancerAttributes": null,
+              "Metadata": null
+            }
+          ],
+          "Endpoints": [
+            {
+              "Addresses": [
+                {
+                  "Addr": "127.0.0.1:41551",
+                  "ServerName": "",
+                  "Attributes": null,
+                  "BalancerAttributes": null,
+                  "Metadata": null
+                }
+              ],
+              "Attributes": null
+            }
+          ],
+          "ServiceConfig": null,
+          "Attributes": null
+        } (resolver returned new addresses)  (t=+3.406282ms)
+    tlogger.go:133: INFO balancer_wrapper.go:121 [core] [Channel #4] Channel switches to new LB policy "pick_first"  (t=+3.55951ms)
+    tlogger.go:133: INFO clientconn.go:923 [core] [Channel #4 SubChannel #6] Subchannel created  (t=+3.64761ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #4 SubChannel #6] Subchannel Connectivity change to CONNECTING  (t=+3.711155ms)
+    tlogger.go:133: INFO clientconn.go:1471 [core] [Channel #4 SubChannel #6] Subchannel picks a new address "127.0.0.1:41551" to connect  (t=+3.755897ms)
+    tlogger.go:133: INFO clientconn.go:421 [core] [Channel #4] Channel exiting idle mode  (t=+3.905256ms)
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    server.go:235: Updated snapshot cache with resource snapshot...
+    tlogger.go:133: INFO clientconn.go:1837 [core] original dial target is: "xds:///my-service"  (t=+7.084265ms)
+    tlogger.go:133: INFO clientconn.go:516 [core] [Channel #8] Channel created for target "xds:///my-service"  (t=+7.135666ms)
+    tlogger.go:133: INFO clientconn.go:247 [core] [Channel #8] parsed dial target is: resolver.Target{URL:url.URL{Scheme:"xds", Opaque:"", User:(*url.Userinfo)(nil), Host:"", Path:"/my-service", Fragment:"", RawQuery:"", RawPath:"", RawFragment:"", ForceQuery:false, OmitHost:false}}  (t=+7.194419ms)
+    tlogger.go:133: INFO clientconn.go:248 [core] [Channel #8] Channel authority set to "my-service"  (t=+7.229662ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #4 SubChannel #6] Subchannel Connectivity change to READY  (t=+8.065118ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #4] Channel Connectivity change to READY  (t=+8.287043ms)
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "" with version "1" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: open watch 1 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "1"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "" with version "1" and resources [routeName]
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc0006a6600)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc00043c690)}  (t=+14.533623ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #8] Channel Connectivity change to CONNECTING  (t=+14.655116ms)
+    tlogger.go:133: INFO pool.go:309 [xds] xDS node ID: 8065fc7d-b2d2-4143-b2ae-2145c1dac339  (t=+15.110437ms)
+    tlogger.go:133: INFO xds_resolver.go:157 [xds] [xds-resolver 0xc0002dfe60] Creating resolver for target: xds:///my-service  (t=+15.157391ms)
+    tlogger.go:133: INFO clientconn.go:1837 [core] original dial target is: "passthrough:///127.0.0.1:41551"  (t=+15.243223ms)
+    tlogger.go:133: INFO clientconn.go:516 [core] [Channel #10] Channel created for target "passthrough:///127.0.0.1:41551"  (t=+15.318473ms)
+    tlogger.go:133: INFO clientconn.go:247 [core] [Channel #10] parsed dial target is: resolver.Target{URL:url.URL{Scheme:"passthrough", Opaque:"", User:(*url.Userinfo)(nil), Host:"", Path:"/127.0.0.1:41551", Fragment:"", RawQuery:"", RawPath:"", RawFragment:"", ForceQuery:false, OmitHost:false}}  (t=+15.371538ms)
+    tlogger.go:133: INFO clientconn.go:248 [core] [Channel #10] Channel authority set to "127.0.0.1:41551"  (t=+15.407425ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #10] Channel Connectivity change to CONNECTING  (t=+15.523149ms)
+    tlogger.go:133: INFO resolver_wrapper.go:211 [core] [Channel #10] Resolver state updated: {
+          "Addresses": [
+            {
+              "Addr": "127.0.0.1:41551",
+              "ServerName": "",
+              "Attributes": null,
+              "BalancerAttributes": null,
+              "Metadata": null
+            }
+          ],
+          "Endpoints": [
+            {
+              "Addresses": [
+                {
+                  "Addr": "127.0.0.1:41551",
+                  "ServerName": "",
+                  "Attributes": null,
+                  "BalancerAttributes": null,
+                  "Metadata": null
+                }
+              ],
+              "Attributes": null
+            }
+          ],
+          "ServiceConfig": null,
+          "Attributes": null
+        } (resolver returned new addresses)  (t=+15.682416ms)
+    tlogger.go:133: INFO balancer_wrapper.go:121 [core] [Channel #10] Channel switches to new LB policy "pick_first"  (t=+15.842401ms)
+    tlogger.go:133: INFO clientconn.go:923 [core] [Channel #10 SubChannel #11] Subchannel created  (t=+15.924184ms)
+    tlogger.go:133: INFO clientconn.go:421 [core] [Channel #10] Channel exiting idle mode  (t=+15.967469ms)
+    tlogger.go:133: INFO clientconn.go:421 [core] [Channel #8] Channel exiting idle mode  (t=+16.020956ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #10 SubChannel #11] Subchannel Connectivity change to CONNECTING  (t=+16.076806ms)
+    tlogger.go:133: INFO clientconn.go:1471 [core] [Channel #10 SubChannel #11] Subchannel picks a new address "127.0.0.1:41551" to connect  (t=+16.114784ms)
+    logging.go:30: open watch 2 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "1"
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #10 SubChannel #11] Subchannel Connectivity change to READY  (t=+16.513982ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #10] Channel Connectivity change to READY  (t=+16.741133ms)
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "" with version "1" and resources [my-service]
+    logging.go:30: open watch 3 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "1"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "" with version "1" and resources [route-my-service]
+    logging.go:30: open watch 4 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "1"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "" with version "1" and resources [cluster-my-service]
+    logging.go:30: open watch 5 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "1"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "" with version "1" and resources [endpoints-my-service]
+    logging.go:30: open watch 6 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "1"
+    tlogger.go:133: INFO resolver_wrapper.go:211 [core] [Channel #8] Resolver state updated: {
+          "Addresses": null,
+          "Endpoints": [],
+          "ServiceConfig": {
+            "Config": {
+              "Config": null,
+              "Methods": {}
+            },
+            "Err": null
+          },
+          "Attributes": {
+            "\u003c%!p(xdsclient.clientKeyType=grpc.xds.internal.client.Client)\u003e": "\u003c0xc000561d40\u003e",
+            "\u003c%!p(xdsdepmgr.xdsClusterSubscriberKey={})\u003e": "\u003c0xc0000fe540\u003e",
+            "\u003c%!p(xdsresource.xdsConfigkey={})\u003e": "\u003c0xc00049f2e0\u003e",
+            "\u003c%!p(resolver.csKeyType=grpc.internal.resolver.configSelector)\u003e": "\u003c0xc0007ba700\u003e"
+          }
+        } (service config updated)  (t=+24.138014ms)
+    tlogger.go:133: INFO balancer_wrapper.go:121 [core] [Channel #8] Channel switches to new LB policy "xds_cluster_manager_experimental"  (t=+24.257922ms)
+    tlogger.go:133: INFO clustermanager.go:58 [xds] [xds-cluster-manager-lb 0xc00049f760] Created  (t=+24.305091ms)
+    tlogger.go:133: INFO balancergroup.go:274 [xds] [xds-cluster-manager-lb 0xc00049f760] Adding child policy of type "cds_experimental" for child "cluster:cluster-my-service"  (t=+24.341206ms)
+    tlogger.go:133: INFO balancergroup.go:102 [xds] [xds-cluster-manager-lb 0xc00049f760] Creating child policy of type "cds_experimental" for child "cluster:cluster-my-service"  (t=+24.377787ms)
+    tlogger.go:133: INFO cdsbalancer.go:90 [xds] [cds-lb 0xc000245340] Created  (t=+24.40945ms)
+    tlogger.go:133: INFO cdsbalancer.go:167 [xds] [cds-lb 0xc000245340] Received balancer config update: {
+          "LoadBalancingConfig": null,
+          "cluster": "cluster-my-service",
+          "isDynamic": false
+        }  (t=+24.476568ms)
+    tlogger.go:133: INFO balancer.go:76 [xds] [priority-lb 0xc0007ba7e0] Created  (t=+24.706772ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [xds-cluster-manager-lb 0xc00049f760] Balancer state update from child cluster:cluster-my-service, new state: {ConnectivityState:CONNECTING Picker:0xc0006a5e90}  (t=+25.18601ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:147 [xds] [xds-cluster-manager-lb 0xc00049f760] State update from sub-balancer "cluster:cluster-my-service": {ConnectivityState:CONNECTING Picker:0xc0006a5e90}  (t=+25.224769ms)
+    tlogger.go:133: INFO balancergroup.go:274 [xds] [priority-lb 0xc0007ba7e0] Adding child policy of type "outlier_detection_experimental" for child "priority-0-0"  (t=+25.253029ms)
+    tlogger.go:133: INFO balancergroup.go:102 [xds] [priority-lb 0xc0007ba7e0] Creating child policy of type "outlier_detection_experimental" for child "priority-0-0"  (t=+25.28032ms)
+    tlogger.go:133: INFO balancer.go:94 [xds] [outlier-detection-lb 0xc0004251d0] Created  (t=+25.321113ms)
+    tlogger.go:133: INFO clusterimpl.go:88 [xds] [xds-cluster-impl-lb 0xc0001ddcc0] Created  (t=+25.363841ms)
+    tlogger.go:133: INFO clusterimpl.go:100 [xds] [xds-cluster-impl-lb 0xc0001ddcc0] xDS credentials in use: false  (t=+25.394596ms)
+    tlogger.go:133: INFO weightedtarget.go:65 [xds] [weighted-target-lb 0xc00049fee0] Created  (t=+25.491258ms)
+    tlogger.go:133: INFO balancer.go:88 [xds] [wrrlocality-lb 0xc0005473b0] Created  (t=+25.516897ms)
+    tlogger.go:133: INFO balancergroup.go:274 [xds] [weighted-target-lb 0xc00049fee0] Adding child policy of type "round_robin" for child "{region=\"region-1\", zone=\"zone-1\", sub_zone=\"subzone-1\"}"  (t=+25.645523ms)
+    tlogger.go:133: INFO balancergroup.go:102 [xds] [weighted-target-lb 0xc00049fee0] Creating child policy of type "round_robin" for child "{region=\"region-1\", zone=\"zone-1\", sub_zone=\"subzone-1\"}"  (t=+25.683272ms)
+    tlogger.go:133: INFO roundrobin.go:56 [roundrobin] [0xc000324270] Created  (t=+25.713136ms)
+    tlogger.go:133: INFO clientconn.go:923 [core] [Channel #8 SubChannel #14] Subchannel created  (t=+25.852858ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [weighted-target-lb 0xc00049fee0] Balancer state update from child {region="region-1", zone="zone-1", sub_zone="subzone-1"}, new state: {ConnectivityState:CONNECTING Picker:0xc0006a7ec0}  (t=+25.920239ms)
+    tlogger.go:133: INFO aggregator.go:253 [xds] [weighted-target-lb 0xc00049fee0] Child pickers with config: map[{region="region-1", zone="zone-1", sub_zone="subzone-1"}:weight:1,picker:0xc0006a7ec0,state:CONNECTING,stateToAggregate:CONNECTING]  (t=+25.960428ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [priority-lb 0xc0007ba7e0] Balancer state update from child priority-0-0, new state: {ConnectivityState:CONNECTING Picker:0xc0006a2090}  (t=+26.027796ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #8 SubChannel #14] Subchannel Connectivity change to CONNECTING  (t=+26.064862ms)
+    tlogger.go:133: INFO clientconn.go:1471 [core] [Channel #8 SubChannel #14] Subchannel picks a new address "127.0.0.1:46141" to connect  (t=+26.115968ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [xds-cluster-manager-lb 0xc00049f760] Balancer state update from child cluster:cluster-my-service, new state: {ConnectivityState:CONNECTING Picker:0xc0006a2090}  (t=+26.231667ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:147 [xds] [xds-cluster-manager-lb 0xc00049f760] State update from sub-balancer "cluster:cluster-my-service": {ConnectivityState:CONNECTING Picker:0xc0006a2090}  (t=+26.278382ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:191 [xds] [xds-cluster-manager-lb 0xc00049f760] Child pickers: map[cluster:cluster-my-service:picker:0xc0006a5e90,state:CONNECTING,stateToAggregate:CONNECTING]  (t=+26.311305ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:191 [xds] [xds-cluster-manager-lb 0xc00049f760] Child pickers: map[cluster:cluster-my-service:picker:0xc0006a2090,state:CONNECTING,stateToAggregate:CONNECTING]  (t=+26.365302ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #8 SubChannel #14] Subchannel Connectivity change to READY  (t=+26.579851ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [weighted-target-lb 0xc00049fee0] Balancer state update from child {region="region-1", zone="zone-1", sub_zone="subzone-1"}, new state: {ConnectivityState:READY Picker:0xc0001be800}  (t=+26.662317ms)
+    tlogger.go:133: INFO aggregator.go:253 [xds] [weighted-target-lb 0xc00049fee0] Child pickers with config: map[{region="region-1", zone="zone-1", sub_zone="subzone-1"}:weight:1,picker:0xc0001be800,state:READY,stateToAggregate:READY]  (t=+26.716358ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [priority-lb 0xc0007ba7e0] Balancer state update from child priority-0-0, new state: {ConnectivityState:READY Picker:0xc000016948}  (t=+26.754001ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [xds-cluster-manager-lb 0xc00049f760] Balancer state update from child cluster:cluster-my-service, new state: {ConnectivityState:READY Picker:0xc000016948}  (t=+26.795769ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:147 [xds] [xds-cluster-manager-lb 0xc00049f760] State update from sub-balancer "cluster:cluster-my-service": {ConnectivityState:READY Picker:0xc000016948}  (t=+26.828723ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:191 [xds] [xds-cluster-manager-lb 0xc00049f760] Child pickers: map[cluster:cluster-my-service:picker:0xc000016948,state:READY,stateToAggregate:READY]  (t=+26.868047ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #8] Channel Connectivity change to READY  (t=+26.904349ms)
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 2 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "1" with version "2" and resources [routeName]
+    logging.go:30: respond open watch 3 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "1" with version "2" and resources [my-service]
+    logging.go:30: respond open watch 4 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "1" with version "2" and resources [route-my-service]
+    logging.go:30: respond open watch 5 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "1" with version "2" and resources [cluster-my-service]
+    logging.go:30: respond open watch 6 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "1" with version "2" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 1 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "2"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "1" with version "2" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc000676480)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc000057270)}  (t=+28.977648ms)
+    logging.go:30: open watch 7 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "2"
+    logging.go:30: open watch 8 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "2"
+    logging.go:30: open watch 9 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "2"
+    logging.go:30: open watch 10 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "2"
+    logging.go:30: open watch 11 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "2"
+    logging.go:30: open watch 12 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "2"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 10 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "3"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "2" with version "3" and resources [cluster-my-service]
+    logging.go:30: respond open watch 11 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "3"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "2" with version "3" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: respond open watch 12 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "3"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "2" with version "3" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 7 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "3"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "2" with version "3" and resources [routeName]
+    logging.go:30: respond open watch 8 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "3"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "2" with version "3" and resources [my-service]
+    logging.go:30: respond open watch 9 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "3"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "2" with version "3" and resources [route-my-service]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    logging.go:30: open watch 13 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "3"
+    logging.go:30: open watch 14 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "3"
+    logging.go:30: open watch 15 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "3"
+    logging.go:30: open watch 16 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "3"
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc0007cbc80)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc000057220)}  (t=+40.851325ms)
+    logging.go:30: open watch 17 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "3"
+    logging.go:30: open watch 18 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "3"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 13 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "4"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "3" with version "4" and resources [cluster-my-service]
+    logging.go:30: respond open watch 14 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "4"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "3" with version "4" and resources [route-my-service]
+    logging.go:30: respond open watch 15 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "4"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "3" with version "4" and resources [my-service]
+    logging.go:30: respond open watch 16 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "4"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "3" with version "4" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 17 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "4"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "3" with version "4" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: respond open watch 18 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "4"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "3" with version "4" and resources [routeName]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    logging.go:30: open watch 19 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "4"
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc00084ae40)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc000586c80)}  (t=+52.3258ms)
+    logging.go:30: open watch 20 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "4"
+    logging.go:30: open watch 21 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "4"
+    logging.go:30: open watch 22 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "4"
+    logging.go:30: open watch 23 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "4"
+    logging.go:30: open watch 24 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "4"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 22 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "5"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "4" with version "5" and resources [routeName]
+    logging.go:30: respond open watch 23 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "5"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "4" with version "5" and resources [my-service]
+    logging.go:30: respond open watch 24 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "5"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "4" with version "5" and resources [route-my-service]
+    logging.go:30: respond open watch 19 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "5"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "4" with version "5" and resources [cluster-my-service]
+    logging.go:30: respond open watch 20 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "5"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "4" with version "5" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 21 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "5"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "4" with version "5" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc0007cb400)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc000798230)}  (t=+62.866993ms)
+    logging.go:30: open watch 25 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "5"
+    logging.go:30: open watch 26 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "5"
+    logging.go:30: open watch 27 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "5"
+    logging.go:30: open watch 28 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "5"
+    logging.go:30: open watch 29 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "5"
+    logging.go:30: open watch 30 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "5"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 25 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "6"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "5" with version "6" and resources [routeName]
+    logging.go:30: respond open watch 26 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "6"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "5" with version "6" and resources [my-service]
+    logging.go:30: respond open watch 27 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "6"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "5" with version "6" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: respond open watch 28 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "6"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "5" with version "6" and resources [cluster-my-service]
+    logging.go:30: respond open watch 29 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "6"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "5" with version "6" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 30 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "6"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "5" with version "6" and resources [route-my-service]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc000676940)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc000a7e4b0)}  (t=+65.225752ms)
+    logging.go:30: open watch 31 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "6"
+    logging.go:30: open watch 32 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "6"
+    logging.go:30: open watch 33 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "6"
+    logging.go:30: open watch 34 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "6"
+    logging.go:30: open watch 35 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "6"
+    logging.go:30: open watch 36 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "6"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 34 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "7"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "6" with version "7" and resources [route-my-service]
+    logging.go:30: respond open watch 35 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "7"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "6" with version "7" and resources [routeName]
+    logging.go:30: respond open watch 36 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "7"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "6" with version "7" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: respond open watch 31 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "7"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "6" with version "7" and resources [my-service]
+    logging.go:30: respond open watch 32 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "7"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "6" with version "7" and resources [cluster-my-service]
+    logging.go:30: respond open watch 33 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "7"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "6" with version "7" and resources [endpoints-my-service]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc0006763c0)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc00043d400)}  (t=+76.308399ms)
+    logging.go:30: open watch 37 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "7"
+    logging.go:30: open watch 38 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "7"
+    logging.go:30: open watch 39 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "7"
+    logging.go:30: open watch 40 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "7"
+    logging.go:30: open watch 41 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "7"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 41 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "8"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "7" with version "8" and resources [my-service]
+    logging.go:30: respond open watch 37 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "8"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "7" with version "8" and resources [routeName]
+    logging.go:30: respond open watch 38 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "8"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "7" with version "8" and resources [route-my-service]
+    logging.go:30: respond open watch 39 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "8"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "7" with version "8" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 40 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "8"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "7" with version "8" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "7" with version "8" and resources [cluster-my-service]
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc00070b080)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc000925720)}  (t=+78.616175ms)
+    logging.go:30: open watch 42 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "8"
+    logging.go:30: open watch 43 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "8"
+    logging.go:30: open watch 44 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "8"
+    logging.go:30: open watch 45 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "8"
+    logging.go:30: open watch 46 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "8"
+    logging.go:30: open watch 47 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "8"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 42 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "9"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "8" with version "9" and resources [routeName]
+    logging.go:30: respond open watch 43 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "9"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "8" with version "9" and resources [route-my-service]
+    logging.go:30: respond open watch 44 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "9"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "8" with version "9" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 45 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "9"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "8" with version "9" and resources [cluster-my-service]
+    logging.go:30: respond open watch 46 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "9"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "8" with version "9" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: respond open watch 47 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "9"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "8" with version "9" and resources [my-service]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    logging.go:30: open watch 48 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "9"
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc0006a78c0)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc00081aaa0)}  (t=+90.317104ms)
+    logging.go:30: open watch 49 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "9"
+    logging.go:30: open watch 50 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "9"
+    logging.go:30: open watch 51 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "9"
+    logging.go:30: open watch 52 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "9"
+    logging.go:30: open watch 53 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "9"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 49 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "10"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "9" with version "10" and resources [routeName]
+    logging.go:30: respond open watch 50 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "10"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "9" with version "10" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 51 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "10"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "9" with version "10" and resources [cluster-my-service]
+    logging.go:30: respond open watch 52 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "10"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "9" with version "10" and resources [my-service]
+    logging.go:30: respond open watch 53 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "10"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "9" with version "10" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: respond open watch 48 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "10"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "9" with version "10" and resources [route-my-service]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc000677100)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc00073a000)}  (t=+91.61324ms)
+    logging.go:30: open watch 54 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "10"
+    logging.go:30: open watch 55 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "10"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 54 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "11"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "10" with version "11" and resources [routeName]
+    logging.go:30: respond open watch 55 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "11"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "10" with version "11" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "10" with version "11" and resources [endpoints-my-service]
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "10" with version "11" and resources [route-my-service]
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "10" with version "11" and resources [my-service]
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "10" with version "11" and resources [cluster-my-service]
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc00070a100)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc00073a370)}  (t=+93.373284ms)
+    server.go:229: Created new resource snapshot...
+    logging.go:30: open watch 56 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "11"
+    logging.go:30: open watch 57 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "11"
+    logging.go:30: open watch 58 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "11"
+    logging.go:30: open watch 59 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "11"
+    logging.go:30: open watch 60 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "11"
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 56 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "12"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "11" with version "12" and resources [route-my-service]
+    logging.go:30: respond open watch 57 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "12"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "11" with version "12" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 58 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "12"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "11" with version "12" and resources [routeName]
+    logging.go:30: respond open watch 59 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "12"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "11" with version "12" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: respond open watch 60 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "12"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "11" with version "12" and resources [my-service]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "11" with version "12" and resources [cluster-my-service]
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc00087c340)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc000056730)}  (t=+94.660858ms)
+    logging.go:30: open watch 61 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "12"
+    logging.go:30: open watch 62 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "12"
+    logging.go:30: open watch 63 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "12"
+    logging.go:30: open watch 64 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "12"
+    logging.go:30: open watch 65 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "12"
+    logging.go:30: open watch 66 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "12"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 61 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "13"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "12" with version "13" and resources [routeName]
+    logging.go:30: respond open watch 62 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "13"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "12" with version "13" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 63 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "13"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "12" with version "13" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: respond open watch 64 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "13"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "12" with version "13" and resources [route-my-service]
+    logging.go:30: respond open watch 65 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "13"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "12" with version "13" and resources [my-service]
+    logging.go:30: respond open watch 66 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "13"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "12" with version "13" and resources [cluster-my-service]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc0001beac0)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc00073a730)}  (t=+106.024072ms)
+    logging.go:30: open watch 67 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "13"
+    logging.go:30: open watch 68 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "13"
+    logging.go:30: open watch 69 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "13"
+    logging.go:30: open watch 70 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "13"
+    logging.go:30: open watch 71 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "13"
+    logging.go:30: open watch 72 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "13"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 67 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "14"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "13" with version "14" and resources [routeName]
+    logging.go:30: respond open watch 68 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "14"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "13" with version "14" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: respond open watch 69 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "14"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "13" with version "14" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 70 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "14"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "13" with version "14" and resources [route-my-service]
+    logging.go:30: respond open watch 71 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "14"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "13" with version "14" and resources [my-service]
+    logging.go:30: respond open watch 72 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "14"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "13" with version "14" and resources [cluster-my-service]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc000576f80)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc000581c70)}  (t=+117.945255ms)
+    logging.go:30: open watch 73 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "14"
+    logging.go:30: open watch 74 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "14"
+    logging.go:30: open watch 75 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "14"
+    logging.go:30: open watch 76 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "14"
+    logging.go:30: open watch 77 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "14"
+    logging.go:30: open watch 78 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "14"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 74 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "15"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "14" with version "15" and resources [cluster-my-service]
+    logging.go:30: respond open watch 75 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "15"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "14" with version "15" and resources [routeName]
+    logging.go:30: respond open watch 76 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "15"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "14" with version "15" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: respond open watch 77 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "15"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "14" with version "15" and resources [my-service]
+    logging.go:30: respond open watch 78 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "15"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "14" with version "15" and resources [route-my-service]
+    logging.go:30: respond open watch 73 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "15"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "14" with version "15" and resources [endpoints-my-service]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc00067cac0)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc000d8c370)}  (t=+129.646295ms)
+    logging.go:30: open watch 79 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "15"
+    logging.go:30: open watch 80 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "15"
+    logging.go:30: open watch 81 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "15"
+    logging.go:30: open watch 82 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "15"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: open watch 83 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "15"
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 79 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "16"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "15" with version "16" and resources [routeName]
+    logging.go:30: respond open watch 80 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "16"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "15" with version "16" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: respond open watch 81 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "16"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "15" with version "16" and resources [cluster-my-service]
+    logging.go:30: respond open watch 82 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "16"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "15" with version "16" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 83 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "16"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "15" with version "16" and resources [my-service]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "15" with version "16" and resources [route-my-service]
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc00073d400)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc000581950)}  (t=+132.05046ms)
+    logging.go:30: open watch 84 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "16"
+    logging.go:30: open watch 85 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "16"
+    logging.go:30: open watch 86 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "16"
+    logging.go:30: open watch 87 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "16"
+    logging.go:30: open watch 88 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "16"
+    logging.go:30: open watch 89 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "16"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 87 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "17"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "16" with version "17" and resources [cluster-my-service]
+    logging.go:30: respond open watch 88 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "17"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "16" with version "17" and resources [my-service]
+    logging.go:30: respond open watch 89 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "17"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "16" with version "17" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 84 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "17"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "16" with version "17" and resources [routeName]
+    logging.go:30: respond open watch 85 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "17"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "16" with version "17" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: respond open watch 86 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "17"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "16" with version "17" and resources [route-my-service]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc00073cbc0)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc00031fa90)}  (t=+143.443534ms)
+    logging.go:30: open watch 90 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "17"
+    logging.go:30: open watch 91 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "17"
+    logging.go:30: open watch 92 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "17"
+    logging.go:30: open watch 93 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "17"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 93 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "18"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "17" with version "18" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 90 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "18"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "17" with version "18" and resources [cluster-my-service]
+    logging.go:30: respond open watch 91 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "18"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "17" with version "18" and resources [my-service]
+    logging.go:30: respond open watch 92 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "18"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "17" with version "18" and resources [route-my-service]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "17" with version "18" and resources [routeName]
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "17" with version "18" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: open watch 94 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "18"
+    logging.go:30: open watch 95 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "18"
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc00067c740)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc000606be0)}  (t=+145.777446ms)
+    logging.go:30: open watch 96 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "18"
+    logging.go:30: open watch 97 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "18"
+    logging.go:30: open watch 98 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "18"
+    logging.go:30: open watch 99 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "18"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 95 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "19"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "18" with version "19" and resources [route-my-service]
+    logging.go:30: respond open watch 96 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "19"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "18" with version "19" and resources [my-service]
+    logging.go:30: respond open watch 97 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "19"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "18" with version "19" and resources [routeName]
+    logging.go:30: respond open watch 98 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "19"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "18" with version "19" and resources [cluster-my-service]
+    logging.go:30: respond open watch 99 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "19"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "18" with version "19" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: respond open watch 94 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "19"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "18" with version "19" and resources [endpoints-my-service]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc00073c1c0)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc000e00b40)}  (t=+157.756511ms)
+    logging.go:30: open watch 100 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "19"
+    logging.go:30: open watch 101 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "19"
+    logging.go:30: open watch 102 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "19"
+    logging.go:30: open watch 103 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "19"
+    logging.go:30: open watch 104 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "19"
+    logging.go:30: open watch 105 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "19"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 101 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "20"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "19" with version "20" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: respond open watch 102 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "20"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "19" with version "20" and resources [route-my-service]
+    logging.go:30: respond open watch 103 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "20"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "19" with version "20" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 104 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "20"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "19" with version "20" and resources [cluster-my-service]
+    logging.go:30: respond open watch 105 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "20"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "19" with version "20" and resources [my-service]
+    logging.go:30: respond open watch 100 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "20"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "19" with version "20" and resources [routeName]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc000a06700)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc00077adc0)}  (t=+170.410316ms)
+    logging.go:30: open watch 106 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "20"
+    logging.go:30: open watch 107 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "20"
+    logging.go:30: open watch 108 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "20"
+    logging.go:30: open watch 109 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "20"
+    logging.go:30: open watch 110 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "20"
+    logging.go:30: open watch 111 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "20"
+    server.go:229: Created new resource snapshot...
+    logging.go:30: setting snapshot for node 8065fc7d-b2d2-4143-b2ae-2145c1dac339
+    logging.go:30: respond open watch 110 type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment [endpoints-my-service] with new version "21"
+    logging.go:30: respond type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment (requested [endpoints-my-service]) version "20" with version "21" and resources [endpoints-my-service]
+    logging.go:30: respond open watch 111 type.googleapis.com/envoy.config.cluster.v3.Cluster [cluster-my-service] with new version "21"
+    logging.go:30: respond type.googleapis.com/envoy.config.cluster.v3.Cluster (requested [cluster-my-service]) version "20" with version "21" and resources [cluster-my-service]
+    logging.go:30: respond open watch 106 type.googleapis.com/envoy.config.listener.v3.Listener [grpc/server?xds.resource.listening_address=127.0.0.1:46141] with new version "21"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [grpc/server?xds.resource.listening_address=127.0.0.1:46141]) version "20" with version "21" and resources [grpc/server?xds.resource.listening_address=127.0.0.1:46141]
+    logging.go:30: respond open watch 107 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [route-my-service] with new version "21"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [route-my-service]) version "20" with version "21" and resources [route-my-service]
+    logging.go:30: respond open watch 108 type.googleapis.com/envoy.config.listener.v3.Listener [my-service] with new version "21"
+    logging.go:30: respond type.googleapis.com/envoy.config.listener.v3.Listener (requested [my-service]) version "20" with version "21" and resources [my-service]
+    logging.go:30: respond open watch 109 type.googleapis.com/envoy.config.route.v3.RouteConfiguration [routeName] with new version "21"
+    logging.go:30: respond type.googleapis.com/envoy.config.route.v3.RouteConfiguration (requested [routeName]) version "20" with version "21" and resources [routeName]
+    server.go:235: Updated snapshot cache with resource snapshot...
+    logging.go:30: open watch 112 for type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment map[endpoints-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "21"
+    logging.go:30: open watch 113 for type.googleapis.com/envoy.config.cluster.v3.Cluster map[cluster-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "21"
+    logging.go:30: open watch 114 for type.googleapis.com/envoy.config.listener.v3.Listener map[my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "21"
+    logging.go:30: open watch 115 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[route-my-service:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "21"
+    tlogger.go:133: INFO rds_handler.go:147 RDS watch for resource "routeName" received update: &xdsresource.RouteConfigUpdate{VirtualHosts:[]*xdsresource.VirtualHost{(*xdsresource.VirtualHost)(0xc00067da00)}, ClusterSpecifierPlugins:map[string]clusterspecifier.BalancerConfig{}, Raw:(*anypb.Any)(0xc0009cc640)}  (t=+189.98811ms)
+    logging.go:30: open watch 116 for type.googleapis.com/envoy.config.listener.v3.Listener map[grpc/server?xds.resource.listening_address=127.0.0.1:46141:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "21"
+    logging.go:30: open watch 117 for type.googleapis.com/envoy.config.route.v3.RouteConfiguration map[routeName:{}] from nodeID "8065fc7d-b2d2-4143-b2ae-2145c1dac339", version "21"
+    tlogger.go:129: WARNING ads_stream.go:452 [xds] [xds-client 0xc0005e9e00] [xds-channel 0xc000056910] [ads-stream 0xc000284000] ADS stream closed: rpc error: code = Canceled desc = context canceled  (t=+206.883795ms)
+    tlogger.go:129: WARNING ads_stream.go:410 [xds] [xds-client 0xc0005e9e00] [xds-channel 0xc000056910] [ads-stream 0xc000284000] Sending ADS request for type "type.googleapis.com/envoy.config.listener.v3.Listener", resources: [], version: "21", nonce: "41" failed: EOF  (t=+206.956115ms)
+    tlogger.go:133: INFO ads_stream.go:165 [xds] [xds-client 0xc0005e9e00] [xds-channel 0xc000056910] [ads-stream 0xc000284000] Shutdown ADS stream  (t=+207.008082ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #4] Channel Connectivity change to SHUTDOWN  (t=+207.052304ms)
+    tlogger.go:133: INFO resolver_wrapper.go:112 [core] [Channel #4] Closing the name resolver  (t=+207.080041ms)
+    tlogger.go:133: INFO balancer_wrapper.go:159 [core] [Channel #4] ccBalancerWrapper: closing  (t=+207.126284ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #4 SubChannel #6] Subchannel Connectivity change to SHUTDOWN  (t=+207.257006ms)
+    tlogger.go:133: INFO clientconn.go:1710 [core] [Channel #4 SubChannel #6] Subchannel deleted  (t=+207.308904ms)
+    tlogger.go:133: INFO clientconn.go:1232 [core] [Channel #4] Channel deleted  (t=+207.422162ms)
+    tlogger.go:133: INFO channel.go:143 [xds] [xds-client 0xc0005e9e00] [xds-channel 0xc000056910] Shutdown  (t=+207.480197ms)
+    tlogger.go:133: INFO server.go:864 [core] [Server #3 ListenSocket #5] ListenSocket deleted  (t=+207.521094ms)
+    tlogger.go:133: INFO xdsclient.go:210 [xds] [xds-client 0xc0005e9e00] Shutdown  (t=+207.632097ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #8 SubChannel #14] Subchannel Connectivity change to IDLE  (t=+209.360581ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [weighted-target-lb 0xc00049fee0] Balancer state update from child {region="region-1", zone="zone-1", sub_zone="subzone-1"}, new state: {ConnectivityState:IDLE Picker:0xc00070a540}  (t=+209.505083ms)
+    tlogger.go:133: INFO aggregator.go:253 [xds] [weighted-target-lb 0xc00049fee0] Child pickers with config: map[{region="region-1", zone="zone-1", sub_zone="subzone-1"}:weight:1,picker:0xc00070a540,state:IDLE,stateToAggregate:IDLE]  (t=+209.542064ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [priority-lb 0xc0007ba7e0] Balancer state update from child priority-0-0, new state: {ConnectivityState:IDLE Picker:0xc0007808b8}  (t=+209.578042ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [xds-cluster-manager-lb 0xc00049f760] Balancer state update from child cluster:cluster-my-service, new state: {ConnectivityState:IDLE Picker:0xc0007808b8}  (t=+209.615329ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:147 [xds] [xds-cluster-manager-lb 0xc00049f760] State update from sub-balancer "cluster:cluster-my-service": {ConnectivityState:IDLE Picker:0xc0007808b8}  (t=+209.647364ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:191 [xds] [xds-cluster-manager-lb 0xc00049f760] Child pickers: map[cluster:cluster-my-service:picker:0xc0007808b8,state:IDLE,stateToAggregate:IDLE]  (t=+209.68292ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #8] Channel Connectivity change to IDLE  (t=+209.718067ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [weighted-target-lb 0xc00049fee0] Balancer state update from child {region="region-1", zone="zone-1", sub_zone="subzone-1"}, new state: {ConnectivityState:CONNECTING Picker:0xc00070a580}  (t=+209.767849ms)
+    tlogger.go:133: INFO aggregator.go:253 [xds] [weighted-target-lb 0xc00049fee0] Child pickers with config: map[{region="region-1", zone="zone-1", sub_zone="subzone-1"}:weight:1,picker:0xc00070a580,state:CONNECTING,stateToAggregate:CONNECTING]  (t=+209.799012ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [priority-lb 0xc0007ba7e0] Balancer state update from child priority-0-0, new state: {ConnectivityState:CONNECTING Picker:0xc000780cd8}  (t=+209.837749ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #8 SubChannel #14] Subchannel Connectivity change to CONNECTING  (t=+209.87276ms)
+    tlogger.go:133: INFO clientconn.go:1471 [core] [Channel #8 SubChannel #14] Subchannel picks a new address "127.0.0.1:46141" to connect  (t=+209.901436ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [xds-cluster-manager-lb 0xc00049f760] Balancer state update from child cluster:cluster-my-service, new state: {ConnectivityState:CONNECTING Picker:0xc000780cd8}  (t=+210.032175ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:147 [xds] [xds-cluster-manager-lb 0xc00049f760] State update from sub-balancer "cluster:cluster-my-service": {ConnectivityState:CONNECTING Picker:0xc000780cd8}  (t=+210.062592ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:191 [xds] [xds-cluster-manager-lb 0xc00049f760] Child pickers: map[cluster:cluster-my-service:picker:0xc000780cd8,state:CONNECTING,stateToAggregate:CONNECTING]  (t=+210.097826ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #8] Channel Connectivity change to CONNECTING  (t=+210.133997ms)
+    tlogger.go:129: WARNING clientconn.go:1534 [core] [Channel #8 SubChannel #14] grpc: addrConn.createTransport failed to connect to {Addr: "127.0.0.1:46141", ServerName: "my-service", Attributes: {"<%!p(xds.hostnameKey={})>": "" , "<%!p(xds.handshakeAttrKey={})>": "<0xc0001ddd30>" , "<%!p(xds.handshakeClusterNameKey={})>": "cluster-my-service" }, BalancerAttributes: {"<%!p(weight.attributeKey={})>": "Weight: 2147483648" , "<%!p(wrrlocality.attributeKey={})>": "Locality Weight: 1" , "<%!p(xds.localityKeyType=grpc.xds.internal.address.locality)>": "<%!p(clients.Locality={region-1 zone-1 subzone-1})>" , "<%!p(hierarchy.pathKeyType=grpc.internal.address.hierarchical_path)>": "<0xc00049fbc0>" }}. Err: connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:46141: connect: connection refused"  (t=+210.189525ms)
+    tlogger.go:133: INFO clientconn.go:1305 [core] [Channel #8 SubChannel #14] Subchannel Connectivity change to TRANSIENT_FAILURE, last error: connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:46141: connect: connection refused"  (t=+210.269645ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [weighted-target-lb 0xc00049fee0] Balancer state update from child {region="region-1", zone="zone-1", sub_zone="subzone-1"}, new state: {ConnectivityState:TRANSIENT_FAILURE Picker:0xc00099c040}  (t=+210.388805ms)
+    verify_c1_stop_ordering_test.go:407: VERIFY-DIAG baseline=2; immediately after Stop(): liveInterceptors=1 liveFilters=1; both reached 0 2.750091ms after Stop() returned (-1ns = never within 5s)
+    verify_c1_stop_ordering_test.go:410: 1 live interceptors after server stop, want 0
+    tlogger.go:133: INFO aggregator.go:253 [xds] [weighted-target-lb 0xc00049fee0] Child pickers with config: map[{region="region-1", zone="zone-1", sub_zone="subzone-1"}:weight:1,picker:0xc00099c040,state:TRANSIENT_FAILURE,stateToAggregate:TRANSIENT_FAILURE]  (t=+210.436554ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [priority-lb 0xc0007ba7e0] Balancer state update from child priority-0-0, new state: {ConnectivityState:TRANSIENT_FAILURE Picker:0xc000780ed0}  (t=+210.558416ms)
+    tlogger.go:129: WARNING server.go:1495 [core] [Server #3] grpc: Server.processUnaryRPC failed to write status: connection error: desc = "transport is closing"  (t=+210.599234ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #8] Channel Connectivity change to SHUTDOWN  (t=+210.636227ms)
+    tlogger.go:133: INFO resolver_wrapper.go:112 [core] [Channel #8] Closing the name resolver  (t=+210.672077ms)
+    tlogger.go:133: INFO balancer_wrapper.go:159 [core] [Channel #8] ccBalancerWrapper: closing  (t=+210.718815ms)
+    tlogger.go:133: INFO balancergroup.go:528 [xds] [xds-cluster-manager-lb 0xc00049f760] Balancer state update from child cluster:cluster-my-service, new state: {ConnectivityState:TRANSIENT_FAILURE Picker:0xc000780ed0}  (t=+210.765776ms)
+    tlogger.go:133: INFO balancerstateaggregator.go:147 [xds] [xds-cluster-manager-lb 0xc00049f760] State update from sub-balancer "cluster:cluster-my-service": {ConnectivityState:TRANSIENT_FAILURE Picker:0xc000780ed0}  (t=+210.802085ms)
+    tlogger.go:133: INFO clusterimpl.go:508 [xds] [xds-cluster-impl-lb 0xc0001ddcc0] Shutdown  (t=+210.869114ms)
+    tlogger.go:133: INFO balancergroup.go:351 [xds] [priority-lb 0xc0007ba7e0] Removing child policy for child "priority-0-0"  (t=+210.902307ms)
+    tlogger.go:133: INFO cdsbalancer.go:416 [xds] [cds-lb 0xc000245340] Shutdown  (t=+210.923051ms)
+    tlogger.go:133: INFO clustermanager.go:192 [xds] [xds-cluster-manager-lb 0xc00049f760] Shutdown  (t=+210.942819ms)
+    tlogger.go:129: WARNING ads_stream.go:452 [xds] [xds-client 0xc00081fae0] [xds-channel 0xc00043ca50] [ads-stream 0xc00081fb80] ADS stream closed: rpc error: code = Canceled desc = context canceled  (t=+211.126828ms)
+    tlogger.go:133: INFO ads_stream.go:165 [xds] [xds-client 0xc00081fae0] [xds-channel 0xc00043ca50] [ads-stream 0xc00081fb80] Shutdown ADS stream  (t=+211.161879ms)
+    tlogger.go:133: INFO clientconn.go:620 [core] [Channel #10] Channel Connectivity change to SHUTDOWN  (t=+211.201757ms)
+    tlogger.go:133: INFO resolver_wrapper.go:112 [core] [Channel #10] Closing the name resolver  (t=+211.226149ms)
+    tlogger.go:133: INFO balancer_wrapper.go:159 [core] [Channel #10] ccBalancerWrapper: closing  (t=+211.262258ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #10 SubChannel #11] Subchannel Connectivity change to SHUTDOWN  (t=+211.352048ms)
+    tlogger.go:133: INFO clientconn.go:1710 [core] [Channel #10 SubChannel #11] Subchannel deleted  (t=+211.403032ms)
+    tlogger.go:133: INFO clientconn.go:1232 [core] [Channel #10] Channel deleted  (t=+211.568906ms)
+    tlogger.go:133: INFO channel.go:143 [xds] [xds-client 0xc00081fae0] [xds-channel 0xc00043ca50] Shutdown  (t=+211.643377ms)
+    tlogger.go:133: INFO xdsclient.go:210 [xds] [xds-client 0xc00081fae0] Shutdown  (t=+211.731052ms)
+    tlogger.go:133: INFO xds_resolver.go:295 [xds] [xds-resolver 0xc0002dfe60] Shutdown  (t=+211.770271ms)
+    tlogger.go:133: INFO clientconn.go:1303 [core] [Channel #8 SubChannel #14] Subchannel Connectivity change to SHUTDOWN  (t=+211.819231ms)
+    tlogger.go:133: INFO clientconn.go:1710 [core] [Channel #8 SubChannel #14] Subchannel deleted  (t=+212.171182ms)
+    tlogger.go:133: INFO clientconn.go:1232 [core] [Channel #8] Channel deleted  (t=+212.210462ms)
+    tlogger.go:133: INFO server.go:864 [core] [Server #1 ListenSocket #2] ListenSocket deleted  (t=+212.321169ms)
+--- FAIL: Test (0.23s)
+    --- FAIL: Test/VerifyC1_SolutionLifecycle_Diagnostics (0.22s)
+FAIL
