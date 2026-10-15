@@ -43,7 +43,18 @@ func RouteAndProcess(ctx context.Context) error {
 		return errors.New("missing virtual hosts in incoming context")
 	}
 
-	rc := cw.urc.Load()
+	var rc *usableRouteConfiguration
+	for {
+		rc = cw.urc.Load()
+		rc.mu.RLock()
+		// The configuration may have been replaced and closed between the
+		// load and the lock. Retry with the new configuration in that case.
+		if rc == cw.urc.Load() {
+			break
+		}
+		rc.mu.RUnlock()
+	}
+	defer rc.mu.RUnlock()
 	// Error out at routing l7 level with a status code UNAVAILABLE, represents
 	// an nack before usable route configuration or resource not found for RDS
 	// or error combining LDS + RDS (Shouldn't happen).
