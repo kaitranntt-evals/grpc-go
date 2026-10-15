@@ -1,0 +1,15 @@
+diff --git a/internal/xds/server/filter_chain_manager.go b/internal/xds/server/filter_chain_manager.go
+index c08ab271..a5ef03c9 100644
+--- a/internal/xds/server/filter_chain_manager.go
++++ b/internal/xds/server/filter_chain_manager.go
+@@ -411,7 +411,9 @@ func filterBySourcePorts(spe *sourcePrefixEntry, srcPort int) *filterChain {
+ // this filter chain will use urc from this point on. The configuration being
+ // replaced is closed to release the interceptors held by it.
+ func (fc *filterChain) updateUsableRouteConfiguration(urc *usableRouteConfiguration) {
+-	fc.usableRouteConfiguration.Swap(urc).close()
++	prev := fc.usableRouteConfiguration.Swap(urc)
++	prev.close()
++	prev.close() // VERIFY-C3 mutation: duplicate cleanup of the superseded configuration.
+ }
+ 
+ // stop releases the resources held by the filter chain: the interceptors held

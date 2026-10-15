@@ -1,0 +1,47 @@
+diff --git a/internal/xds/server/listener_wrapper_test.go b/internal/xds/server/listener_wrapper_test.go
+index 7a215b35..879cc3f5 100644
+--- a/internal/xds/server/listener_wrapper_test.go
++++ b/internal/xds/server/listener_wrapper_test.go
+@@ -108,6 +108,7 @@ func (s) TestListenerWrapper_RDSUpdatesReleaseSupersededRouteConfiguration(t *te
+ 		t.Fatalf("testutils.LocalTCPListener() failed: %v", err)
+ 	}
+ 	cfb := &countingFilterBuilder{}
++	verifyC2Lis, verifyC2Cfb = lis, cfb // VERIFY-C2 instrumentation: expose the created resources to the wrapper test.
+ 	fcm := newFilterChainManager(nil, &xdsresource.NetworkFilterChainConfig{
+ 		HTTPConnMgr: &xdsresource.HTTPConnectionManagerConfig{
+ 			RouteConfigName: routeName,
+@@ -154,6 +155,9 @@ func (s) TestListenerWrapper_RDSUpdatesReleaseSupersededRouteConfiguration(t *te
+ 	for i := 0; i < numUpdate; i++ {
+ 		sendUpdate(rdsWatcherUpdate{data: routeConfigWithRoutes(numRoutes)})
+ 		verifyConnUsable()
++		if verifyC2InjectFatal { // VERIFY-C2 instrumentation: early fatal assertion after resource creation.
++			t.Fatalf("VERIFY-C2 injected fatal assertion after update %d", i+1)
++		}
+ 
+ 		created, closed := cfb.interceptorsCreated.Load(), cfb.interceptorsClosed.Load()
+ 		if got, want := created, int32((i+1)*numRoutes); got != want {
+diff --git a/test/xds/xds_server_filter_state_retention_test.go b/test/xds/xds_server_filter_state_retention_test.go
+index 1361762b..c05af9a2 100644
+--- a/test/xds/xds_server_filter_state_retention_test.go
++++ b/test/xds/xds_server_filter_state_retention_test.go
+@@ -640,6 +640,12 @@ func (s) TestServerSideXDS_FilterStateRetention_AcrossRDSUpdates(t *testing.T) {
+ 	}
+ 	httpfilter.Register(fb)
+ 	defer httpfilter.UnregisterForTesting(fb.typeURL)
++	var verifyC2Addr string
++	defer func() { // VERIFY-C2 instrumentation: registered first, so it runs after the deferred stopServer().
++		_, dialErr := net.DialTimeout("tcp", verifyC2Addr, time.Second)
++		t.Logf("VERIFY-C2 e2e at test exit (failed=%v): filters created=%d destroyed=%d, interceptors created=%d destroyed=%d, dial listener %s err=%v",
++			t.Failed(), filtersCreated.Load(), filtersDestroyed.Load(), interceptorsCreated.Load(), interceptorsDestroyed.Load(), verifyC2Addr, dialErr)
++	}()
+ 
+ 	managementServer, nodeID, bootstrapContents, xdsResolver := setup.ManagementServerAndResolver(t)
+ 
+@@ -653,6 +659,7 @@ func (s) TestServerSideXDS_FilterStateRetention_AcrossRDSUpdates(t *testing.T) {
+ 	})
+ 	lis, stopServer := setupGRPCServer(t, bootstrapContents, opt)
+ 	defer stopServer()
++	verifyC2Addr = lis.Addr().String() // VERIFY-C2 instrumentation.
+ 
+ 	host, port, err := hostPortFromListener(lis)
+ 	if err != nil {

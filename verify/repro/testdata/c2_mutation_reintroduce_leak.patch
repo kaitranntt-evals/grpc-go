@@ -1,0 +1,13 @@
+diff --git a/internal/xds/server/filter_chain_manager.go b/internal/xds/server/filter_chain_manager.go
+index caa6ea47..aef10104 100644
+--- a/internal/xds/server/filter_chain_manager.go
++++ b/internal/xds/server/filter_chain_manager.go
+@@ -386,7 +386,7 @@ func (fc *filterChain) stop() {
+ // drained.
+ func (fc *filterChain) updateUsableRouteConfiguration(urc *usableRouteConfiguration) {
+ 	if prev := fc.usableRouteConfiguration.Swap(urc); prev != urc {
+-		prev.closeInterceptors()
++		_ = prev // VERIFY-C2 mutation: reintroduce the leak so the regression's own assertion fires.
+ 	}
+ }
+ 
