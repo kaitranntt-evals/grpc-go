@@ -1,0 +1,13 @@
+diff --git a/internal/xds/server/filter_chain_manager.go b/internal/xds/server/filter_chain_manager.go
+index dd96762a..fa52a0db 100644
+--- a/internal/xds/server/filter_chain_manager.go
++++ b/internal/xds/server/filter_chain_manager.go
+@@ -216,7 +216,7 @@ func (urc *usableRouteConfiguration) release() {
+ // call more than once.
+ func (urc *usableRouteConfiguration) retire() {
+ 	if urc.retired.CompareAndSwap(false, true) {
+-		urc.release()
++		closeInterceptors(urc.vhs) // VERIFY MUTATION M2: close immediately, ignoring in-flight RPC references
+ 	}
+ }
+ 

@@ -1,0 +1,95 @@
+diff --git a/internal/xds/server/usable_route_configuration_test.go b/internal/xds/server/usable_route_configuration_test.go
+index 61d9d184..f8667b61 100644
+--- a/internal/xds/server/usable_route_configuration_test.go
++++ b/internal/xds/server/usable_route_configuration_test.go
+@@ -112,6 +112,9 @@ func newFilterChainForTesting(fb *countingFilterBuilder) (*filterChain, serverFi
+ // chain is stopped.
+ func (s) TestUsableRouteConfiguration_ReleasedOnReplacementAndStop(t *testing.T) {
+ 	fb := &countingFilterBuilder{}
++	t.Cleanup(func() { // VERIFY instrumentation
++		t.Logf("VERIFY-EXIT %s failed=%v liveInterceptors=%d liveFilters=%d", t.Name(), t.Failed(), fb.liveInterceptors.Load(), fb.liveFilters.Load())
++	})
+ 	fc, provider := newFilterChainForTesting(fb)
+ 
+ 	const numRoutes = 3
+@@ -171,6 +174,9 @@ func (s) TestUsableRouteConfiguration_ReleasedOnReplacementAndStop(t *testing.T)
+ // when it is replaced, and that it is released once the RPC is done with it.
+ func (s) TestUsableRouteConfiguration_InFlightRPCDelaysRelease(t *testing.T) {
+ 	fb := &countingFilterBuilder{}
++	t.Cleanup(func() { // VERIFY instrumentation
++		t.Logf("VERIFY-EXIT %s failed=%v liveInterceptors=%d liveFilters=%d", t.Name(), t.Failed(), fb.liveInterceptors.Load(), fb.liveFilters.Load())
++	})
+ 	fc, provider := newFilterChainForTesting(fb)
+ 	fc.setUsableRouteConfiguration(fc.constructUsableRouteConfiguration(routeConfigWithRoutes(1), provider))
+ 
+@@ -208,6 +214,9 @@ func (s) TestUsableRouteConfiguration_InFlightRPCDelaysRelease(t *testing.T) {
+ // never observe closed interceptors and that no interceptors are leaked.
+ func (s) TestUsableRouteConfiguration_ConcurrentUpdatesAndRPCs(t *testing.T) {
+ 	fb := &countingFilterBuilder{}
++	t.Cleanup(func() { // VERIFY instrumentation
++		t.Logf("VERIFY-EXIT %s failed=%v liveInterceptors=%d liveFilters=%d", t.Name(), t.Failed(), fb.liveInterceptors.Load(), fb.liveFilters.Load())
++	})
+ 	fc, provider := newFilterChainForTesting(fb)
+ 	fc.setUsableRouteConfiguration(fc.constructUsableRouteConfiguration(routeConfigWithRoutes(1), provider))
+ 	cw := &connWrapper{filterChain: fc, urc: fc.usableRouteConfiguration}
+diff --git a/test/xds/xds_server_filter_state_retention_test.go b/test/xds/xds_server_filter_state_retention_test.go
+index 729d163f..1bce4f82 100644
+--- a/test/xds/xds_server_filter_state_retention_test.go
++++ b/test/xds/xds_server_filter_state_retention_test.go
+@@ -22,6 +22,7 @@ import (
+ 	"context"
+ 	"fmt"
+ 	"net"
++	"os"
+ 	"strconv"
+ 	"sync/atomic"
+ 	"testing"
+@@ -638,6 +639,22 @@ func (s) TestServerSideXDS_FilterStateRetention_RepeatedRDSUpdatesReleaseInterce
+ 		typeURL:               testFilterTypeURL,
+ 		pathCh:                pathCh,
+ 	}
++	var vcc *grpc.ClientConn // VERIFY instrumentation
++	var vlis net.Listener
++	t.Cleanup(func() {
++		t.Logf("VERIFY-EXIT %s failed=%v filtersCreated=%d filtersDestroyed=%d interceptorsCreated=%d interceptorsDestroyed=%d", t.Name(), t.Failed(), filtersCreated.Load(), filtersDestroyed.Load(), interceptorsCreated.Load(), interceptorsDestroyed.Load())
++		t.Logf("VERIFY-EXIT filter still registered=%v", httpfilter.Get(testFilterTypeURL) != nil)
++		if vcc != nil {
++			t.Logf("VERIFY-EXIT client conn state=%v", vcc.GetState())
++		}
++		if vlis != nil {
++			c, err := net.DialTimeout("tcp", vlis.Addr().String(), time.Second)
++			if err == nil {
++				c.Close()
++			}
++			t.Logf("VERIFY-EXIT dial server listener %s: err=%v", vlis.Addr(), err)
++		}
++	})
+ 	httpfilter.Register(fb)
+ 	defer httpfilter.UnregisterForTesting(fb.typeURL)
+ 
+@@ -651,6 +668,7 @@ func (s) TestServerSideXDS_FilterStateRetention_RepeatedRDSUpdatesReleaseInterce
+ 	})
+ 	lis, stopServer := setupGRPCServer(t, bootstrapContents, opt)
+ 	defer stopServer()
++	vlis = lis
+ 
+ 	host, port, err := hostPortFromListener(lis)
+ 	if err != nil {
+@@ -765,6 +783,7 @@ func (s) TestServerSideXDS_FilterStateRetention_RepeatedRDSUpdatesReleaseInterce
+ 		t.Fatalf("grpc.NewClient() failed: %v", err)
+ 	}
+ 	defer cc.Close()
++	vcc = cc
+ 
+ 	select {
+ 	case <-servingCh:
+@@ -815,6 +834,9 @@ func (s) TestServerSideXDS_FilterStateRetention_RepeatedRDSUpdatesReleaseInterce
+ 		}
+ 	}
+ 
++	if os.Getenv("VERIFY_FORCE_FATAL") != "" { // VERIFY instrumentation
++		t.Fatalf("VERIFY forced fatal assertion after server, client and filter were acquired and %d updates served", numUpdates)
++	}
+ 	// The filter instance is retained across RouteConfiguration updates.
+ 	if got, want := filtersCreated.Load(), int32(1); got != want {
+ 		t.Fatalf("Created %d filter instances, want: %d", got, want)

@@ -1,0 +1,26 @@
+// Run: cp to test/xds/ on branch evalon/grpc-go-xd-8e055bd7, then: go test -race -count=1 -v -run 'TestVerifyC1_TrackingInterceptorDoubleClose' ./test/xds
+package xds_test
+
+import (
+	"sync/atomic"
+	"testing"
+)
+
+// Calls the trackingInterceptor.Close used by the test/xds lifecycle tests
+// twice and prints the counters those tests assert on.
+func TestVerifyC1_TrackingInterceptorDoubleClose(t *testing.T) {
+	var fc, fd, ic, id atomic.Int32
+	fb := &trackingHTTPFilterBuilder{filtersCreated: &fc, filtersDestroyed: &fd, interceptorsCreated: &ic, interceptorsDestroyed: &id, typeURL: t.Name(), pathCh: make(chan string, 1)}
+	i, err := fb.BuildServerInterceptor(testFilterCfg{path: "p"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("after build:        interceptorsCreated=%d interceptorsDestroyed=%d", ic.Load(), id.Load())
+	i.Close()
+	t.Logf("after 1st Close():  interceptorsCreated=%d interceptorsDestroyed=%d", ic.Load(), id.Load())
+	i.Close()
+	t.Logf("after 2nd Close():  interceptorsCreated=%d interceptorsDestroyed=%d", ic.Load(), id.Load())
+	if got := id.Load(); got != 2 {
+		t.Errorf("SUPPRESSED: interceptorsDestroyed=%d after two Close() calls", got)
+	}
+}

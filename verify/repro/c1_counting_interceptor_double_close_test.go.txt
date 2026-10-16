@@ -1,0 +1,23 @@
+// Run: cp to internal/xds/server/ on branch evalon/grpc-go-xd-8e055bd7, then: go test -race -count=1 -v -run 'TestVerifyC1_CountingInterceptorDoubleClose' ./internal/xds/server
+package server
+
+import "testing"
+
+// Calls the branch's own countingInterceptor.Close twice and prints the
+// counters its lifecycle tests assert on.
+func TestVerifyC1_CountingInterceptorDoubleClose(t *testing.T) {
+	fb := &countingFilterBuilder{}
+	f := fb.BuildServerFilter()
+	ic, err := f.BuildServerInterceptor(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("after build:        interceptorsCreated=%d interceptorsClosed=%d liveInterceptors()=%d", fb.interceptorsCreated.Load(), fb.interceptorsClosed.Load(), fb.liveInterceptors())
+	ic.Close()
+	t.Logf("after 1st Close():  interceptorsCreated=%d interceptorsClosed=%d liveInterceptors()=%d", fb.interceptorsCreated.Load(), fb.interceptorsClosed.Load(), fb.liveInterceptors())
+	ic.Close()
+	t.Logf("after 2nd Close():  interceptorsCreated=%d interceptorsClosed=%d liveInterceptors()=%d", fb.interceptorsCreated.Load(), fb.interceptorsClosed.Load(), fb.liveInterceptors())
+	if got := fb.interceptorsClosed.Load(); got != 2 {
+		t.Errorf("SUPPRESSED: interceptorsClosed=%d after two Close() calls; duplicate cleanup is invisible to the count assertions", got)
+	}
+}

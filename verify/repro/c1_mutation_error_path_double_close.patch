@@ -1,0 +1,12 @@
+diff --git a/internal/xds/server/listener_wrapper.go b/internal/xds/server/listener_wrapper.go
+index 0e21b2ee..2ae52000 100644
+--- a/internal/xds/server/listener_wrapper.go
++++ b/internal/xds/server/listener_wrapper.go
+@@ -217,6 +217,7 @@ func (l *listenerWrapper) handleRDSUpdate(routeName string, rcu rdsWatcherUpdate
+ 			if rcu.err != nil && rcu.data == nil { // Either NACK before update, or resource not found triggers this conditional.
+ 				urc := &usableRouteConfiguration{err: rcu.err}
+ 				urc.nodeID = l.xdsNodeID
++				fc.usableRouteConfiguration.Load().closeInterceptors() // VERIFY MUTATION: duplicate cleanup on the RDS-error path
+ 				fc.setUsableRouteConfiguration(urc)
+ 				continue
+ 			}
