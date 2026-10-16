@@ -1,0 +1,17 @@
+diff --git a/internal/xds/server/listener_wrapper.go b/internal/xds/server/listener_wrapper.go
+index 55f0078e..e04c2bb8 100644
+--- a/internal/xds/server/listener_wrapper.go
++++ b/internal/xds/server/listener_wrapper.go
+@@ -262,8 +262,11 @@ func (l *listenerWrapper) updateRouteConfigurationLocked(fc *filterChain, rcu rd
+ 		// Either NACK before update, or resource not found triggers this
+ 		// conditional. The error configuration does not use any server
+ 		// filters, so release the ones held for the previous configuration.
+-		fc.stop()
+ 		urc = &usableRouteConfiguration{err: rcu.err}
++		urc.nodeID = l.xdsNodeID
++		fc.swapUsableRouteConfiguration(urc)
++		fc.stop()
++		return
+ 	} else {
+ 		urc = fc.constructUsableRouteConfiguration(*rcu.data, l.getOrCreateServerFilterLocked)
+ 	}
